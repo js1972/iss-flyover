@@ -187,7 +187,6 @@
       min-height: 460px;
       overflow: hidden;
       box-shadow: var(--shadow);
-      touch-action: auto;
       overscroll-behavior: contain;
     }
 
@@ -212,7 +211,7 @@
     #map.leaflet-container,
     #map .leaflet-container {
       background: #1b1f26;
-      touch-action: auto;
+      touch-action: none;
     }
 
     #globe-view {
@@ -225,7 +224,7 @@
       inset: 0;
       width: 100%;
       height: 100%;
-      touch-action: auto;
+      touch-action: none;
     }
 
     #sky-view {
@@ -240,7 +239,7 @@
       width: 100%;
       height: 100%;
       display: block;
-      touch-action: auto;
+      touch-action: none;
     }
 
     .sky-overlay {
@@ -655,39 +654,21 @@
 
     function registerGestureBlocker(element, isActive) {
       if (!element) return;
-      let startY = 0;
-      let startX = 0;
-      let mode = null;
+      let active = false;
 
-      const onTouchStart = (event) => {
-        if (!isActive()) return;
-        const touch = event.touches[0];
-        if (!touch) return;
-        startY = touch.clientY;
-        startX = touch.clientX;
-        mode = null;
+      const onTouchStart = () => {
+        active = isActive();
       };
 
       const onTouchMove = (event) => {
-        if (!isActive()) return;
-        const touch = event.touches[0];
-        if (!touch) return;
-        const dy = touch.clientY - startY;
-        const dx = touch.clientX - startX;
-        const distanceSq = dx * dx + dy * dy;
-        const thresholdSq = 36; // 6px
-
-        if (!mode && distanceSq > thresholdSq) {
-          mode = Math.abs(dy) > Math.abs(dx) * 1.2 ? "scroll" : "drag";
-        }
-
-        if (mode === "drag" && event.cancelable) {
+        if (!active || !isActive()) return;
+        if (event.cancelable) {
           event.preventDefault();
         }
       };
 
       const onTouchEnd = () => {
-        mode = null;
+        active = false;
       };
 
       element.addEventListener("touchstart", onTouchStart, { passive: true });
