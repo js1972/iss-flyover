@@ -187,7 +187,7 @@
       min-height: 460px;
       overflow: hidden;
       box-shadow: var(--shadow);
-      touch-action: none;
+      touch-action: auto;
       overscroll-behavior: contain;
     }
 
@@ -212,7 +212,7 @@
     #map.leaflet-container,
     #map .leaflet-container {
       background: #1b1f26;
-      touch-action: none;
+      touch-action: auto;
     }
 
     #globe-view {
@@ -225,7 +225,7 @@
       inset: 0;
       width: 100%;
       height: 100%;
-      touch-action: none;
+      touch-action: auto;
     }
 
     #sky-view {
@@ -240,7 +240,7 @@
       width: 100%;
       height: 100%;
       display: block;
-      touch-action: none;
+      touch-action: auto;
     }
 
     .sky-overlay {
@@ -356,9 +356,10 @@
     }
 
     .preview-banner {
-      position: absolute;
-      left: 20px;
-      bottom: 20px;
+      position: relative;
+      left: 0;
+      right: 0;
+      margin: 14px 0 0;
       display: flex;
       gap: 10px;
       align-items: center;
@@ -473,11 +474,16 @@
 
       .viewer {
         min-height: 380px;
+        padding-bottom: 0;
       }
 
       .sky-overlay,
       .globe-overlay {
         display: none;
+      }
+
+      .preview-banner {
+        margin: 12px 0 0;
       }
     }
   </style>
@@ -535,12 +541,12 @@
       <div id="sky-view" class="view-panel" aria-label="ISS sky view">
         <canvas id="sky"></canvas>
         <div class="sky-overlay">Drag to rotate the sky, scroll to zoom. The arc shows the next pass above your horizon.</div>
-        <div class="preview-banner" id="preview-banner" hidden>
-          <span id="preview-text">Previewing pass</span>
-          <button id="preview-exit">Return to Live</button>
-        </div>
       </div>
     </section>
+    <div class="preview-banner" id="preview-banner" hidden>
+      <span id="preview-text">Previewing pass</span>
+      <button id="preview-exit">Return to Live</button>
+    </div>
 
     <section class="panel-grid">
       <div class="card">
@@ -647,13 +653,47 @@
       return ((lon + 540) % 360) - 180;
     }
 
-    function blockTouchScroll(element) {
+    function registerGestureBlocker(element, isActive) {
       if (!element) return;
-      element.addEventListener("touchmove", (event) => {
-        if (event.cancelable) {
+      let startY = 0;
+      let startX = 0;
+      let mode = null;
+
+      const onTouchStart = (event) => {
+        if (!isActive()) return;
+        const touch = event.touches[0];
+        if (!touch) return;
+        startY = touch.clientY;
+        startX = touch.clientX;
+        mode = null;
+      };
+
+      const onTouchMove = (event) => {
+        if (!isActive()) return;
+        const touch = event.touches[0];
+        if (!touch) return;
+        const dy = touch.clientY - startY;
+        const dx = touch.clientX - startX;
+        const distanceSq = dx * dx + dy * dy;
+        const thresholdSq = 36; // 6px
+
+        if (!mode && distanceSq > thresholdSq) {
+          mode = Math.abs(dy) > Math.abs(dx) * 1.2 ? "scroll" : "drag";
+        }
+
+        if (mode === "drag" && event.cancelable) {
           event.preventDefault();
         }
-      }, { passive: false });
+      };
+
+      const onTouchEnd = () => {
+        mode = null;
+      };
+
+      element.addEventListener("touchstart", onTouchStart, { passive: true });
+      element.addEventListener("touchmove", onTouchMove, { passive: false });
+      element.addEventListener("touchend", onTouchEnd, { passive: true });
+      element.addEventListener("touchcancel", onTouchEnd, { passive: true });
     }
 
     function saveUserLocation(lat, lon, source) {
@@ -785,7 +825,6 @@
 
     function initMap() {
       const bounds = L.latLngBounds([[-85, -180], [85, 180]]);
-      mapEl.style.touchAction = "none";
       state.map = L.map(mapEl, {
         zoomControl: true,
         worldCopyJump: false,
@@ -1022,7 +1061,6 @@
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setPixelRatio(window.devicePixelRatio || 1);
       renderer.setSize(globeEl.clientWidth, globeEl.clientHeight);
-      renderer.domElement.style.touchAction = "none";
       globeEl.innerHTML = "";
       globeEl.appendChild(renderer.domElement);
 
@@ -1548,36 +1586,52 @@
         });
         ctx.stroke();
 
-        const visiblePoints = skyPass.points.filter((pt) => pt.elevation > 0);
-        if (visiblePoints.length >= 2) {
-          const a = visiblePoints[visiblePoints.length - 2];
-          const b = visiblePoints[visiblePoints.length - 1];
-          const ra = radius * (1 - Math.max(0, a.elevation) / 90);
-          const rb = radius * (1 - Math.max(0, b.elevation) / 90);
-          const angleA = toRadians(a.azimuth);
-          const angleB = toRadians(b.azimuth);
-          const ax = Math.sin(angleA) * ra;
-          const ay = -Math.cos(angleA) * ra;
-          const bx = Math.sin(angleB) * rb;
-          const by = -Math.cos(angleB) * rb;
-          const dx = bx - ax;
-          const dy = by - ay;
-          const len = Math.hypot(dx, dy) || 1;
-          const ux = dx / len;
-          const uy = dy / len;
-          const arrowSize = 14;
-          const leftX = bx - ux * arrowSize - uy * (arrowSize * 0.6);
-          const leftY = by - uy * arrowSize + ux * (arrowSize * 0.6);
-          const rightX = bx - ux * arrowSize + uy * (arrowSize * 0.6);
-          const rightY = by - uy * arrowSize - ux * (arrowSize * 0.6);
+        if (skyPass.points.length >= 2) {
+          const toXY = (pt) => {
+            const r = radius * (1 - Math.max(0, pt.elevation) / 90);
+            const angle = toRadians(pt.azimuth);
+            return {
+              x: Math.sin(angle) * r,
+              y: -Math.cos(angle) * r
+            };
+          };
 
-          ctx.fillStyle = "rgba(23, 241, 177, 0.95)";
-          ctx.beginPath();
-          ctx.moveTo(bx, by);
-          ctx.lineTo(leftX, leftY);
-          ctx.lineTo(rightX, rightY);
-          ctx.closePath();
-          ctx.fill();
+          const last = skyPass.points[skyPass.points.length - 1];
+          const end = toXY(last);
+          let start = null;
+          for (let i = skyPass.points.length - 2; i >= 0; i--) {
+            const candidate = toXY(skyPass.points[i]);
+            const dx = end.x - candidate.x;
+            const dy = end.y - candidate.y;
+            if (dx * dx + dy * dy > 1) {
+              start = candidate;
+              break;
+            }
+          }
+
+          if (start) {
+            const dx = end.x - start.x;
+            const dy = end.y - start.y;
+            const len = Math.sqrt(dx * dx + dy * dy) || 1;
+            const ux = dx / len;
+            const uy = dy / len;
+            const arrowSize = 14;
+            const leftX = end.x - ux * arrowSize - uy * (arrowSize * 0.6);
+            const leftY = end.y - uy * arrowSize + ux * (arrowSize * 0.6);
+            const rightX = end.x - ux * arrowSize + uy * (arrowSize * 0.6);
+            const rightY = end.y - uy * arrowSize - ux * (arrowSize * 0.6);
+
+            ctx.fillStyle = "rgba(23, 241, 177, 0.95)";
+            ctx.strokeStyle = "rgba(10, 14, 24, 0.9)";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(end.x, end.y);
+            ctx.lineTo(leftX, leftY);
+            ctx.lineTo(rightX, rightY);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          }
         }
       }
 
@@ -1618,7 +1672,6 @@
     }
 
     function initSky() {
-      skyCanvas.style.touchAction = "none";
       state.sky.stars = Array.from({ length: 140 }).map(() => ({
         az: Math.random() * 360,
         el: Math.random() * 90,
@@ -1796,10 +1849,9 @@
     initGlobe();
     initSky();
     clearPreview();
-    blockTouchScroll(mapEl);
-    blockTouchScroll(globeViewEl);
-    blockTouchScroll(globeEl);
-    blockTouchScroll(skyCanvas);
+    registerGestureBlocker(mapEl, () => mapEl.classList.contains("active"));
+    registerGestureBlocker(globeEl, () => globeViewEl.classList.contains("active"));
+    registerGestureBlocker(skyCanvas, () => skyViewEl.classList.contains("active"));
     loadStoredLocation();
     refreshAll();
     animateISS();
