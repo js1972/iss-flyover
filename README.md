@@ -25,5 +25,10 @@ Option B (recommended for best compatibility):
 - Forecasts and orbit paths are computed from live TLE data in the browser.
 - Notifications require permission and the tab to stay open.
 
+## APIs & Libraries
+- Where the ISS at? (ISS position + TLE): `https://api.wheretheiss.at`
+- Carto basemap tiles: `https://basemaps.cartocdn.com`
+- Leaflet (map), SunCalc (sun position), satellite.js (orbit propagation), Three.js (globe rendering)
+
 ## Files
 - `index.html` — the entire app
