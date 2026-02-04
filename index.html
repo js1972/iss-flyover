@@ -787,7 +787,7 @@
 
       if (state.nextVisible) {
         nextPass.textContent = formatDateTime(new Date(state.nextVisible.start * 1000));
-        nextPassMeta.textContent = `Max elevation ${state.nextVisible.maxEl.toFixed(0)}° • ${state.nextVisible.duration} min`;
+        nextPassMeta.textContent = `Max elevation ${state.nextVisible.maxEl.toFixed(0)}° • Visible ${state.nextVisible.duration} min`;
       } else {
         nextPass.textContent = "No visible pass found";
         nextPassMeta.textContent = state.user ? `No good passes in the next ${FORECAST_DAYS} days` : "Need location to predict";
@@ -1311,6 +1311,55 @@
       }
     }
 
+    async function refinePasses(passes, stepSeconds = 10) {
+      if (!window.satellite || !state.user || !passes.length) return passes;
+      try {
+        const tle = await ensureTLE();
+        const refined = [];
+        for (const pass of passes) {
+          const stamps = [];
+          for (let t = pass.start; t <= pass.end; t += stepSeconds) {
+            stamps.push(t);
+          }
+          const track = buildTrackFromTLE(tle.satrec, stamps);
+          const observer = ecefFromLatLon(state.user.lat, state.user.lon, 0);
+          const points = track.map((p) => {
+            const sat = ecefFromLatLon(p.latitude, p.longitude, p.altitude || 0);
+            const look = topocentricAzEl(observer, sat);
+            return { ...p, ...look };
+          });
+
+          const above = points.filter((pt) => pt.elevation > 0);
+          if (!above.length) {
+            refined.push(pass);
+            continue;
+          }
+          const first = above[0];
+          const last = above[above.length - 1];
+          const peak = above.reduce((a, b) => (b.elevation > a.elevation ? b : a), above[0]);
+          const sunAlt = SunCalc.getPosition(new Date(peak.timestamp * 1000), state.user.lat, state.user.lon).altitude * 180 / Math.PI;
+          const night = sunAlt < -6;
+          const durationMin = Math.max(1, Math.round((last.timestamp - first.timestamp) / 60));
+
+          refined.push({
+            ...pass,
+            start: first.timestamp,
+            end: last.timestamp,
+            duration: durationMin,
+            maxEl: peak.elevation,
+            peakPoint: peak,
+            night,
+            visible: night && peak.elevation > 20 && durationMin >= 2,
+            points
+          });
+        }
+        return refined;
+      } catch (error) {
+        console.warn("Pass refinement failed.", error);
+        return passes;
+      }
+    }
+
     function toRadians(deg) {
       return deg * Math.PI / 180;
     }
@@ -1432,7 +1481,7 @@
         item.innerHTML = `
           <div>
             <p class="pass-title">${formatDateTime(new Date(pass.start * 1000))}</p>
-            <div class="pass-meta">Duration ${pass.duration} min • Max elevation ${pass.maxEl.toFixed(0)}°</div>
+            <div class="pass-meta">Visible ${pass.duration} min • Max elevation ${pass.maxEl.toFixed(0)}°</div>
           </div>
           <span class="badge ${isPreview ? "preview" : isBest ? "best" : "visible"}">${isPreview ? "Preview" : isBest ? "Best" : "Visible"}</span>
         `;
@@ -1699,6 +1748,7 @@
         await fetchISSTrack(hours, 60);
         const forecast = await fetchISSForecast(FORECAST_DAYS, 120);
         state.passes = computePasses(forecast);
+        state.passes = await refinePasses(state.passes, 10);
         state.goodPasses = state.passes.filter((pass) => pass.visible);
         if (state.preview.active) {
           const match = state.goodPasses.find((pass) => pass.start === state.preview.pass?.start && pass.end === state.preview.pass?.end);
