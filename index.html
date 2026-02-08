@@ -216,7 +216,7 @@
 
     #globe-view {
       z-index: 2;
-      background: radial-gradient(circle at 50% 30%, rgba(18, 36, 72, 0.9), #04060c 70%);
+      background: radial-gradient(circle at 50% 30%, rgba(34, 66, 118, 0.92), rgba(10, 18, 34, 0.92) 72%);
     }
 
     #globe {
@@ -634,6 +634,19 @@
     const ISS_TLE_URL = "https://api.wheretheiss.at/v1/satellites/25544/tles";
     const STORAGE_KEY = "iss-flyover-location";
     const FORECAST_DAYS = 7;
+    const GLOBE_VISUALS = {
+      texturePrimary: "https://unpkg.com/three-globe/example/img/earth-day.jpg",
+      textureFallback: "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg",
+      toneMappingExposure: 1.18,
+      ambientIntensity: 0.95,
+      keyIntensity: 1.1,
+      keyPosition: [4.8, 2.6, 5.2],
+      fillIntensity: 0.38,
+      fillPosition: [-4.2, -1.4, -4.8],
+      emissive: 0x0f1523,
+      shininess: 10,
+      atmosphereOpacity: 0.05
+    };
 
     const mapEl = document.getElementById("map");
     const globeViewEl = document.getElementById("globe-view");
@@ -1040,6 +1053,15 @@
         return;
       }
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      if ("outputColorSpace" in renderer && THREE.SRGBColorSpace) {
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+      } else if ("outputEncoding" in renderer && THREE.sRGBEncoding) {
+        renderer.outputEncoding = THREE.sRGBEncoding;
+      }
+      if (THREE.ACESFilmicToneMapping) {
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = GLOBE_VISUALS.toneMappingExposure;
+      }
       renderer.setPixelRatio(window.devicePixelRatio || 1);
       renderer.setSize(globeEl.clientWidth, globeEl.clientHeight);
       globeEl.innerHTML = "";
@@ -1061,31 +1083,79 @@
         controls.maxDistance = 4;
       }
 
-      scene.add(new THREE.AmbientLight(0x8899ff, 0.6));
-      const light = new THREE.DirectionalLight(0xffffff, 0.9);
-      light.position.set(5, 2, 5);
-      scene.add(light);
+      const ambient = new THREE.AmbientLight(0xffffff, GLOBE_VISUALS.ambientIntensity);
+      scene.add(ambient);
+
+      const keyLight = new THREE.DirectionalLight(0xffffff, GLOBE_VISUALS.keyIntensity);
+      keyLight.position.set(...GLOBE_VISUALS.keyPosition);
+      scene.add(keyLight);
+
+      // Fill light prevents night-side crushing when rotating.
+      const fillLight = new THREE.DirectionalLight(0xa9c3ff, GLOBE_VISUALS.fillIntensity);
+      fillLight.position.set(...GLOBE_VISUALS.fillPosition);
+      scene.add(fillLight);
 
       const globeGroup = new THREE.Group();
       scene.add(globeGroup);
 
       const earthGeometry = new THREE.SphereGeometry(1, 64, 64);
       const textureLoader = new THREE.TextureLoader();
-      const earthTexture = textureLoader.load(
-        "https://unpkg.com/three-globe/example/img/earth-night.jpg",
-        () => renderGlobe()
-      );
       const earthMaterial = new THREE.MeshPhongMaterial({
-        map: earthTexture,
-        emissive: new THREE.Color(0x111111),
-        shininess: 12
+        color: 0xffffff,
+        emissive: new THREE.Color(GLOBE_VISUALS.emissive),
+        shininess: GLOBE_VISUALS.shininess
       });
       const earth = new THREE.Mesh(earthGeometry, earthMaterial);
       globeGroup.add(earth);
 
+      const setTextureColorSpace = (texture) => {
+        if ("colorSpace" in texture && THREE.SRGBColorSpace) {
+          texture.colorSpace = THREE.SRGBColorSpace;
+        } else if ("encoding" in texture && THREE.sRGBEncoding) {
+          texture.encoding = THREE.sRGBEncoding;
+        }
+      };
+
+      const loadEarthTexture = (url, onSuccess, onError) => {
+        textureLoader.load(
+          url,
+          (texture) => {
+            setTextureColorSpace(texture);
+            onSuccess(texture);
+          },
+          undefined,
+          onError
+        );
+      };
+
+      loadEarthTexture(
+        GLOBE_VISUALS.texturePrimary,
+        (texture) => {
+          earthMaterial.map = texture;
+          earthMaterial.needsUpdate = true;
+          renderGlobe();
+        },
+        () => {
+          loadEarthTexture(
+            GLOBE_VISUALS.textureFallback,
+            (texture) => {
+              earthMaterial.map = texture;
+              earthMaterial.needsUpdate = true;
+              renderGlobe();
+            },
+            () => {
+              earthMaterial.color = new THREE.Color(0x3b6d98);
+              earthMaterial.needsUpdate = true;
+              showGlobeMessage("Globe texture failed to load. Showing simplified surface.");
+              renderGlobe();
+            }
+          );
+        }
+      );
+
       const atmosphere = new THREE.Mesh(
         new THREE.SphereGeometry(1.02, 64, 64),
-        new THREE.MeshBasicMaterial({ color: 0x2ad1ff, transparent: true, opacity: 0.08 })
+        new THREE.MeshBasicMaterial({ color: 0x2ad1ff, transparent: true, opacity: GLOBE_VISUALS.atmosphereOpacity })
       );
       globeGroup.add(atmosphere);
 
