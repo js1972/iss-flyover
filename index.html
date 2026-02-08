@@ -205,13 +205,17 @@
 
     #map {
       z-index: 1;
-      background: #1b1f26;
+      background: #2a3547;
     }
 
     #map.leaflet-container,
     #map .leaflet-container {
-      background: #1b1f26;
+      background: #2a3547;
       touch-action: none;
+    }
+
+    #map .leaflet-tile {
+      filter: brightness(1.08) contrast(1.04) saturate(1.05);
     }
 
     #globe-view {
@@ -827,7 +831,7 @@
         preferCanvas: false
       }).setView([0, 0], 2);
 
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png", {
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png", {
         attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
         subdomains: "abcd",
         maxZoom: 8,
