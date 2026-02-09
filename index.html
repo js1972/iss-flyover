@@ -169,6 +169,14 @@
       margin-top: 6px;
     }
 
+    .view-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
     .view-toggle {
       display: inline-flex;
       gap: 8px;
@@ -323,6 +331,54 @@
       gap: 12px;
     }
 
+    .sky-event-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .sky-event-item {
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(12, 18, 32, 0.66);
+      border: 1px solid rgba(120, 140, 180, 0.2);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .sky-event-item.clickable {
+      cursor: pointer;
+      transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .sky-event-item.clickable:hover {
+      transform: translateY(-1px);
+      border-color: rgba(42, 209, 255, 0.38);
+      background: rgba(14, 22, 40, 0.9);
+    }
+
+    .sky-event-item.emphasis {
+      border-color: rgba(255, 188, 105, 0.65);
+      background: linear-gradient(135deg, rgba(255, 188, 105, 0.14), rgba(12, 18, 32, 0.9));
+      box-shadow: 0 0 0 1px rgba(255, 188, 105, 0.2), 0 10px 24px rgba(34, 22, 10, 0.4);
+    }
+
+    .sky-event-item.selected {
+      border-color: rgba(155, 92, 255, 0.72);
+      background: linear-gradient(135deg, rgba(155, 92, 255, 0.2), rgba(14, 22, 40, 0.96));
+      box-shadow:
+        0 0 0 2px rgba(155, 92, 255, 0.6),
+        0 0 0 5px rgba(155, 92, 255, 0.16),
+        0 12px 26px rgba(18, 10, 38, 0.55);
+      transform: translateY(-1px);
+    }
+
+    .forecast-note {
+      margin: -4px 0 10px;
+    }
+
     .pass-item {
       padding: 12px 14px;
       border-radius: 16px;
@@ -353,7 +409,16 @@
 
     .pass-item.preview {
       border-color: rgba(155, 92, 255, 0.7);
-      box-shadow: 0 0 0 1px rgba(155, 92, 255, 0.3), 0 10px 26px rgba(12, 10, 26, 0.5);
+      background: linear-gradient(135deg, rgba(155, 92, 255, 0.2), rgba(14, 22, 40, 0.95));
+      box-shadow:
+        0 0 0 2px rgba(155, 92, 255, 0.65),
+        0 0 0 5px rgba(155, 92, 255, 0.18),
+        0 14px 28px rgba(18, 10, 38, 0.55);
+      transform: translateY(-1px);
+    }
+
+    .pass-item.preview .pass-title {
+      color: #f0d8ff;
     }
 
     .pass-title {
@@ -365,6 +430,23 @@
       font-family: "IBM Plex Mono", monospace;
       font-size: 0.78rem;
       color: var(--muted);
+    }
+
+    .pass-meta.sky-highlight {
+      color: #9fd6f3;
+      margin-top: 3px;
+    }
+
+    .pass-meta.alignment-highlight {
+      color: #f8d9a1;
+      margin-top: 3px;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
     }
 
     .badge {
@@ -394,11 +476,15 @@
       border: 1px solid rgba(155, 92, 255, 0.6);
     }
 
+    .badge.alignment {
+      background: rgba(255, 188, 105, 0.2);
+      color: #ffd09c;
+      border: 1px solid rgba(255, 188, 105, 0.55);
+    }
+
     .preview-banner {
       position: relative;
-      left: 0;
-      right: 0;
-      margin: 14px 0 0;
+      margin: 0 0 0 auto;
       display: flex;
       gap: 10px;
       align-items: center;
@@ -411,12 +497,21 @@
       color: var(--text);
       backdrop-filter: blur(6px);
       box-shadow: 0 10px 26px rgba(12, 10, 26, 0.5);
+      max-width: 620px;
     }
 
     .preview-banner button {
       padding: 6px 12px;
       border-radius: 999px;
       font-size: 0.7rem;
+    }
+
+    .preview-banner[hidden] {
+      display: none !important;
+    }
+
+    .preview-banner span {
+      flex: 1;
     }
 
     .badge.daylight {
@@ -435,6 +530,10 @@
       display: flex;
       flex-direction: column;
       gap: 14px;
+    }
+
+    .settings-section {
+      margin-top: 6px;
     }
 
     .control-group label {
@@ -524,7 +623,13 @@
       }
 
       .preview-banner {
-        margin: 12px 0 0;
+        margin: 8px 0 0;
+        max-width: 100%;
+        width: 100%;
+      }
+
+      .view-toolbar {
+        display: block;
       }
     }
   </style>
@@ -567,10 +672,16 @@
       </div>
     </header>
 
-    <div class="view-toggle" role="tablist">
-      <button id="btn-map">Map View</button>
-      <button class="active" id="btn-globe">Globe View</button>
-      <button id="btn-sky">User View</button>
+    <div class="view-toolbar">
+      <div class="view-toggle" role="tablist">
+        <button id="btn-map">Map View</button>
+        <button class="active" id="btn-globe">Globe View</button>
+        <button id="btn-sky">User View</button>
+      </div>
+      <div class="preview-banner" id="preview-banner" hidden>
+        <span id="preview-text">Previewing pass</span>
+        <button id="preview-exit">Return to Live</button>
+      </div>
     </div>
 
     <section class="viewer">
@@ -581,17 +692,14 @@
       </div>
       <div id="sky-view" class="view-panel" aria-label="ISS sky view">
         <canvas id="sky"></canvas>
-        <div class="sky-overlay">Drag to rotate the sky, scroll to zoom. The arc shows the next pass above your horizon.</div>
+        <div class="sky-overlay">Drag to rotate the sky, scroll to zoom. The arc shows the ISS pass and planet markers show naked-eye targets.</div>
       </div>
     </section>
-    <div class="preview-banner" id="preview-banner" hidden>
-      <span id="preview-text">Previewing pass</span>
-      <button id="preview-exit">Return to Live</button>
-    </div>
 
     <section class="panel-grid">
       <div class="card">
         <h3>Flyover Forecast (Next 7 Days)</h3>
+        <div class="stat-sub forecast-note">Sky highlights show naked-eye planets visible during each ISS pass.</div>
         <div class="pass-list" id="pass-list">
           <div class="pass-item">
             <div>
@@ -602,6 +710,21 @@
           </div>
         </div>
       </div>
+      <div class="card">
+        <h3>Naked-Eye Sky Highlights (Next 7 Days)</h3>
+        <div class="sky-event-list" id="sky-events-list">
+          <div class="sky-event-item">
+            <div>
+              <p class="pass-title">Waiting for location…</p>
+              <div class="pass-meta">Enable geolocation to calculate sky highlights</div>
+            </div>
+            <span class="badge daylight">Standby</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="settings-section">
       <div class="card controls">
         <div class="control-group">
           <label>Manual Coordinates</label>
@@ -628,6 +751,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
   <script src="https://unpkg.com/satellite.js/dist/satellite.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
   <script src="https://unpkg.com/three@0.155.0/build/three.min.js"></script>
   <script src="https://unpkg.com/three@0.155.0/examples/js/controls/OrbitControls.js"></script>
   <script>
@@ -650,11 +774,15 @@
       trail: [],
       passes: [],
       goodPasses: [],
+      passSkyHighlights: {},
+      alignmentEvents: [],
+      skyEvents: [],
+      planetCache: new Map(),
       nextVisible: null,
       notificationTimer: null,
       notificationsEnabled: false,
       anim: { rafId: null, lastStatus: 0 },
-      preview: { active: false, pass: null },
+      preview: { active: false, mode: "live", pass: null, skyEvent: null },
       globe: {
         ready: false,
         scene: null,
@@ -704,6 +832,22 @@
       trackGlowColor: "#22d5ff",
       trackDashColor: "#57e6ff"
     };
+    const PLANET_VISUALS = {
+      planets: [
+        { body: "Mercury", color: "#d0bea5" },
+        { body: "Venus", color: "#ffd56a" },
+        { body: "Mars", color: "#ff9166" },
+        { body: "Jupiter", color: "#f1e8c9" },
+        { body: "Saturn", color: "#e7c589" }
+      ],
+      moon: { body: "Moon", color: "#ccd8ff" },
+      minElevationDeg: 5,
+      maxSunAltitudeDeg: -6,
+      brightMagnitude: 1.5,
+      alignmentSeparationDeg: 4.0,
+      alignmentWindowSeconds: 3600,
+      alignmentStepMinutes: 30
+    };
 
     const mapEl = document.getElementById("map");
     const globeViewEl = document.getElementById("globe-view");
@@ -711,6 +855,7 @@
     const skyViewEl = document.getElementById("sky-view");
     const skyCanvas = document.getElementById("sky");
     const passList = document.getElementById("pass-list");
+    const skyEventsList = document.getElementById("sky-events-list");
     const previewBanner = document.getElementById("preview-banner");
     const previewText = document.getElementById("preview-text");
 
@@ -746,6 +891,381 @@
       state.mapTheme = nextTheme;
       mapEl.classList.remove("map-theme-primary", "map-theme-fallback");
       mapEl.classList.add(nextTheme === "fallback" ? "map-theme-fallback" : "map-theme-primary");
+    }
+
+    function passKey(pass) {
+      return `${pass.start}-${pass.end}`;
+    }
+
+    function azimuthToCompass(azimuth) {
+      const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+      const normalized = ((azimuth % 360) + 360) % 360;
+      const index = Math.round(normalized / 22.5) % directions.length;
+      return directions[index];
+    }
+
+    function averageAzimuth(azA, azB) {
+      const a = toRadians(azA);
+      const b = toRadians(azB);
+      const x = Math.cos(a) + Math.cos(b);
+      const y = Math.sin(a) + Math.sin(b);
+      return (toDegrees(Math.atan2(y, x)) + 360) % 360;
+    }
+
+    function angularSeparation(raDegA, decDegA, raDegB, decDegB) {
+      const raA = toRadians(raDegA);
+      const decA = toRadians(decDegA);
+      const raB = toRadians(raDegB);
+      const decB = toRadians(decDegB);
+      const cosSep = Math.sin(decA) * Math.sin(decB) + Math.cos(decA) * Math.cos(decB) * Math.cos(raA - raB);
+      return toDegrees(Math.acos(Math.max(-1, Math.min(1, cosSep))));
+    }
+
+    function getPlanetObservation(body, date, observer, sunAltitude) {
+      if (!window.Astronomy || !observer) return null;
+      try {
+        const equatorial = window.Astronomy.Equator(body, date, observer, true, true);
+        const horizontal = window.Astronomy.Horizon(date, observer, equatorial.ra, equatorial.dec, "normal");
+        const illumination = window.Astronomy.Illumination(body, date);
+        const elevation = horizontal.altitude;
+        const azimuth = (horizontal.azimuth + 360) % 360;
+        const magnitude = Number.isFinite(illumination?.mag) ? illumination.mag : null;
+        return {
+          body,
+          azimuth,
+          elevation,
+          magnitude,
+          bright: magnitude !== null && magnitude <= PLANET_VISUALS.brightMagnitude,
+          visible: sunAltitude < PLANET_VISUALS.maxSunAltitudeDeg && elevation >= PLANET_VISUALS.minElevationDeg,
+          raDeg: equatorial.ra * 15,
+          decDeg: equatorial.dec
+        };
+      } catch (error) {
+        console.warn(`Planet observation failed for ${body}.`, error);
+        return null;
+      }
+    }
+
+    function getSkyContextAt(date, lat, lon) {
+      if (!window.Astronomy || !window.Astronomy.Observer) {
+        return { darkEnough: false, sunAltitude: 90, visiblePlanets: [], moon: null, observations: [] };
+      }
+
+      const minute = Math.floor(date.getTime() / 60000);
+      const cacheKey = `${lat.toFixed(3)}|${lon.toFixed(3)}|${minute}`;
+      const cached = state.planetCache.get(cacheKey);
+      if (cached) return cached;
+
+      const observer = new window.Astronomy.Observer(lat, lon, 0);
+      const sunAltitude = SunCalc.getPosition(date, lat, lon).altitude * 180 / Math.PI;
+      const observations = [];
+      PLANET_VISUALS.planets.forEach((planet) => {
+        const observation = getPlanetObservation(planet.body, date, observer, sunAltitude);
+        if (!observation) return;
+        observations.push({ ...observation, color: planet.color });
+      });
+
+      const visiblePlanets = observations
+        .filter((observation) => observation.visible)
+        .sort((a, b) => {
+          const magA = Number.isFinite(a.magnitude) ? a.magnitude : 99;
+          const magB = Number.isFinite(b.magnitude) ? b.magnitude : 99;
+          if (magA !== magB) return magA - magB;
+          return b.elevation - a.elevation;
+        });
+
+      const moonObs = getPlanetObservation(PLANET_VISUALS.moon.body, date, observer, sunAltitude);
+      const moonVisible = moonObs && moonObs.elevation >= PLANET_VISUALS.minElevationDeg && sunAltitude < PLANET_VISUALS.maxSunAltitudeDeg
+        ? { ...moonObs, color: PLANET_VISUALS.moon.color }
+        : null;
+
+      const context = {
+        darkEnough: sunAltitude < PLANET_VISUALS.maxSunAltitudeDeg,
+        sunAltitude,
+        visiblePlanets,
+        moon: moonVisible,
+        observations
+      };
+
+      state.planetCache.set(cacheKey, context);
+      return context;
+    }
+
+    function computeAlignmentEvents(startTimestamp, endTimestamp, lat, lon) {
+      if (!window.Astronomy || !window.Astronomy.Observer) return [];
+      const stepSeconds = PLANET_VISUALS.alignmentStepMinutes * 60;
+      const active = new Map();
+      const events = [];
+
+      for (let ts = startTimestamp; ts <= endTimestamp; ts += stepSeconds) {
+        const context = getSkyContextAt(new Date(ts * 1000), lat, lon);
+        const planets = context.visiblePlanets;
+        const seenPairs = new Set();
+
+        for (let i = 0; i < planets.length; i++) {
+          for (let j = i + 1; j < planets.length; j++) {
+            const a = planets[i];
+            const b = planets[j];
+            const separation = angularSeparation(a.raDeg, a.decDeg, b.raDeg, b.decDeg);
+            if (separation > PLANET_VISUALS.alignmentSeparationDeg) continue;
+
+            const bodies = [a.body, b.body].sort((left, right) => left.localeCompare(right));
+            const pairId = bodies.join("|");
+            seenPairs.add(pairId);
+            const azimuth = averageAzimuth(a.azimuth, b.azimuth);
+            const elevation = (a.elevation + b.elevation) / 2;
+
+            if (!active.has(pairId)) {
+              active.set(pairId, {
+                pairId,
+                bodies,
+                start: ts,
+                end: ts,
+                peakTs: ts,
+                minSeparation: separation,
+                azimuth,
+                elevation
+              });
+            } else {
+              const event = active.get(pairId);
+              event.end = ts;
+              if (separation < event.minSeparation) {
+                event.minSeparation = separation;
+                event.peakTs = ts;
+                event.azimuth = azimuth;
+                event.elevation = elevation;
+              }
+            }
+          }
+        }
+
+        for (const [pairId, event] of active.entries()) {
+          if (seenPairs.has(pairId)) continue;
+          events.push({
+            ...event,
+            label: `${event.bodies[0]} + ${event.bodies[1]}`,
+            direction: azimuthToCompass(event.azimuth)
+          });
+          active.delete(pairId);
+        }
+      }
+
+      for (const event of active.values()) {
+        events.push({
+          ...event,
+          label: `${event.bodies[0]} + ${event.bodies[1]}`,
+          direction: azimuthToCompass(event.azimuth)
+        });
+      }
+
+      return events.sort((a, b) => a.peakTs - b.peakTs);
+    }
+
+    function findNearbyAlignment(peakTimestamp, alignmentEvents) {
+      let nearest = null;
+      alignmentEvents.forEach((event) => {
+        const delta = Math.abs(event.peakTs - peakTimestamp);
+        if (delta > PLANET_VISUALS.alignmentWindowSeconds) return;
+        if (!nearest || delta < nearest.delta) {
+          nearest = { event, delta };
+        }
+      });
+      return nearest ? nearest.event : null;
+    }
+
+    function formatSkyTarget(target) {
+      const direction = azimuthToCompass(target.azimuth);
+      return `${target.body} ${Math.round(target.elevation)}° ${direction}`;
+    }
+
+    function buildSkyEvents(lat, lon, alignmentEvents) {
+      const now = Math.floor(Date.now() / 1000);
+      const end = now + FORECAST_DAYS * 24 * 3600;
+      const groupingStepSeconds = PLANET_VISUALS.alignmentStepMinutes * 60;
+      const dailyBest = new Map();
+
+      for (let ts = now; ts <= end; ts += groupingStepSeconds) {
+        const context = getSkyContextAt(new Date(ts * 1000), lat, lon);
+        if (!context.darkEnough || context.visiblePlanets.length < 2) continue;
+        const topTargets = context.visiblePlanets.slice(0, 4);
+        const score = topTargets.length * 100 + topTargets.reduce((sum, target) => sum + target.elevation, 0);
+        const dayKey = new Date(ts * 1000).toLocaleDateString("en-CA");
+        const existing = dailyBest.get(dayKey);
+        if (!existing || score > existing.score) {
+          dailyBest.set(dayKey, { timestamp: ts, score, topTargets });
+        }
+      }
+
+      const groupingEventsRaw = Array.from(dailyBest.values()).map((entry) => {
+        const topTargets = entry.topTargets;
+        const names = topTargets.map((target) => target.body);
+        const summary = topTargets.map((target) => formatSkyTarget(target)).join(" • ");
+        return {
+          id: `group-${entry.timestamp}-${names.join("-")}`,
+          type: "group",
+          focusTs: entry.timestamp,
+          start: entry.timestamp - 45 * 60,
+          end: entry.timestamp + 45 * 60,
+          emphasis: topTargets.length >= 3,
+          bodies: names,
+          title: `Planet grouping: ${names.join(", ")}`,
+          meta: `Best around ${formatDateTime(new Date(entry.timestamp * 1000))}`,
+          details: summary,
+          score: entry.score
+        };
+      });
+
+      const groupingEvents = groupingEventsRaw
+        .sort((left, right) => left.start - right.start)
+        .map((event) => {
+          const { score, ...clean } = event;
+          return clean;
+        });
+
+      const alignmentHighlights = alignmentEvents
+        .filter((event) => event.end > now)
+        .map((event) => ({
+          id: `align-${event.pairId}-${event.peakTs}`,
+          type: "alignment",
+          focusTs: event.peakTs,
+          start: event.start,
+          end: event.end,
+          emphasis: event.minSeparation <= 2.5,
+          bodies: event.bodies,
+          title: `${event.label} alignment`,
+          meta: `Closest ${event.minSeparation.toFixed(1)}° at ${formatDateTime(new Date(event.peakTs * 1000))}`,
+          details: `Direction ${event.direction} • Altitude ${Math.round(event.elevation)}°`
+        }));
+
+      return [...alignmentHighlights, ...groupingEvents]
+        .sort((left, right) => left.start - right.start)
+        .slice(0, 14);
+    }
+
+    function renderSkyEventsList() {
+      if (!skyEventsList) return;
+      skyEventsList.innerHTML = "";
+
+      if (!state.user) {
+        skyEventsList.innerHTML = `
+          <div class="sky-event-item">
+            <div>
+              <p class="pass-title">Waiting for location…</p>
+              <div class="pass-meta">Enable geolocation to calculate sky highlights</div>
+            </div>
+            <span class="badge daylight">Standby</span>
+          </div>
+        `;
+        return;
+      }
+
+      if (!window.Astronomy || !window.Astronomy.Observer) {
+        skyEventsList.innerHTML = `
+          <div class="sky-event-item">
+            <div>
+              <p class="pass-title">Sky engine unavailable</p>
+              <div class="pass-meta">Could not load planetary calculations</div>
+            </div>
+            <span class="badge low">Unavailable</span>
+          </div>
+        `;
+        return;
+      }
+
+      if (!state.skyEvents.length) {
+        skyEventsList.innerHTML = `
+          <div class="sky-event-item">
+            <div>
+              <p class="pass-title">No standout naked-eye events in the next ${FORECAST_DAYS} days</p>
+              <div class="pass-meta">Try refreshing or checking a different location</div>
+            </div>
+            <span class="badge daylight">Quiet</span>
+          </div>
+        `;
+        return;
+      }
+
+      const selectedEventId = state.preview.active && state.preview.mode === "event" ? state.preview.skyEvent?.id : null;
+      state.skyEvents.forEach((event) => {
+        const item = document.createElement("div");
+        const isSelected = selectedEventId === event.id;
+        item.className = `sky-event-item clickable${event.emphasis ? " emphasis" : ""}${isSelected ? " selected" : ""}`;
+        const badges = [];
+        if (isSelected) badges.push('<span class="badge preview">Preview</span>');
+        if (event.type === "alignment") badges.push('<span class="badge alignment">Alignment</span>');
+        if (event.emphasis) badges.push('<span class="badge best">Best Night</span>');
+        const badgeColumn = badges.length ? `<div class="badge-row">${badges.join("")}</div>` : "";
+        item.innerHTML = `
+          <div>
+            <p class="pass-title">${event.title}</p>
+            <div class="pass-meta">${event.meta}</div>
+            <div class="pass-meta sky-highlight">${event.details}</div>
+          </div>
+          ${badgeColumn}
+        `;
+        item.addEventListener("click", () => setSkyEventPreview(event));
+        skyEventsList.appendChild(item);
+      });
+    }
+
+    function enrichPassesWithSkyContext(passes) {
+      state.passSkyHighlights = {};
+      if (!state.user || !window.Astronomy || !window.Astronomy.Observer) {
+        state.alignmentEvents = [];
+        state.skyEvents = [];
+        return passes;
+      }
+
+      const now = Math.floor(Date.now() / 1000);
+      const end = now + FORECAST_DAYS * 24 * 3600;
+      state.alignmentEvents = computeAlignmentEvents(now, end, state.user.lat, state.user.lon);
+      state.skyEvents = buildSkyEvents(state.user.lat, state.user.lon, state.alignmentEvents);
+
+      return passes.map((pass) => {
+        if (!pass.visible) {
+          const quiet = { skySummary: "", moonSummary: "", alignmentSummary: "", topTargets: [], alignmentEvent: null };
+          state.passSkyHighlights[passKey(pass)] = quiet;
+          return { ...pass, ...quiet };
+        }
+
+        const peakTimestamp = pass.peakPoint?.timestamp || Math.round((pass.start + pass.end) / 2);
+        const sampleTimes = [pass.start, peakTimestamp, pass.end];
+        const bestTargets = new Map();
+        let bestMoon = null;
+
+        sampleTimes.forEach((timestamp) => {
+          const context = getSkyContextAt(new Date(timestamp * 1000), state.user.lat, state.user.lon);
+          context.visiblePlanets.forEach((target) => {
+            const existing = bestTargets.get(target.body);
+            if (!existing || target.elevation > existing.elevation) {
+              bestTargets.set(target.body, target);
+            }
+          });
+          if (context.moon && (!bestMoon || context.moon.elevation > bestMoon.elevation)) {
+            bestMoon = context.moon;
+          }
+        });
+
+        const topTargets = Array.from(bestTargets.values())
+          .sort((a, b) => {
+            const magA = Number.isFinite(a.magnitude) ? a.magnitude : 99;
+            const magB = Number.isFinite(b.magnitude) ? b.magnitude : 99;
+            if (magA !== magB) return magA - magB;
+            return b.elevation - a.elevation;
+          })
+          .slice(0, 3);
+
+        const alignmentEvent = findNearbyAlignment(peakTimestamp, state.alignmentEvents);
+        const skySummary = topTargets.length ? `Sky: ${topTargets.map(formatSkyTarget).join(", ")}` : "";
+        const moonSummary = bestMoon ? `Moon: ${Math.round(bestMoon.elevation)}° ${azimuthToCompass(bestMoon.azimuth)}` : "";
+        const alignmentSummary = alignmentEvent
+          ? `${alignmentEvent.label} ${alignmentEvent.minSeparation.toFixed(1)}° apart`
+          : "";
+
+        const highlight = { skySummary, moonSummary, alignmentSummary, topTargets, alignmentEvent };
+        state.passSkyHighlights[passKey(pass)] = highlight;
+        return { ...pass, ...highlight };
+      });
     }
 
     function registerGestureBlocker(element, isActive) {
@@ -1691,18 +2211,33 @@
       }
 
       const bestPass = getBestPass(state.goodPasses);
-      const previewKey = state.preview.pass ? `${state.preview.pass.start}-${state.preview.pass.end}` : null;
+      const previewKey = state.preview.active && state.preview.mode === "pass" && state.preview.pass
+        ? passKey(state.preview.pass)
+        : null;
       state.goodPasses.slice(0, 14).forEach((pass) => {
         const isBest = bestPass && pass.start === bestPass.start && pass.end === bestPass.end;
-        const isPreview = previewKey && `${pass.start}-${pass.end}` === previewKey;
+        const isPreview = previewKey && passKey(pass) === previewKey;
         const item = document.createElement("div");
         item.className = `pass-item clickable${isBest ? " best" : ""}${isPreview ? " preview" : ""}`;
+        const badges = [];
+        if (isPreview) badges.push('<span class="badge preview">Preview</span>');
+        else if (isBest) badges.push('<span class="badge best">Best</span>');
+        if (pass.alignmentEvent) {
+          badges.push('<span class="badge alignment">Alignment</span>');
+        }
+        const badgeColumn = badges.length ? `<div class="badge-row">${badges.join("")}</div>` : "";
+        const highlights = [
+          pass.skySummary ? `<div class="pass-meta sky-highlight">${pass.skySummary}</div>` : "",
+          pass.moonSummary ? `<div class="pass-meta sky-highlight">${pass.moonSummary}</div>` : "",
+          pass.alignmentSummary ? `<div class="pass-meta alignment-highlight">Alignment: ${pass.alignmentSummary}</div>` : ""
+        ].join("");
         item.innerHTML = `
           <div>
             <p class="pass-title">${formatDateTime(new Date(pass.start * 1000))}</p>
             <div class="pass-meta">Visible ${pass.duration} min • Max elevation ${pass.maxEl.toFixed(0)}°</div>
+            ${highlights}
           </div>
-          <span class="badge ${isPreview ? "preview" : isBest ? "best" : "visible"}">${isPreview ? "Preview" : isBest ? "Best" : "Visible"}</span>
+          ${badgeColumn}
         `;
         item.addEventListener("click", () => setPreviewPass(pass));
         passList.appendChild(item);
@@ -1718,9 +2253,11 @@
     function getBestPass(passes) {
       if (!passes.length) return null;
       return passes.reduce((best, pass) => {
+        const skyScore = (entry) => (entry.topTargets?.length || 0) + (entry.alignmentEvent ? 1 : 0) + (entry.moonSummary ? 0.5 : 0);
         if (pass.maxEl > best.maxEl) return pass;
         if (pass.maxEl === best.maxEl && pass.duration > best.duration) return pass;
-        if (pass.maxEl === best.maxEl && pass.duration === best.duration && pass.start < best.start) return pass;
+        if (pass.maxEl === best.maxEl && pass.duration === best.duration && skyScore(pass) > skyScore(best)) return pass;
+        if (pass.maxEl === best.maxEl && pass.duration === best.duration && skyScore(pass) === skyScore(best) && pass.start < best.start) return pass;
         return best;
       }, passes[0]);
     }
@@ -1728,19 +2265,40 @@
     function setPreviewPass(pass) {
       if (!pass) return;
       state.preview.active = true;
+      state.preview.mode = "pass";
       state.preview.pass = pass;
+      state.preview.skyEvent = null;
+      renderPassList();
+      renderSkyEventsList();
       previewText.textContent = `Previewing pass ${formatDateTime(new Date(pass.start * 1000))}`;
       previewBanner.hidden = false;
-      previewBanner.style.display = "flex";
+      setActiveView("sky");
+      updateSkyCanvas();
+    }
+
+    function setSkyEventPreview(event) {
+      if (!event) return;
+      state.preview.active = true;
+      state.preview.mode = "event";
+      state.preview.pass = null;
+      state.preview.skyEvent = event;
+      renderPassList();
+      renderSkyEventsList();
+      const previewTs = event.focusTs || event.start;
+      previewText.textContent = `Previewing sky ${formatDateTime(new Date(previewTs * 1000))}`;
+      previewBanner.hidden = false;
       setActiveView("sky");
       updateSkyCanvas();
     }
 
     function clearPreview() {
       state.preview.active = false;
+      state.preview.mode = "live";
       state.preview.pass = null;
+      state.preview.skyEvent = null;
+      renderPassList();
+      renderSkyEventsList();
       previewBanner.hidden = true;
-      previewBanner.style.display = "none";
       updateSkyCanvas();
     }
 
@@ -1783,12 +2341,21 @@
       ctx.translate(cx, cy);
       ctx.rotate(state.sky.rotation);
 
+      const toXY = (azimuth, elevation) => {
+        const clampedElevation = Math.max(0, Math.min(90, elevation));
+        const r = radius * (1 - clampedElevation / 90);
+        const angle = toRadians(azimuth);
+        return {
+          x: Math.sin(angle) * r,
+          y: -Math.cos(angle) * r
+        };
+      };
+
       for (const star of state.sky.stars) {
-        const starR = radius * (1 - star.el / 90);
-        const angle = toRadians(star.az);
+        const point = toXY(star.az, star.el);
         ctx.fillStyle = star.bright;
         ctx.beginPath();
-        ctx.arc(Math.sin(angle) * starR, -Math.cos(angle) * starR, star.size, 0, Math.PI * 2);
+        ctx.arc(point.x, point.y, star.size, 0, Math.PI * 2);
         ctx.fill();
       }
 
@@ -1820,36 +2387,100 @@
         ctx.fillText(d.label, Math.sin(angle) * r - 4, -Math.cos(angle) * r + 4);
       });
 
-      const skyPass = state.preview.active ? state.preview.pass : state.nextVisible;
+      const previewMode = state.preview.active ? state.preview.mode : "live";
+      const skyPass = previewMode === "pass" ? state.preview.pass : previewMode === "event" ? null : state.nextVisible;
+      const previewEvent = previewMode === "event" ? state.preview.skyEvent : null;
+      const contextDate = previewMode === "pass" && state.preview.pass
+        ? new Date((state.preview.pass.peakPoint?.timestamp || state.preview.pass.start) * 1000)
+        : previewMode === "event" && previewEvent
+          ? new Date((previewEvent.focusTs || previewEvent.start) * 1000)
+          : new Date();
+
+      if (state.user) {
+        const skyContext = getSkyContextAt(contextDate, state.user.lat, state.user.lon);
+        if (skyContext.darkEnough && (skyContext.visiblePlanets.length || skyContext.moon)) {
+          ctx.font = "11px IBM Plex Mono";
+          const labelBoxes = [];
+          const hasOverlap = (candidate) => labelBoxes.some((box) => (
+            candidate.x < box.x + box.width &&
+            candidate.x + candidate.width > box.x &&
+            candidate.y < box.y + box.height &&
+            candidate.y + candidate.height > box.y
+          ));
+
+          const placeLabel = (text, anchor) => {
+            const width = ctx.measureText(text).width + 6;
+            const height = 14;
+            const candidates = [
+              { x: anchor.x + 8, y: anchor.y - 14, width, height },
+              { x: anchor.x + 8, y: anchor.y + 4, width, height },
+              { x: anchor.x - width - 8, y: anchor.y - 14, width, height },
+              { x: anchor.x - width - 8, y: anchor.y + 4, width, height },
+              { x: anchor.x - width / 2, y: anchor.y - 20, width, height },
+              { x: anchor.x - width / 2, y: anchor.y + 10, width, height }
+            ];
+
+            const choice = candidates.find((candidate) => !hasOverlap(candidate)) || candidates[0];
+            labelBoxes.push(choice);
+            return choice;
+          };
+
+          const highlightedBodies = previewEvent?.bodies ? new Set(previewEvent.bodies) : null;
+          const drawTarget = (target, size) => {
+            const point = toXY(target.azimuth, target.elevation);
+            const isHighlighted = highlightedBodies ? highlightedBodies.has(target.body) : false;
+            const dotSize = isHighlighted ? size + 1.25 : size;
+            ctx.fillStyle = target.color;
+            ctx.strokeStyle = "rgba(7, 14, 28, 0.92)";
+            ctx.lineWidth = 1.4;
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, dotSize, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            if (target.bright || target.body === "Moon" || isHighlighted) {
+              ctx.strokeStyle = `${target.color}88`;
+              ctx.lineWidth = isHighlighted ? 1.4 : 1;
+              ctx.beginPath();
+              ctx.arc(point.x, point.y, dotSize + (isHighlighted ? 4.2 : 2.8), 0, Math.PI * 2);
+              ctx.stroke();
+            }
+
+            const label = `${target.body} ${Math.round(target.elevation)}°`;
+            const box = placeLabel(label, point);
+            ctx.fillStyle = "rgba(4, 10, 20, 0.72)";
+            ctx.strokeStyle = "rgba(102, 132, 173, 0.35)";
+            ctx.lineWidth = 1;
+            ctx.fillRect(box.x - 2, box.y - 1, box.width + 4, box.height + 2);
+            ctx.strokeRect(box.x - 2, box.y - 1, box.width + 4, box.height + 2);
+            ctx.fillStyle = target.color;
+            ctx.fillText(label, box.x + 3, box.y + 10.5);
+          };
+
+          skyContext.visiblePlanets.forEach((target) => drawTarget(target, 3.1));
+          if (skyContext.moon) {
+            drawTarget(skyContext.moon, 3.6);
+          }
+        }
+      }
+
       if (skyPass && skyPass.points) {
         ctx.strokeStyle = "rgba(23, 241, 177, 0.9)";
         ctx.lineWidth = 2.5;
         ctx.beginPath();
         skyPass.points.forEach((pt, idx) => {
-          const r = radius * (1 - Math.max(0, pt.elevation) / 90);
-          const angle = toRadians(pt.azimuth);
-          const x = Math.sin(angle) * r;
-          const y = -Math.cos(angle) * r;
+          const { x, y } = toXY(pt.azimuth, pt.elevation);
           if (idx === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
         });
         ctx.stroke();
 
         if (skyPass.points.length >= 2) {
-          const toXY = (pt) => {
-            const r = radius * (1 - Math.max(0, pt.elevation) / 90);
-            const angle = toRadians(pt.azimuth);
-            return {
-              x: Math.sin(angle) * r,
-              y: -Math.cos(angle) * r
-            };
-          };
-
           const last = skyPass.points[skyPass.points.length - 1];
-          const end = toXY(last);
+          const end = toXY(last.azimuth, last.elevation);
           let start = null;
           for (let i = skyPass.points.length - 2; i >= 0; i--) {
-            const candidate = toXY(skyPass.points[i]);
+            const candidate = toXY(skyPass.points[i].azimuth, skyPass.points[i].elevation);
             const dx = end.x - candidate.x;
             const dy = end.y - candidate.y;
             if (dx * dx + dy * dy > 1) {
@@ -1886,22 +2517,20 @@
 
       if (state.preview.active && state.preview.pass?.peakPoint) {
         const pt = state.preview.pass.peakPoint;
-        const r = radius * (1 - Math.max(0, pt.elevation) / 90);
-        const angle = toRadians(pt.azimuth);
+        const { x, y } = toXY(pt.azimuth, pt.elevation);
         ctx.fillStyle = "rgba(155, 92, 255, 0.95)";
         ctx.beginPath();
-        ctx.arc(Math.sin(angle) * r, -Math.cos(angle) * r, 5, 0, Math.PI * 2);
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
         ctx.fill();
       } else if (state.iss && state.user) {
         const observer = ecefFromLatLon(state.user.lat, state.user.lon, 0);
         const sat = ecefFromLatLon(state.iss.latitude, state.iss.longitude, state.iss.altitude || 0);
         const look = topocentricAzEl(observer, sat);
         if (look.elevation > 0) {
-          const r = radius * (1 - look.elevation / 90);
-          const angle = toRadians(look.azimuth);
+          const { x, y } = toXY(look.azimuth, look.elevation);
           ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
           ctx.beginPath();
-          ctx.arc(Math.sin(angle) * r, -Math.cos(angle) * r, 4, 0, Math.PI * 2);
+          ctx.arc(x, y, 4, 0, Math.PI * 2);
           ctx.fill();
         }
       }
@@ -1961,6 +2590,9 @@
 
     async function refreshAll() {
       try {
+        state.planetCache.clear();
+        state.passSkyHighlights = {};
+        state.alignmentEvents = [];
         await fetchISSNow();
         const hoursRaw = Number(document.getElementById("track-hours")?.value ?? 6);
         const hours = Number.isFinite(hoursRaw) ? hoursRaw : 6;
@@ -1968,17 +2600,28 @@
         const forecast = await fetchISSForecast(FORECAST_DAYS, 120);
         state.passes = computePasses(forecast);
         state.passes = await refinePasses(state.passes, 10);
+        state.passes = enrichPassesWithSkyContext(state.passes);
         state.goodPasses = state.passes.filter((pass) => pass.visible);
         if (state.preview.active) {
-          const match = state.goodPasses.find((pass) => pass.start === state.preview.pass?.start && pass.end === state.preview.pass?.end);
-          if (match) {
-            state.preview.pass = match;
-          } else {
-            clearPreview();
+          if (state.preview.mode === "pass") {
+            const match = state.goodPasses.find((pass) => pass.start === state.preview.pass?.start && pass.end === state.preview.pass?.end);
+            if (match) {
+              state.preview.pass = match;
+            } else {
+              clearPreview();
+            }
+          } else if (state.preview.mode === "event") {
+            const matchEvent = state.skyEvents.find((event) => event.id === state.preview.skyEvent?.id);
+            if (matchEvent) {
+              state.preview.skyEvent = matchEvent;
+            } else {
+              clearPreview();
+            }
           }
         }
         updateNextVisible();
         renderPassList();
+        renderSkyEventsList();
         scheduleNotification();
         updateSkyCanvas();
       } catch (error) {
