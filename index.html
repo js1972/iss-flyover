@@ -140,6 +140,33 @@
       gap: 16px;
     }
 
+    .status-section {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .section-head {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .section-title {
+      margin: 0;
+      font-size: clamp(1.05rem, 1.2vw + 0.9rem, 1.35rem);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #cbd8ef;
+    }
+
+    .section-subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.85rem;
+      max-width: 760px;
+    }
+
     .card {
       background: var(--panel);
       border: 1px solid var(--border);
@@ -167,6 +194,76 @@
       color: var(--muted);
       font-size: 0.82rem;
       margin-top: 6px;
+    }
+
+    .tonight-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .tonight-card {
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(42, 209, 255, 0.16), transparent 58%),
+        linear-gradient(155deg, rgba(12, 20, 36, 0.96), rgba(10, 16, 30, 0.96));
+      border-color: rgba(120, 150, 205, 0.3);
+    }
+
+    .tonight-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 14px;
+      bottom: 14px;
+      width: 3px;
+      border-radius: 999px;
+      background: rgba(87, 230, 255, 0.75);
+    }
+
+    .tonight-card.tonight-iss::before {
+      background: rgba(87, 230, 255, 0.82);
+    }
+
+    .tonight-card.tonight-sky::before {
+      background: rgba(155, 92, 255, 0.86);
+    }
+
+    .tonight-card.tonight-moon::before {
+      background: rgba(23, 241, 177, 0.82);
+    }
+
+    .tonight-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .tonight-head h3 {
+      margin: 0;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: #9fb2cf;
+    }
+
+    .tonight-value {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 1.06rem;
+      letter-spacing: 0.04em;
+      line-height: 1.3;
+      color: #eef4ff;
+    }
+
+    .tonight-sub {
+      margin-top: 6px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.8rem;
+      line-height: 1.35;
+      color: #a8bbd7;
     }
 
     .view-toolbar {
@@ -325,27 +422,111 @@
       gap: 20px;
     }
 
+    .forecast-panel,
+    .sky-panel {
+      position: relative;
+      overflow: hidden;
+      padding: 0;
+    }
+
+    .forecast-panel {
+      border-color: rgba(74, 165, 226, 0.4);
+      background: linear-gradient(165deg, rgba(9, 23, 45, 0.96), rgba(7, 16, 34, 0.94));
+    }
+
+    .sky-panel {
+      border-color: rgba(152, 122, 232, 0.38);
+      background: linear-gradient(165deg, rgba(16, 20, 44, 0.96), rgba(8, 14, 34, 0.94));
+    }
+
+    .forecast-panel > h3,
+    .sky-panel > h3 {
+      margin: 0;
+      padding: 16px 18px 8px;
+      font-size: 1rem;
+      letter-spacing: 0.2em;
+      line-height: 1.25;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .forecast-panel > h3 {
+      color: #bfe2ff;
+      text-shadow: 0 0 18px rgba(54, 170, 235, 0.18);
+    }
+
+    .sky-panel > h3 {
+      color: #dbcaff;
+      text-shadow: 0 0 18px rgba(155, 92, 255, 0.2);
+    }
+
+    .forecast-panel > h3::before,
+    .sky-panel > h3::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+    }
+
+    .forecast-panel > h3::before {
+      background: #57e6ff;
+      box-shadow: 0 0 10px rgba(87, 230, 255, 0.65);
+    }
+
+    .sky-panel > h3::before {
+      background: #b48cff;
+      box-shadow: 0 0 10px rgba(180, 140, 255, 0.65);
+    }
+
+    .forecast-panel > .forecast-note {
+      margin: 0;
+      padding: 0 18px 12px;
+      border-bottom: 1px solid rgba(118, 146, 194, 0.28);
+    }
+
+    .forecast-panel > .pass-list,
+    .sky-panel > .sky-event-list {
+      padding: 14px;
+    }
+
     .pass-list {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
     }
 
     .sky-event-list {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
     }
 
     .sky-event-item {
+      position: relative;
+      overflow: hidden;
       padding: 12px 14px;
       border-radius: 16px;
-      background: rgba(12, 18, 32, 0.66);
-      border: 1px solid rgba(120, 140, 180, 0.2);
+      background: linear-gradient(160deg, rgba(16, 24, 42, 0.94), rgba(10, 16, 28, 0.95));
+      border: 1px solid rgba(120, 140, 180, 0.28);
       display: grid;
       grid-template-columns: 1fr auto;
       gap: 8px;
       align-items: center;
+      box-shadow:
+        inset 0 1px 0 rgba(170, 190, 230, 0.08),
+        0 10px 24px rgba(2, 6, 14, 0.35);
+    }
+
+    .pass-item::before,
+    .pass-item.best::before,
+    .pass-item.preview::before,
+    .sky-event-item::before,
+    .sky-event-item.selected::before,
+    .sky-event-item.emphasis::before {
+      content: none !important;
+      display: none !important;
     }
 
     .sky-event-item.clickable {
@@ -355,8 +536,8 @@
 
     .sky-event-item.clickable:hover {
       transform: translateY(-1px);
-      border-color: rgba(42, 209, 255, 0.38);
-      background: rgba(14, 22, 40, 0.9);
+      border-color: rgba(42, 209, 255, 0.48);
+      background: linear-gradient(160deg, rgba(18, 28, 48, 0.98), rgba(12, 20, 36, 0.98));
     }
 
     .sky-event-item.emphasis {
@@ -380,14 +561,19 @@
     }
 
     .pass-item {
+      position: relative;
+      overflow: hidden;
       padding: 12px 14px;
       border-radius: 16px;
-      background: rgba(12, 18, 32, 0.7);
-      border: 1px solid rgba(120, 140, 180, 0.2);
+      background: linear-gradient(160deg, rgba(16, 24, 42, 0.94), rgba(10, 16, 28, 0.95));
+      border: 1px solid rgba(120, 140, 180, 0.28);
       display: grid;
       grid-template-columns: 1fr auto;
       gap: 8px;
       align-items: center;
+      box-shadow:
+        inset 0 1px 0 rgba(170, 190, 230, 0.08),
+        0 10px 24px rgba(2, 6, 14, 0.35);
     }
 
     .pass-item.clickable {
@@ -397,8 +583,8 @@
 
     .pass-item.clickable:hover {
       transform: translateY(-1px);
-      border-color: rgba(42, 209, 255, 0.4);
-      background: rgba(14, 22, 40, 0.9);
+      border-color: rgba(42, 209, 255, 0.5);
+      background: linear-gradient(160deg, rgba(18, 28, 48, 0.98), rgba(12, 20, 36, 0.98));
     }
 
     .pass-item.best {
@@ -497,6 +683,162 @@
       background: rgba(225, 232, 255, 0.2);
       color: #e8eeff;
       border: 1px solid rgba(196, 208, 255, 0.5);
+    }
+
+    .compact-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .compact-title {
+      margin: 0;
+      line-height: 1.15;
+      letter-spacing: 0.01em;
+    }
+
+    .compact-title-pass {
+      font-size: 1.26rem;
+      font-weight: 700;
+    }
+
+    .compact-title-event {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .compact-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+      flex: 0 0 auto;
+      max-width: 48%;
+    }
+
+    .compact-badges {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+      flex: 0 0 auto;
+      max-width: 100%;
+    }
+
+    .compact-sub {
+      margin-top: 4px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.79rem;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .compact-grid {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 7px;
+    }
+
+    .compact-cell {
+      border: 1px solid rgba(120, 140, 180, 0.22);
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 10px;
+      padding: 7px 8px;
+      min-width: 0;
+    }
+
+    .compact-k {
+      margin: 0;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.11em;
+      color: #91a3c5;
+    }
+
+    .compact-v {
+      margin: 3px 0 0;
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 1.18rem;
+      line-height: 1.15;
+      font-weight: 700;
+      color: #edf2ff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .compact-detail {
+      margin-top: 9px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.88rem;
+      line-height: 1.35;
+      color: #9fdcff;
+      word-break: break-word;
+    }
+
+    .compact-secondary {
+      margin-top: 3px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.82rem;
+      line-height: 1.3;
+      color: #c8d6f2;
+      word-break: break-word;
+    }
+
+    .share-chip {
+      background: rgba(18, 36, 66, 0.68);
+      color: #cce5ff;
+      border: 1px solid rgba(88, 170, 235, 0.42);
+      border-radius: 999px;
+      padding: 6px 11px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      line-height: 1;
+      transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .share-chip:hover {
+      transform: translateY(-1px);
+      border-color: rgba(42, 209, 255, 0.72);
+      background: rgba(24, 52, 92, 0.84);
+    }
+
+    .share-chip:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .toast {
+      position: fixed;
+      right: 20px;
+      bottom: 24px;
+      z-index: 2000;
+      max-width: min(420px, calc(100vw - 40px));
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: rgba(8, 14, 24, 0.92);
+      border: 1px solid rgba(42, 209, 255, 0.55);
+      color: #d7e8ff;
+      box-shadow: 0 16px 36px rgba(2, 8, 18, 0.6);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.77rem;
+      letter-spacing: 0.03em;
+      opacity: 0;
+      transform: translateY(6px);
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
     }
 
     .preview-banner {
@@ -625,6 +967,10 @@
     }
 
     @media (max-width: 900px) {
+      .tonight-grid {
+        grid-template-columns: 1fr;
+      }
+
       .panel-grid {
         grid-template-columns: 1fr;
       }
@@ -648,6 +994,72 @@
       .view-toolbar {
         display: block;
       }
+
+      .forecast-note {
+        margin: 0 0 10px;
+        line-height: 1.35;
+      }
+
+      .pass-item.compact-mobile,
+      .sky-event-item.compact-mobile {
+        display: block;
+        padding: 12px;
+        gap: 0;
+      }
+
+      .compact-badges .badge {
+        padding: 6px 9px;
+        font-size: 0.64rem;
+        letter-spacing: 0.12em;
+      }
+
+      .share-chip {
+        padding: 6px 9px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .app {
+        gap: 18px;
+      }
+
+      .compact-title-pass {
+        font-size: 1.08rem;
+      }
+
+      .compact-title-event {
+        font-size: 1.08rem;
+      }
+
+      .compact-grid {
+        gap: 6px;
+      }
+
+      .compact-cell {
+        padding: 6px 7px;
+      }
+
+      .compact-k {
+        font-size: 0.56rem;
+      }
+
+      .compact-v {
+        font-size: 1.02rem;
+      }
+
+      .compact-detail {
+        font-size: 0.81rem;
+      }
+
+      .compact-secondary {
+        font-size: 0.77rem;
+      }
+
+      .toast {
+        right: 12px;
+        left: 12px;
+        max-width: none;
+      }
     }
   </style>
 </head>
@@ -665,34 +1077,38 @@
           <button id="refresh">Recalculate Forecast</button>
         </div>
       </div>
-      <div class="status-grid">
-        <div class="card">
-          <h3>ISS Position</h3>
-          <div class="stat-value" id="iss-coords">Loading…</div>
-          <div class="stat-sub" id="iss-meta">Awaiting data</div>
-        </div>
-        <div class="card">
-          <h3>Your Location</h3>
-          <div class="stat-value" id="user-coords">Unknown</div>
-          <div class="stat-sub" id="user-meta">Geolocation not set</div>
-        </div>
-        <div class="card">
-          <h3>Next Visible Pass</h3>
-          <div class="stat-value" id="next-pass">Calculating…</div>
-          <div class="stat-sub" id="next-pass-meta">Need location to predict</div>
-        </div>
-        <div class="card">
-          <h3>Visibility Status</h3>
-          <div class="stat-value" id="visibility">Night check pending</div>
-          <div class="stat-sub" id="visibility-meta">Sun altitude unavailable</div>
-        </div>
-        <div class="card">
-          <h3>Moon Phase</h3>
-          <div class="stat-value" id="moon-phase">Calculating…</div>
-          <div class="stat-sub" id="moon-phase-meta">Need location to evaluate sky darkness</div>
-        </div>
-      </div>
     </header>
+
+    <section class="section-head">
+      <h2 class="section-title">What To Watch Next</h2>
+      <p class="section-subtitle">Fast picks for your local sky: best ISS pass, standout planetary target, and moonlight conditions.</p>
+    </section>
+
+    <section class="tonight-grid">
+      <div class="card tonight-card tonight-iss">
+        <div class="tonight-head">
+          <h3>Best ISS Pass</h3>
+          <button class="share-chip" id="share-tonight-iss" type="button">Share</button>
+        </div>
+        <div class="tonight-value" id="tonight-iss">Calculating…</div>
+        <div class="tonight-sub" id="tonight-iss-meta">Need location to evaluate your next visible ISS pass.</div>
+      </div>
+      <div class="card tonight-card tonight-sky">
+        <div class="tonight-head">
+          <h3>Sky Event Window</h3>
+          <button class="share-chip" id="share-tonight-sky" type="button">Share</button>
+        </div>
+        <div class="tonight-value" id="tonight-sky">Calculating…</div>
+        <div class="tonight-sub" id="tonight-sky-meta">Planets and alignments update with your location.</div>
+      </div>
+      <div class="card tonight-card tonight-moon">
+        <div class="tonight-head">
+          <h3>Moonlight Outlook</h3>
+        </div>
+        <div class="tonight-value" id="tonight-moon">Calculating…</div>
+        <div class="tonight-sub" id="tonight-moon-meta">Moon phase and sky darkness guidance.</div>
+      </div>
+    </section>
 
     <div class="view-toolbar">
       <div class="view-toggle" role="tablist">
@@ -721,7 +1137,7 @@
     <section class="panel-grid">
       <div class="card">
         <h3>Flyover Forecast (Next 7 Days)</h3>
-        <div class="stat-sub forecast-note">Sky highlights show naked-eye planets plus moon phase context. ISS Best remains based on ISS visibility.</div>
+        <div class="stat-sub forecast-note" id="forecast-note">Sky highlights show naked-eye planets plus moon phase context. ISS Best remains based on ISS visibility.</div>
         <div class="pass-list" id="pass-list">
           <div class="pass-item">
             <div>
@@ -768,7 +1184,42 @@
         <p class="footnote">Notifications use the browser Notification API and require this tab to stay open. Full push requires a service worker and a server-side push subscription.</p>
       </div>
     </section>
+
+    <section class="status-section">
+      <div class="section-head">
+        <h2 class="section-title">Live Data</h2>
+        <p class="section-subtitle">Live telemetry and observing context. Useful for tuning coordinates and checking real-time ISS state.</p>
+      </div>
+      <div class="status-grid">
+        <div class="card">
+          <h3>ISS Position</h3>
+          <div class="stat-value" id="iss-coords">Loading…</div>
+          <div class="stat-sub" id="iss-meta">Awaiting data</div>
+        </div>
+        <div class="card">
+          <h3>Your Location</h3>
+          <div class="stat-value" id="user-coords">Unknown</div>
+          <div class="stat-sub" id="user-meta">Geolocation not set</div>
+        </div>
+        <div class="card">
+          <h3>Next Visible Pass</h3>
+          <div class="stat-value" id="next-pass">Calculating…</div>
+          <div class="stat-sub" id="next-pass-meta">Need location to predict</div>
+        </div>
+        <div class="card">
+          <h3>Visibility Status</h3>
+          <div class="stat-value" id="visibility">Night check pending</div>
+          <div class="stat-sub" id="visibility-meta">Sun altitude unavailable</div>
+        </div>
+        <div class="card">
+          <h3>Moon Phase</h3>
+          <div class="stat-value" id="moon-phase">Calculating…</div>
+          <div class="stat-sub" id="moon-phase-meta">Need location to evaluate sky darkness</div>
+        </div>
+      </div>
+    </section>
   </div>
+  <div class="toast" id="share-toast"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
@@ -803,6 +1254,7 @@
       nextVisible: null,
       notificationTimer: null,
       notificationsEnabled: false,
+      tonight: { pass: null, skyEvent: null },
       anim: { rafId: null, lastStatus: 0 },
       preview: { active: false, mode: "live", pass: null, skyEvent: null },
       globe: {
@@ -823,6 +1275,10 @@
         dragging: false,
         dragStart: null,
         stars: []
+      },
+      layout: {
+        compactMobile: null,
+        narrowMobile: null
       }
     };
 
@@ -893,10 +1349,135 @@
     const skyEventsList = document.getElementById("sky-events-list");
     const previewBanner = document.getElementById("preview-banner");
     const previewText = document.getElementById("preview-text");
+    const shareToast = document.getElementById("share-toast");
 
     const formatCoord = (val) => `${val.toFixed(3)}°`;
     const formatTime = (date) => date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     const formatDateTime = (date) => date.toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    const formatCompactBestTime = (timestampSec) => new Date(timestampSec * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const formatTonightMoment = (timestampSec) => {
+      const value = new Date(timestampSec * 1000);
+      const now = new Date();
+      if (value.toDateString() === now.toDateString()) {
+        return `${formatTime(value)} local`;
+      }
+      return formatDateTime(value);
+    };
+
+    function isCompactMobileLayout() {
+      return window.matchMedia("(max-width: 900px)").matches;
+    }
+
+    function isNarrowMobileLayout() {
+      return window.matchMedia("(max-width: 560px)").matches;
+    }
+
+    function pickVisibleBadges(descriptors) {
+      const ordered = [...descriptors].sort((a, b) => a.priority - b.priority);
+      if (!isNarrowMobileLayout()) return ordered;
+      return ordered.slice(0, 2);
+    }
+
+    function renderBadgeSpans(descriptors, compact = false) {
+      if (!descriptors.length) return "";
+      const visible = compact ? pickVisibleBadges(descriptors) : descriptors;
+      if (!visible.length) return "";
+      return visible.map((badge) => `<span class="badge ${badge.className}">${badge.label}</span>`).join("");
+    }
+
+    function describePassQuality(pass) {
+      let elevationDescriptor = "Low-angle pass";
+      if (pass.maxEl >= 70) elevationDescriptor = "Exceptional overhead pass";
+      else if (pass.maxEl >= 55) elevationDescriptor = "High-elevation pass";
+      else if (pass.maxEl >= 35) elevationDescriptor = "Good-elevation pass";
+
+      const moonDescriptor = pass.moonlightSummary
+        ? pass.moonlightSummary.replace(/^Moonlight:\s*/i, "")
+        : "Balanced moonlight";
+      return `${elevationDescriptor} • ${moonDescriptor}`;
+    }
+
+    function updateForecastNoteCopy() {
+      const note = document.getElementById("forecast-note");
+      if (!note) return;
+      note.textContent = isCompactMobileLayout()
+        ? "Moon phase shows sky darkness. ISS Best remains ISS-first."
+        : "Sky highlights show naked-eye planets plus moon phase context. ISS Best remains based on ISS visibility.";
+    }
+
+    function showToast(message, duration = 2200) {
+      if (!shareToast) return;
+      shareToast.textContent = message;
+      shareToast.classList.add("show");
+      window.clearTimeout(showToast.timerId);
+      showToast.timerId = window.setTimeout(() => {
+        shareToast.classList.remove("show");
+      }, duration);
+    }
+    showToast.timerId = null;
+
+    function buildPassShareMessage(pass) {
+      const dateLabel = formatDateTime(new Date(pass.start * 1000));
+      const details = [
+        `Max elevation ${pass.maxEl.toFixed(0)}°`,
+        `Visible ${pass.duration} min`
+      ];
+      if (pass.skySummary) details.push(pass.skySummary.replace(/^Sky:\s*/i, "Sky: "));
+      if (pass.moonPhase) details.push(`Moon ${pass.moonPhase.icon} ${pass.moonPhase.name} (${pass.moonPhase.illuminationPct}%)`);
+      return `ISS Flyover Explorer\n${dateLabel}\n${details.join(" • ")}`;
+    }
+
+    function buildSkyEventShareMessage(event) {
+      const focusTs = event.focusTs || event.start;
+      const focusLabel = formatDateTime(new Date(focusTs * 1000));
+      const moonSummary = event.moonPhase
+        ? `Moon ${event.moonPhase.icon} ${event.moonPhase.name} (${event.moonPhase.illuminationPct}%)`
+        : "Moon phase unavailable";
+      return `ISS Flyover Explorer\n${event.title}\n${event.details}\nBest around ${focusLabel}\n${moonSummary}`;
+    }
+
+    async function shareTextPayload(title, text) {
+      const url = window.location.href;
+      if (navigator.share) {
+        try {
+          await navigator.share({ title, text, url });
+          return;
+        } catch (error) {
+          if (error?.name === "AbortError") return;
+          console.warn("Web Share failed, falling back to clipboard.", error);
+        }
+      }
+
+      const fallback = `${title}\n${text}\n${url}`;
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(fallback);
+          showToast("Share text copied to clipboard.");
+          return;
+        } catch (error) {
+          console.warn("Clipboard fallback failed.", error);
+        }
+      }
+
+      window.prompt("Copy this share text:", fallback);
+    }
+
+    async function sharePass(pass) {
+      if (!pass) {
+        showToast("No pass available to share.");
+        return;
+      }
+      const title = `ISS pass ${formatDateTime(new Date(pass.start * 1000))}`;
+      await shareTextPayload(title, buildPassShareMessage(pass));
+    }
+
+    async function shareSkyEvent(event) {
+      if (!event) {
+        showToast("No sky event available to share.");
+        return;
+      }
+      await shareTextPayload(event.title, buildSkyEventShareMessage(event));
+    }
 
     function getMoonPhaseInfo(date) {
       const illumination = SunCalc.getMoonIllumination(date);
@@ -1219,6 +1800,7 @@
           title: `Planet grouping: ${names.join(", ")}`,
           meta: `Best around ${formatDateTime(new Date(entry.timestamp * 1000))}`,
           details: summary,
+          moonPhase: context.moonPhase || null,
           moonPhaseSummary: formatMoonPhaseLine(context.moonPhase, "Moon"),
           moonlightSummary: `Moonlight: ${moonlightQualityLabel(context.moonlightQuality)}`,
           moonlightBadge: moonlightBadgeValue(context.moonlightQuality),
@@ -1249,6 +1831,7 @@
             title: `${event.label} alignment`,
             meta: `Closest ${event.minSeparation.toFixed(1)}° at ${formatDateTime(new Date(event.peakTs * 1000))}`,
             details: `Direction ${event.direction} • Altitude ${Math.round(event.elevation)}°`,
+            moonPhase: context.moonPhase || null,
             moonPhaseSummary: formatMoonPhaseLine(context.moonPhase, "Moon"),
             moonlightSummary: `Moonlight: ${moonlightQualityLabel(context.moonlightQuality)}`,
             moonlightBadge: moonlightBadgeValue(context.moonlightQuality),
@@ -1305,27 +1888,71 @@
       }
 
       const selectedEventId = state.preview.active && state.preview.mode === "event" ? state.preview.skyEvent?.id : null;
+      const compactMobile = isCompactMobileLayout();
       state.skyEvents.forEach((event) => {
         const item = document.createElement("div");
         const isSelected = selectedEventId === event.id;
-        item.className = `sky-event-item clickable${event.emphasis ? " emphasis" : ""}${isSelected ? " selected" : ""}`;
-        const badges = [];
-        if (isSelected) badges.push('<span class="badge preview">Preview</span>');
-        if (event.type === "alignment") badges.push('<span class="badge alignment">Alignment</span>');
-        if (event.emphasis) badges.push('<span class="badge best">Best Night</span>');
-        if (event.moonlightBadge === "dark") badges.push('<span class="badge dark-sky">Dark Sky</span>');
-        if (event.moonlightBadge === "bright") badges.push('<span class="badge bright-moon">Bright Moon</span>');
-        const badgeColumn = badges.length ? `<div class="badge-row">${badges.join("")}</div>` : "";
-        const moonContextLine = [event.moonPhaseSummary, event.moonlightSummary].filter(Boolean).join(" • ");
-        item.innerHTML = `
-          <div>
-            <p class="pass-title">${event.title}</p>
-            <div class="pass-meta">${event.meta}</div>
-            <div class="pass-meta sky-highlight">${event.details}</div>
-            ${moonContextLine ? `<div class="pass-meta moon-phase">${moonContextLine}</div>` : ""}
-          </div>
-          ${badgeColumn}
-        `;
+        item.className = `sky-event-item clickable${event.emphasis ? " emphasis" : ""}${isSelected ? " selected" : ""}${compactMobile ? " compact-mobile" : ""}`;
+        const badgeDescriptors = [];
+        if (event.type === "alignment") badgeDescriptors.push({ className: "alignment", label: "Alignment", priority: 1 });
+        if (event.emphasis) badgeDescriptors.push({ className: "best", label: "Best Night", priority: 2 });
+        if (event.moonlightBadge === "dark") badgeDescriptors.push({ className: "dark-sky", label: "Dark Sky", priority: 3 });
+        if (event.moonlightBadge === "bright") badgeDescriptors.push({ className: "bright-moon", label: "Bright Moon", priority: 3 });
+        const badgeSpansCompact = renderBadgeSpans(badgeDescriptors, true);
+        const badgeSpansDesktop = renderBadgeSpans(badgeDescriptors, false);
+
+        if (compactMobile) {
+          const bodyCount = event.bodies?.length ? String(event.bodies.length) : "--";
+          const compactTitle = event.type === "group" && event.bodies?.length
+            ? event.bodies.join(" + ")
+            : event.title;
+          const bodyDetail = event.bodies?.length ? `Bodies: ${event.bodies.join(", ")}` : "Bodies: --";
+          const moonPct = Number.isFinite(event.moonPhase?.illuminationPct) ? `${event.moonPhase.illuminationPct}%` : "--";
+          const moonPhaseCompact = event.moonPhase
+            ? `${event.moonPhase.icon} ${event.moonPhase.name}`
+            : "Moon phase unavailable";
+          item.innerHTML = `
+            <div class="compact-head">
+              <p class="compact-title compact-title-event">${compactTitle}</p>
+              <div class="compact-actions">
+                <button class="share-chip" type="button">Share</button>
+                ${badgeSpansCompact ? `<div class="compact-badges">${badgeSpansCompact}</div>` : ""}
+              </div>
+            </div>
+            <div class="compact-sub">${event.meta}</div>
+            <div class="compact-grid">
+              <div class="compact-cell"><p class="compact-k">Bodies</p><p class="compact-v">${bodyCount}</p></div>
+              <div class="compact-cell"><p class="compact-k">Best</p><p class="compact-v">${formatCompactBestTime(event.focusTs || event.start)}</p></div>
+              <div class="compact-cell"><p class="compact-k">Moon %</p><p class="compact-v">${moonPct}</p></div>
+            </div>
+            <div class="compact-detail">${bodyDetail}</div>
+            <div class="compact-secondary">${event.details} • ${moonPhaseCompact}</div>
+          `;
+        } else {
+          const badgeColumn = `
+            <div class="badge-row">
+              <button class="share-chip" type="button">Share</button>
+              ${badgeSpansDesktop}
+            </div>
+          `;
+          const moonContextLine = [event.moonPhaseSummary, event.moonlightSummary].filter(Boolean).join(" • ");
+          item.innerHTML = `
+            <div>
+              <p class="pass-title">${event.title}</p>
+              <div class="pass-meta">${event.meta}</div>
+              <div class="pass-meta sky-highlight">${event.details}</div>
+              ${moonContextLine ? `<div class="pass-meta moon-phase">${moonContextLine}</div>` : ""}
+            </div>
+            ${badgeColumn}
+          `;
+        }
+        const shareButton = item.querySelector(".share-chip");
+        if (shareButton) {
+          shareButton.addEventListener("click", (clickEvent) => {
+            clickEvent.stopPropagation();
+            shareSkyEvent(event);
+          });
+        }
         item.addEventListener("click", () => setSkyEventPreview(event));
         skyEventsList.appendChild(item);
       });
@@ -1349,6 +1976,7 @@
           const quiet = {
             skySummary: "",
             moonSummary: "",
+            moonPhase: null,
             moonPhaseSummary: "",
             moonlightSummary: "",
             moonlightBadge: "",
@@ -1411,6 +2039,7 @@
         const highlight = {
           skySummary,
           moonSummary,
+          moonPhase: peakContext?.moonPhase || null,
           moonPhaseSummary,
           moonlightSummary,
           moonlightBadge,
@@ -1590,6 +2219,79 @@
         moonPhase.textContent = "Calculating…";
         moonPhaseMeta.textContent = "Need location to evaluate sky darkness";
       }
+      updateTonightHighlights();
+    }
+
+    function updateTonightHighlights() {
+      const tonightIss = document.getElementById("tonight-iss");
+      const tonightIssMeta = document.getElementById("tonight-iss-meta");
+      const tonightSky = document.getElementById("tonight-sky");
+      const tonightSkyMeta = document.getElementById("tonight-sky-meta");
+      const tonightMoon = document.getElementById("tonight-moon");
+      const tonightMoonMeta = document.getElementById("tonight-moon-meta");
+      const shareTonightIssBtn = document.getElementById("share-tonight-iss");
+      const shareTonightSkyBtn = document.getElementById("share-tonight-sky");
+
+      if (!tonightIss || !tonightSky || !tonightMoon) return;
+
+      if (!state.user) {
+        state.tonight.pass = null;
+        state.tonight.skyEvent = null;
+        tonightIss.textContent = "Set your location";
+        tonightIssMeta.textContent = "Need location to find your next visible ISS pass.";
+        tonightSky.textContent = "Set your location";
+        tonightSkyMeta.textContent = "Need location to evaluate visible planets and alignments.";
+        tonightMoon.textContent = "Moon phase pending";
+        tonightMoonMeta.textContent = "Moonlight quality needs your observing location.";
+        if (shareTonightIssBtn) shareTonightIssBtn.disabled = true;
+        if (shareTonightSkyBtn) shareTonightSkyBtn.disabled = true;
+        return;
+      }
+
+      const nowTs = Date.now() / 1000;
+      const endTonight = new Date();
+      endTonight.setHours(23, 59, 59, 999);
+      const endTonightTs = endTonight.getTime() / 1000;
+
+      const tonightPass = state.goodPasses.find((pass) => pass.start >= nowTs && pass.start <= endTonightTs) || state.goodPasses[0] || null;
+      state.tonight.pass = tonightPass;
+      if (tonightPass) {
+        const skySnippet = tonightPass.topTargets?.length
+          ? tonightPass.topTargets.slice(0, 2).map(formatSkyTarget).join(" • ")
+          : "";
+        tonightIss.textContent = formatTonightMoment(tonightPass.start);
+        tonightIssMeta.textContent = `Max ${tonightPass.maxEl.toFixed(0)}° • Visible ${tonightPass.duration} min${skySnippet ? ` • ${skySnippet}` : ""}`;
+      } else {
+        tonightIss.textContent = "No visible ISS pass";
+        tonightIssMeta.textContent = `No high-quality night pass in the next ${FORECAST_DAYS} days.`;
+      }
+
+      const eventFocus = (event) => event?.focusTs || event?.start || 0;
+      const tonightEvent = state.skyEvents.find((event) => eventFocus(event) >= nowTs && eventFocus(event) <= endTonightTs) || state.skyEvents[0] || null;
+      state.tonight.skyEvent = tonightEvent;
+      if (tonightEvent) {
+        const eventLabel = tonightEvent.type === "group" && tonightEvent.bodies?.length
+          ? tonightEvent.bodies.join(" + ")
+          : tonightEvent.title;
+        tonightSky.textContent = eventLabel;
+        tonightSkyMeta.textContent = `Best at ${formatTonightMoment(eventFocus(tonightEvent))} • ${tonightEvent.details}`;
+      } else {
+        tonightSky.textContent = "Quiet sky window";
+        tonightSkyMeta.textContent = "No standout naked-eye grouping detected in the next week.";
+      }
+
+      const context = getSkyContextAt(new Date(), state.user.lat, state.user.lon);
+      if (context?.moonPhase) {
+        const quality = moonlightQualityLabel(context.moonlightQuality);
+        tonightMoon.textContent = `${context.moonPhase.icon} ${context.moonPhase.name} • ${context.moonPhase.illuminationPct}%`;
+        tonightMoonMeta.textContent = `Moonlight ${quality} • Dark-sky score ${Math.round(context.darkSkyScore)}/100`;
+      } else {
+        tonightMoon.textContent = "Moon phase unavailable";
+        tonightMoonMeta.textContent = "Moonlight quality unavailable.";
+      }
+
+      if (shareTonightIssBtn) shareTonightIssBtn.disabled = !Boolean(state.tonight.pass);
+      if (shareTonightSkyBtn) shareTonightSkyBtn.disabled = !Boolean(state.tonight.skyEvent);
     }
 
     function showMapMessage(message) {
@@ -2386,35 +3088,77 @@
       const previewKey = state.preview.active && state.preview.mode === "pass" && state.preview.pass
         ? passKey(state.preview.pass)
         : null;
+      const compactMobile = isCompactMobileLayout();
       state.goodPasses.slice(0, 14).forEach((pass) => {
         const isBest = bestPass && pass.start === bestPass.start && pass.end === bestPass.end;
         const isPreview = previewKey && passKey(pass) === previewKey;
         const item = document.createElement("div");
-        item.className = `pass-item clickable${isBest ? " best" : ""}${isPreview ? " preview" : ""}`;
-        const badges = [];
-        if (isPreview) badges.push('<span class="badge preview">Preview</span>');
-        else if (isBest) badges.push('<span class="badge best">Best</span>');
-        if (pass.alignmentEvent) {
-          badges.push('<span class="badge alignment">Alignment</span>');
+        item.className = `pass-item clickable${isBest ? " best" : ""}${isPreview ? " preview" : ""}${compactMobile ? " compact-mobile" : ""}`;
+        const badgeDescriptors = [];
+        if (isBest) badgeDescriptors.push({ className: "best", label: "Best", priority: 1 });
+        if (pass.alignmentEvent) badgeDescriptors.push({ className: "alignment", label: "Alignment", priority: 2 });
+        if (pass.moonlightBadge === "dark") badgeDescriptors.push({ className: "dark-sky", label: "Dark Sky", priority: 3 });
+        if (pass.moonlightBadge === "bright") badgeDescriptors.push({ className: "bright-moon", label: "Bright Moon", priority: 3 });
+        const badgeSpansCompact = renderBadgeSpans(badgeDescriptors, true);
+        const badgeSpansDesktop = renderBadgeSpans(badgeDescriptors, false);
+        if (compactMobile) {
+          const moonPct = Number.isFinite(pass.moonPhase?.illuminationPct) ? `${pass.moonPhase.illuminationPct}%` : "--";
+          const compactSky = pass.topTargets?.length
+            ? pass.topTargets.slice(0, 2).map(formatSkyTarget).join(" • ")
+            : (pass.skySummary ? pass.skySummary.replace(/^Sky:\s*/i, "") : "No major planet target");
+          const compactMoon = pass.moonPhase
+            ? `${pass.moonPhase.icon} ${pass.moonPhase.name}`
+            : "Moon phase unavailable";
+          const compactSecondary = pass.alignmentSummary
+            ? `${compactMoon} • ${pass.alignmentSummary}`
+            : compactMoon;
+          item.innerHTML = `
+            <div class="compact-head">
+              <p class="compact-title compact-title-pass">${formatDateTime(new Date(pass.start * 1000))}</p>
+              <div class="compact-actions">
+                <button class="share-chip" type="button">Share</button>
+                ${badgeSpansCompact ? `<div class="compact-badges">${badgeSpansCompact}</div>` : ""}
+              </div>
+            </div>
+            <div class="compact-sub">${describePassQuality(pass)}</div>
+            <div class="compact-grid">
+              <div class="compact-cell"><p class="compact-k">Max El</p><p class="compact-v">${pass.maxEl.toFixed(0)}°</p></div>
+              <div class="compact-cell"><p class="compact-k">Duration</p><p class="compact-v">${pass.duration} min</p></div>
+              <div class="compact-cell"><p class="compact-k">Moon %</p><p class="compact-v">${moonPct}</p></div>
+            </div>
+            <div class="compact-detail">${compactSky}</div>
+            <div class="compact-secondary">${compactSecondary}</div>
+          `;
+        } else {
+          const badgeColumn = `
+            <div class="badge-row">
+              <button class="share-chip" type="button">Share</button>
+              ${badgeSpansDesktop}
+            </div>
+          `;
+          const highlights = [
+            pass.skySummary ? `<div class="pass-meta sky-highlight">${pass.skySummary}</div>` : "",
+            pass.moonSummary ? `<div class="pass-meta sky-highlight">${pass.moonSummary}</div>` : "",
+            pass.moonPhaseSummary ? `<div class="pass-meta moon-phase">${pass.moonPhaseSummary}</div>` : "",
+            pass.moonlightSummary ? `<div class="pass-meta moon-phase">${pass.moonlightSummary}</div>` : "",
+            pass.alignmentSummary ? `<div class="pass-meta alignment-highlight">Alignment: ${pass.alignmentSummary}</div>` : ""
+          ].join("");
+          item.innerHTML = `
+            <div>
+              <p class="pass-title">${formatDateTime(new Date(pass.start * 1000))}</p>
+              <div class="pass-meta">Visible ${pass.duration} min • Max elevation ${pass.maxEl.toFixed(0)}°</div>
+              ${highlights}
+            </div>
+            ${badgeColumn}
+          `;
         }
-        if (pass.moonlightBadge === "dark") badges.push('<span class="badge dark-sky">Dark Sky</span>');
-        if (pass.moonlightBadge === "bright") badges.push('<span class="badge bright-moon">Bright Moon</span>');
-        const badgeColumn = badges.length ? `<div class="badge-row">${badges.join("")}</div>` : "";
-        const highlights = [
-          pass.skySummary ? `<div class="pass-meta sky-highlight">${pass.skySummary}</div>` : "",
-          pass.moonSummary ? `<div class="pass-meta sky-highlight">${pass.moonSummary}</div>` : "",
-          pass.moonPhaseSummary ? `<div class="pass-meta moon-phase">${pass.moonPhaseSummary}</div>` : "",
-          pass.moonlightSummary ? `<div class="pass-meta moon-phase">${pass.moonlightSummary}</div>` : "",
-          pass.alignmentSummary ? `<div class="pass-meta alignment-highlight">Alignment: ${pass.alignmentSummary}</div>` : ""
-        ].join("");
-        item.innerHTML = `
-          <div>
-            <p class="pass-title">${formatDateTime(new Date(pass.start * 1000))}</p>
-            <div class="pass-meta">Visible ${pass.duration} min • Max elevation ${pass.maxEl.toFixed(0)}°</div>
-            ${highlights}
-          </div>
-          ${badgeColumn}
-        `;
+        const shareButton = item.querySelector(".share-chip");
+        if (shareButton) {
+          shareButton.addEventListener("click", (clickEvent) => {
+            clickEvent.stopPropagation();
+            sharePass(pass);
+          });
+        }
         item.addEventListener("click", () => setPreviewPass(pass));
         passList.appendChild(item);
       });
@@ -2764,6 +3508,19 @@
       resizeSky();
     }
 
+    function handleLayoutChange(force = false) {
+      updateForecastNoteCopy();
+      const compact = isCompactMobileLayout();
+      const narrow = isNarrowMobileLayout();
+      const changed = force || compact !== state.layout.compactMobile || narrow !== state.layout.narrowMobile;
+      state.layout.compactMobile = compact;
+      state.layout.narrowMobile = narrow;
+      if (changed) {
+        renderPassList();
+        renderSkyEventsList();
+      }
+    }
+
     async function refreshAll() {
       try {
         state.planetCache.clear();
@@ -2796,8 +3553,10 @@
           }
         }
         updateNextVisible();
+        updateTonightHighlights();
         renderPassList();
         renderSkyEventsList();
+        updateForecastNoteCopy();
         scheduleNotification();
         updateSkyCanvas();
       } catch (error) {
@@ -2884,6 +3643,14 @@
       setActiveView("sky");
     });
 
+    document.getElementById("share-tonight-iss").addEventListener("click", () => {
+      sharePass(state.tonight.pass || state.nextVisible);
+    });
+
+    document.getElementById("share-tonight-sky").addEventListener("click", () => {
+      shareSkyEvent(state.tonight.skyEvent || state.skyEvents[0]);
+    });
+
     function setActiveView(view) {
       const isMap = view === "map";
       const isGlobe = view === "globe";
@@ -2914,10 +3681,21 @@
     document.getElementById("btn-globe").addEventListener("click", () => setActiveView("globe"));
     document.getElementById("btn-sky").addEventListener("click", () => setActiveView("sky"));
 
+    let layoutQueued = false;
+    window.addEventListener("resize", () => {
+      if (layoutQueued) return;
+      layoutQueued = true;
+      requestAnimationFrame(() => {
+        layoutQueued = false;
+        handleLayoutChange();
+      });
+    });
+
     initMap();
     initMapResizing();
     initGlobe();
     initSky();
+    handleLayoutChange(true);
     clearPreview();
     registerGestureBlocker(mapEl, () => mapEl.classList.contains("active"));
     registerGestureBlocker(globeEl, () => globeViewEl.classList.contains("active"));
