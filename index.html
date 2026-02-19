@@ -437,6 +437,11 @@
       margin-top: 3px;
     }
 
+    .pass-meta.moon-phase {
+      color: #d7dfff;
+      margin-top: 3px;
+    }
+
     .pass-meta.alignment-highlight {
       color: #f8d9a1;
       margin-top: 3px;
@@ -480,6 +485,18 @@
       background: rgba(255, 188, 105, 0.2);
       color: #ffd09c;
       border: 1px solid rgba(255, 188, 105, 0.55);
+    }
+
+    .badge.dark-sky {
+      background: rgba(23, 241, 177, 0.18);
+      color: #8effd0;
+      border: 1px solid rgba(23, 241, 177, 0.5);
+    }
+
+    .badge.bright-moon {
+      background: rgba(225, 232, 255, 0.2);
+      color: #e8eeff;
+      border: 1px solid rgba(196, 208, 255, 0.5);
     }
 
     .preview-banner {
@@ -669,6 +686,11 @@
           <div class="stat-value" id="visibility">Night check pending</div>
           <div class="stat-sub" id="visibility-meta">Sun altitude unavailable</div>
         </div>
+        <div class="card">
+          <h3>Moon Phase</h3>
+          <div class="stat-value" id="moon-phase">Calculating…</div>
+          <div class="stat-sub" id="moon-phase-meta">Need location to evaluate sky darkness</div>
+        </div>
       </div>
     </header>
 
@@ -699,7 +721,7 @@
     <section class="panel-grid">
       <div class="card">
         <h3>Flyover Forecast (Next 7 Days)</h3>
-        <div class="stat-sub forecast-note">Sky highlights show naked-eye planets visible during each ISS pass.</div>
+        <div class="stat-sub forecast-note">Sky highlights show naked-eye planets plus moon phase context. ISS Best remains based on ISS visibility.</div>
         <div class="pass-list" id="pass-list">
           <div class="pass-item">
             <div>
@@ -844,9 +866,22 @@
       minElevationDeg: 5,
       maxSunAltitudeDeg: -6,
       brightMagnitude: 1.5,
+      darkSkyIlluminationPctMax: 30,
+      brightMoonIlluminationPctMin: 70,
       alignmentSeparationDeg: 4.0,
       alignmentWindowSeconds: 3600,
-      alignmentStepMinutes: 30
+      alignmentStepMinutes: 30,
+      moonPhaseBands: [
+        { max: 0.0625, name: "New Moon", icon: "🌑" },
+        { max: 0.1875, name: "Waxing Crescent", icon: "🌒" },
+        { max: 0.3125, name: "First Quarter", icon: "🌓" },
+        { max: 0.4375, name: "Waxing Gibbous", icon: "🌔" },
+        { max: 0.5625, name: "Full Moon", icon: "🌕" },
+        { max: 0.6875, name: "Waning Gibbous", icon: "🌖" },
+        { max: 0.8125, name: "Last Quarter", icon: "🌗" },
+        { max: 0.9375, name: "Waning Crescent", icon: "🌘" },
+        { max: 1.01, name: "New Moon", icon: "🌑" }
+      ]
     };
 
     const mapEl = document.getElementById("map");
@@ -862,6 +897,51 @@
     const formatCoord = (val) => `${val.toFixed(3)}°`;
     const formatTime = (date) => date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     const formatDateTime = (date) => date.toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+
+    function getMoonPhaseInfo(date) {
+      const illumination = SunCalc.getMoonIllumination(date);
+      const phaseValue = ((illumination?.phase ?? 0) + 1) % 1;
+      const illuminationPct = Math.round((illumination?.fraction ?? 0) * 100);
+      const band = PLANET_VISUALS.moonPhaseBands.find((entry) => phaseValue <= entry.max) || PLANET_VISUALS.moonPhaseBands[0];
+      return {
+        phaseValue,
+        illuminationPct,
+        name: band.name,
+        icon: band.icon
+      };
+    }
+
+    function getMoonlightQuality({ illuminationPct, moonVisible }) {
+      let quality = "balanced";
+      if (!moonVisible || illuminationPct <= PLANET_VISUALS.darkSkyIlluminationPctMax) {
+        quality = "dark";
+      } else if (moonVisible && illuminationPct >= PLANET_VISUALS.brightMoonIlluminationPctMin) {
+        quality = "bright";
+      }
+
+      // Informational score only; this does not influence ISS best-pass selection.
+      let darkSkyScore = 100 - illuminationPct;
+      if (!moonVisible) darkSkyScore = Math.min(100, darkSkyScore + 25);
+      darkSkyScore = Math.min(100, Math.max(0, darkSkyScore));
+      return { quality, darkSkyScore };
+    }
+
+    function moonlightQualityLabel(quality) {
+      if (quality === "dark") return "Dark sky";
+      if (quality === "bright") return "Bright moon";
+      return "Balanced";
+    }
+
+    function moonlightBadgeValue(quality) {
+      if (quality === "dark") return "dark";
+      if (quality === "bright") return "bright";
+      return "";
+    }
+
+    function formatMoonPhaseLine(moonPhase, prefix) {
+      if (!moonPhase) return "";
+      return `${prefix}: ${moonPhase.icon} ${moonPhase.name} (${moonPhase.illuminationPct}%)`;
+    }
 
     function wrapLongitude(lon) {
       return ((lon + 540) % 360) - 180;
@@ -947,17 +1027,37 @@
     }
 
     function getSkyContextAt(date, lat, lon) {
-      if (!window.Astronomy || !window.Astronomy.Observer) {
-        return { darkEnough: false, sunAltitude: 90, visiblePlanets: [], moon: null, observations: [] };
-      }
-
       const minute = Math.floor(date.getTime() / 60000);
       const cacheKey = `${lat.toFixed(3)}|${lon.toFixed(3)}|${minute}`;
       const cached = state.planetCache.get(cacheKey);
       if (cached) return cached;
 
-      const observer = new window.Astronomy.Observer(lat, lon, 0);
       const sunAltitude = SunCalc.getPosition(date, lat, lon).altitude * 180 / Math.PI;
+      const darkEnough = sunAltitude < PLANET_VISUALS.maxSunAltitudeDeg;
+      const moonPhase = getMoonPhaseInfo(date);
+      const moonAltitudeFallback = SunCalc.getMoonPosition(date, lat, lon).altitude * 180 / Math.PI;
+
+      if (!window.Astronomy || !window.Astronomy.Observer) {
+        const moonVisibleFallback = darkEnough && moonAltitudeFallback >= PLANET_VISUALS.minElevationDeg;
+        const moonlight = getMoonlightQuality({
+          illuminationPct: moonPhase.illuminationPct,
+          moonVisible: moonVisibleFallback
+        });
+        const fallbackContext = {
+          darkEnough,
+          sunAltitude,
+          visiblePlanets: [],
+          moon: null,
+          observations: [],
+          moonPhase,
+          moonlightQuality: moonlight.quality,
+          darkSkyScore: moonlight.darkSkyScore
+        };
+        state.planetCache.set(cacheKey, fallbackContext);
+        return fallbackContext;
+      }
+
+      const observer = new window.Astronomy.Observer(lat, lon, 0);
       const observations = [];
       PLANET_VISUALS.planets.forEach((planet) => {
         const observation = getPlanetObservation(planet.body, date, observer, sunAltitude);
@@ -975,16 +1075,23 @@
         });
 
       const moonObs = getPlanetObservation(PLANET_VISUALS.moon.body, date, observer, sunAltitude);
-      const moonVisible = moonObs && moonObs.elevation >= PLANET_VISUALS.minElevationDeg && sunAltitude < PLANET_VISUALS.maxSunAltitudeDeg
+      const moonVisible = moonObs && moonObs.elevation >= PLANET_VISUALS.minElevationDeg && darkEnough
         ? { ...moonObs, color: PLANET_VISUALS.moon.color }
         : null;
+      const moonlight = getMoonlightQuality({
+        illuminationPct: moonPhase.illuminationPct,
+        moonVisible: Boolean(moonVisible)
+      });
 
       const context = {
-        darkEnough: sunAltitude < PLANET_VISUALS.maxSunAltitudeDeg,
+        darkEnough,
         sunAltitude,
         visiblePlanets,
         moon: moonVisible,
-        observations
+        observations,
+        moonPhase,
+        moonlightQuality: moonlight.quality,
+        darkSkyScore: moonlight.darkSkyScore
       };
 
       state.planetCache.set(cacheKey, context);
@@ -1100,6 +1207,7 @@
         const topTargets = entry.topTargets;
         const names = topTargets.map((target) => target.body);
         const summary = topTargets.map((target) => formatSkyTarget(target)).join(" • ");
+        const context = getSkyContextAt(new Date(entry.timestamp * 1000), lat, lon);
         return {
           id: `group-${entry.timestamp}-${names.join("-")}`,
           type: "group",
@@ -1111,6 +1219,10 @@
           title: `Planet grouping: ${names.join(", ")}`,
           meta: `Best around ${formatDateTime(new Date(entry.timestamp * 1000))}`,
           details: summary,
+          moonPhaseSummary: formatMoonPhaseLine(context.moonPhase, "Moon"),
+          moonlightSummary: `Moonlight: ${moonlightQualityLabel(context.moonlightQuality)}`,
+          moonlightBadge: moonlightBadgeValue(context.moonlightQuality),
+          darkSkyScore: context.darkSkyScore,
           score: entry.score
         };
       });
@@ -1124,18 +1236,25 @@
 
       const alignmentHighlights = alignmentEvents
         .filter((event) => event.end > now)
-        .map((event) => ({
-          id: `align-${event.pairId}-${event.peakTs}`,
-          type: "alignment",
-          focusTs: event.peakTs,
-          start: event.start,
-          end: event.end,
-          emphasis: event.minSeparation <= 2.5,
-          bodies: event.bodies,
-          title: `${event.label} alignment`,
-          meta: `Closest ${event.minSeparation.toFixed(1)}° at ${formatDateTime(new Date(event.peakTs * 1000))}`,
-          details: `Direction ${event.direction} • Altitude ${Math.round(event.elevation)}°`
-        }));
+        .map((event) => {
+          const context = getSkyContextAt(new Date(event.peakTs * 1000), lat, lon);
+          return {
+            id: `align-${event.pairId}-${event.peakTs}`,
+            type: "alignment",
+            focusTs: event.peakTs,
+            start: event.start,
+            end: event.end,
+            emphasis: event.minSeparation <= 2.5,
+            bodies: event.bodies,
+            title: `${event.label} alignment`,
+            meta: `Closest ${event.minSeparation.toFixed(1)}° at ${formatDateTime(new Date(event.peakTs * 1000))}`,
+            details: `Direction ${event.direction} • Altitude ${Math.round(event.elevation)}°`,
+            moonPhaseSummary: formatMoonPhaseLine(context.moonPhase, "Moon"),
+            moonlightSummary: `Moonlight: ${moonlightQualityLabel(context.moonlightQuality)}`,
+            moonlightBadge: moonlightBadgeValue(context.moonlightQuality),
+            darkSkyScore: context.darkSkyScore
+          };
+        });
 
       return [...alignmentHighlights, ...groupingEvents]
         .sort((left, right) => left.start - right.start)
@@ -1194,12 +1313,16 @@
         if (isSelected) badges.push('<span class="badge preview">Preview</span>');
         if (event.type === "alignment") badges.push('<span class="badge alignment">Alignment</span>');
         if (event.emphasis) badges.push('<span class="badge best">Best Night</span>');
+        if (event.moonlightBadge === "dark") badges.push('<span class="badge dark-sky">Dark Sky</span>');
+        if (event.moonlightBadge === "bright") badges.push('<span class="badge bright-moon">Bright Moon</span>');
         const badgeColumn = badges.length ? `<div class="badge-row">${badges.join("")}</div>` : "";
+        const moonContextLine = [event.moonPhaseSummary, event.moonlightSummary].filter(Boolean).join(" • ");
         item.innerHTML = `
           <div>
             <p class="pass-title">${event.title}</p>
             <div class="pass-meta">${event.meta}</div>
             <div class="pass-meta sky-highlight">${event.details}</div>
+            ${moonContextLine ? `<div class="pass-meta moon-phase">${moonContextLine}</div>` : ""}
           </div>
           ${badgeColumn}
         `;
@@ -1223,18 +1346,31 @@
 
       return passes.map((pass) => {
         if (!pass.visible) {
-          const quiet = { skySummary: "", moonSummary: "", alignmentSummary: "", topTargets: [], alignmentEvent: null };
+          const quiet = {
+            skySummary: "",
+            moonSummary: "",
+            moonPhaseSummary: "",
+            moonlightSummary: "",
+            moonlightBadge: "",
+            darkSkyScore: 0,
+            alignmentSummary: "",
+            topTargets: [],
+            alignmentEvent: null
+          };
           state.passSkyHighlights[passKey(pass)] = quiet;
           return { ...pass, ...quiet };
         }
 
         const peakTimestamp = pass.peakPoint?.timestamp || Math.round((pass.start + pass.end) / 2);
         const sampleTimes = [pass.start, peakTimestamp, pass.end];
+        const sampleContexts = sampleTimes.map((timestamp) => ({
+          timestamp,
+          context: getSkyContextAt(new Date(timestamp * 1000), state.user.lat, state.user.lon)
+        }));
         const bestTargets = new Map();
         let bestMoon = null;
 
-        sampleTimes.forEach((timestamp) => {
-          const context = getSkyContextAt(new Date(timestamp * 1000), state.user.lat, state.user.lon);
+        sampleContexts.forEach(({ context }) => {
           context.visiblePlanets.forEach((target) => {
             const existing = bestTargets.get(target.body);
             if (!existing || target.elevation > existing.elevation) {
@@ -1255,14 +1391,34 @@
           })
           .slice(0, 3);
 
+        const peakContextEntry = sampleContexts.reduce((closest, entry) => {
+          if (!closest) return entry;
+          return Math.abs(entry.timestamp - peakTimestamp) < Math.abs(closest.timestamp - peakTimestamp) ? entry : closest;
+        }, null);
+        const peakContext = peakContextEntry ? peakContextEntry.context : null;
         const alignmentEvent = findNearbyAlignment(peakTimestamp, state.alignmentEvents);
         const skySummary = topTargets.length ? `Sky: ${topTargets.map(formatSkyTarget).join(", ")}` : "";
         const moonSummary = bestMoon ? `Moon: ${Math.round(bestMoon.elevation)}° ${azimuthToCompass(bestMoon.azimuth)}` : "";
+        const moonPhaseSummary = peakContext?.moonPhase ? formatMoonPhaseLine(peakContext.moonPhase, "Moon phase") : "";
+        const moonlightQuality = peakContext?.moonlightQuality || "balanced";
+        const moonlightSummary = `Moonlight: ${moonlightQualityLabel(moonlightQuality)}`;
+        const moonlightBadge = moonlightBadgeValue(moonlightQuality);
+        const darkSkyScore = peakContext?.darkSkyScore ?? 0;
         const alignmentSummary = alignmentEvent
           ? `${alignmentEvent.label} ${alignmentEvent.minSeparation.toFixed(1)}° apart`
           : "";
 
-        const highlight = { skySummary, moonSummary, alignmentSummary, topTargets, alignmentEvent };
+        const highlight = {
+          skySummary,
+          moonSummary,
+          moonPhaseSummary,
+          moonlightSummary,
+          moonlightBadge,
+          darkSkyScore,
+          alignmentSummary,
+          topTargets,
+          alignmentEvent
+        };
         state.passSkyHighlights[passKey(pass)] = highlight;
         return { ...pass, ...highlight };
       });
@@ -1384,6 +1540,8 @@
       const nextPassMeta = document.getElementById("next-pass-meta");
       const visibility = document.getElementById("visibility");
       const visibilityMeta = document.getElementById("visibility-meta");
+      const moonPhase = document.getElementById("moon-phase");
+      const moonPhaseMeta = document.getElementById("moon-phase-meta");
 
       if (state.iss) {
         issCoords.textContent = `${formatCoord(state.iss.latitude)}, ${formatCoord(state.iss.longitude)}`;
@@ -1410,13 +1568,27 @@
       }
 
       if (state.user) {
-        const sunAlt = SunCalc.getPosition(new Date(), state.user.lat, state.user.lon).altitude * 180 / Math.PI;
+        const nowContext = getSkyContextAt(new Date(), state.user.lat, state.user.lon);
+        const sunAlt = nowContext.sunAltitude;
         const label = sunAlt < -6 ? "Night" : sunAlt < 0 ? "Civil Twilight" : "Daylight";
         visibility.textContent = label;
         visibilityMeta.textContent = `Sun altitude ${sunAlt.toFixed(1)}°`;
+        if (nowContext.moonPhase) {
+          moonPhase.textContent = `${nowContext.moonPhase.icon} ${nowContext.moonPhase.name} • ${nowContext.moonPhase.illuminationPct}%`;
+          if (sunAlt < PLANET_VISUALS.maxSunAltitudeDeg) {
+            moonPhaseMeta.textContent = `Moonlight ${moonlightQualityLabel(nowContext.moonlightQuality)} • Dark-sky score ${Math.round(nowContext.darkSkyScore)}/100`;
+          } else {
+            moonPhaseMeta.textContent = `Daylight now • Dark-sky score ${Math.round(nowContext.darkSkyScore)}/100`;
+          }
+        } else {
+          moonPhase.textContent = "Unavailable";
+          moonPhaseMeta.textContent = "Moon phase data unavailable";
+        }
       } else {
         visibility.textContent = "Night check pending";
         visibilityMeta.textContent = "Sun altitude unavailable";
+        moonPhase.textContent = "Calculating…";
+        moonPhaseMeta.textContent = "Need location to evaluate sky darkness";
       }
     }
 
@@ -2225,10 +2397,14 @@
         if (pass.alignmentEvent) {
           badges.push('<span class="badge alignment">Alignment</span>');
         }
+        if (pass.moonlightBadge === "dark") badges.push('<span class="badge dark-sky">Dark Sky</span>');
+        if (pass.moonlightBadge === "bright") badges.push('<span class="badge bright-moon">Bright Moon</span>');
         const badgeColumn = badges.length ? `<div class="badge-row">${badges.join("")}</div>` : "";
         const highlights = [
           pass.skySummary ? `<div class="pass-meta sky-highlight">${pass.skySummary}</div>` : "",
           pass.moonSummary ? `<div class="pass-meta sky-highlight">${pass.moonSummary}</div>` : "",
+          pass.moonPhaseSummary ? `<div class="pass-meta moon-phase">${pass.moonPhaseSummary}</div>` : "",
+          pass.moonlightSummary ? `<div class="pass-meta moon-phase">${pass.moonlightSummary}</div>` : "",
           pass.alignmentSummary ? `<div class="pass-meta alignment-highlight">Alignment: ${pass.alignmentSummary}</div>` : ""
         ].join("");
         item.innerHTML = `
