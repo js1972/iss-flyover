@@ -3,3 +3,7 @@
 
 # macOS resource forks
 ._*
+
+# local virtual environments
+.venv/
+.venv-icons/
