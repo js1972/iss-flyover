@@ -112,6 +112,16 @@
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .action-status {
+      width: 100%;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.04em;
+      color: #8fa4c9;
+      margin-top: 2px;
     }
 
     button {
@@ -136,6 +146,14 @@
     button.primary {
       background: linear-gradient(135deg, rgba(42, 209, 255, 0.3), rgba(155, 92, 255, 0.4));
       border-color: rgba(42, 209, 255, 0.6);
+    }
+
+    button.tertiary {
+      background: rgba(28, 40, 66, 0.52);
+      border-color: rgba(104, 132, 180, 0.35);
+      color: #b6c8e8;
+      padding: 8px 13px;
+      font-size: 0.79rem;
     }
 
     button.active {
@@ -191,6 +209,116 @@
       text-transform: uppercase;
       letter-spacing: 0.18em;
       color: var(--muted);
+    }
+
+    .panel-card {
+      position: relative;
+      overflow: visible;
+      border-color: rgba(104, 132, 184, 0.32);
+      background: linear-gradient(165deg, rgba(11, 24, 46, 0.96), rgba(8, 16, 34, 0.95));
+      box-shadow:
+        inset 0 1px 0 rgba(186, 206, 245, 0.06),
+        0 18px 38px rgba(4, 10, 24, 0.36);
+    }
+
+    .forecast-card {
+      border-color: rgba(90, 166, 228, 0.38);
+    }
+
+    .sky-card {
+      border-color: rgba(154, 122, 236, 0.4);
+    }
+
+    .panel-heading {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: -2px -2px 10px;
+      padding: 2px 2px 12px;
+      border-bottom: 1px solid rgba(114, 146, 204, 0.3);
+    }
+
+    .panel-heading::after {
+      content: "";
+      position: absolute;
+      left: 2px;
+      bottom: -1px;
+      height: 2px;
+      width: 168px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, rgba(87, 230, 255, 0.88), rgba(87, 230, 255, 0.06));
+    }
+
+    .sky-card .panel-heading::after {
+      background: linear-gradient(90deg, rgba(180, 140, 255, 0.88), rgba(180, 140, 255, 0.06));
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.17em;
+      color: #d9e8ff;
+      text-shadow: 0 0 16px rgba(34, 122, 214, 0.2);
+    }
+
+    .sky-card .panel-title {
+      color: #e8ddff;
+      text-shadow: 0 0 16px rgba(155, 92, 255, 0.2);
+    }
+
+    .panel-info-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 30px;
+      min-height: 30px;
+    }
+
+    .panel-info-btn {
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      border: 1px solid rgba(122, 156, 220, 0.64);
+      background: rgba(20, 35, 62, 0.9);
+      color: #cde3ff;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.78rem;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+    }
+
+    .panel-info-btn:hover {
+      border-color: rgba(87, 230, 255, 0.88);
+      background: rgba(25, 48, 86, 0.96);
+      transform: translateY(-1px);
+    }
+
+    .panel-popover {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      z-index: 20;
+      width: min(340px, 78vw);
+      border: 1px solid rgba(121, 152, 213, 0.46);
+      border-radius: 12px;
+      background: linear-gradient(150deg, rgba(17, 30, 56, 0.98), rgba(11, 20, 36, 0.98));
+      padding: 10px 12px;
+      color: #bfcee9;
+      font-size: 0.78rem;
+      line-height: 1.4;
+      box-shadow: 0 14px 32px rgba(4, 10, 24, 0.52);
+    }
+
+    .panel-popover[hidden] {
+      display: none;
     }
 
     .stat-value {
@@ -431,75 +559,6 @@
       gap: 20px;
     }
 
-    .forecast-panel,
-    .sky-panel {
-      position: relative;
-      overflow: hidden;
-      padding: 0;
-    }
-
-    .forecast-panel {
-      border-color: rgba(74, 165, 226, 0.4);
-      background: linear-gradient(165deg, rgba(9, 23, 45, 0.96), rgba(7, 16, 34, 0.94));
-    }
-
-    .sky-panel {
-      border-color: rgba(152, 122, 232, 0.38);
-      background: linear-gradient(165deg, rgba(16, 20, 44, 0.96), rgba(8, 14, 34, 0.94));
-    }
-
-    .forecast-panel > h3,
-    .sky-panel > h3 {
-      margin: 0;
-      padding: 16px 18px 8px;
-      font-size: 1rem;
-      letter-spacing: 0.2em;
-      line-height: 1.25;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .forecast-panel > h3 {
-      color: #bfe2ff;
-      text-shadow: 0 0 18px rgba(54, 170, 235, 0.18);
-    }
-
-    .sky-panel > h3 {
-      color: #dbcaff;
-      text-shadow: 0 0 18px rgba(155, 92, 255, 0.2);
-    }
-
-    .forecast-panel > h3::before,
-    .sky-panel > h3::before {
-      content: "";
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      flex: 0 0 auto;
-    }
-
-    .forecast-panel > h3::before {
-      background: #57e6ff;
-      box-shadow: 0 0 10px rgba(87, 230, 255, 0.65);
-    }
-
-    .sky-panel > h3::before {
-      background: #b48cff;
-      box-shadow: 0 0 10px rgba(180, 140, 255, 0.65);
-    }
-
-    .forecast-panel > .forecast-note {
-      margin: 0;
-      padding: 0 18px 12px;
-      border-bottom: 1px solid rgba(118, 146, 194, 0.28);
-    }
-
-    .forecast-panel > .pass-list,
-    .sky-panel > .sky-event-list {
-      padding: 14px;
-    }
-
     .pass-list {
       display: flex;
       flex-direction: column;
@@ -533,7 +592,7 @@
     .pass-item.preview::before,
     .sky-event-item::before,
     .sky-event-item.selected::before,
-    .sky-event-item.emphasis::before {
+    .sky-event-item.best-of-week::before {
       content: none !important;
       display: none !important;
     }
@@ -549,7 +608,7 @@
       background: linear-gradient(160deg, rgba(18, 28, 48, 0.98), rgba(12, 20, 36, 0.98));
     }
 
-    .sky-event-item.emphasis {
+    .sky-event-item.best-of-week {
       border-color: rgba(255, 188, 105, 0.65);
       background: linear-gradient(135deg, rgba(255, 188, 105, 0.14), rgba(12, 18, 32, 0.9));
       box-shadow: 0 0 0 1px rgba(255, 188, 105, 0.2), 0 10px 24px rgba(34, 22, 10, 0.4);
@@ -642,6 +701,14 @@
       margin-top: 3px;
     }
 
+    .pass-meta.quality-hint {
+      margin-top: 5px;
+      color: #ffd8a6;
+      letter-spacing: 0.04em;
+      font-size: 0.74rem;
+      text-transform: uppercase;
+    }
+
     .badge-row {
       display: flex;
       flex-direction: column;
@@ -706,6 +773,12 @@
       border: 1px solid rgba(196, 208, 255, 0.5);
     }
 
+    .badge.multi {
+      background: rgba(255, 207, 126, 0.18);
+      color: #ffd7a3;
+      border: 1px solid rgba(255, 207, 126, 0.5);
+    }
+
     .compact-head {
       display: flex;
       justify-content: space-between;
@@ -753,6 +826,24 @@
       font-size: 0.79rem;
       color: var(--muted);
       line-height: 1.35;
+    }
+
+    .compact-time {
+      margin-top: 6px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.98rem;
+      line-height: 1.2;
+      letter-spacing: 0.02em;
+      color: #e8f0ff;
+      font-weight: 600;
+    }
+
+    .pass-meta.event-time {
+      margin-top: 4px;
+      font-size: 0.9rem;
+      color: #e4ecff;
+      letter-spacing: 0.02em;
+      font-weight: 600;
     }
 
     .compact-grid {
@@ -809,6 +900,15 @@
       word-break: break-word;
     }
 
+    .compact-quality-hint {
+      margin-top: 6px;
+      font-family: "IBM Plex Mono", monospace;
+      color: #ffd8a6;
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
     .share-chip {
       background: rgba(18, 36, 66, 0.68);
       color: #cce5ff;
@@ -860,6 +960,52 @@
     .toast.show {
       opacity: 1;
       transform: translateY(0);
+    }
+
+    #refresh.is-loading {
+      position: relative;
+      padding-left: 34px;
+      pointer-events: none;
+    }
+
+    #refresh.is-loading::before {
+      content: "";
+      position: absolute;
+      left: 13px;
+      top: 50%;
+      width: 12px;
+      height: 12px;
+      margin-top: -6px;
+      border: 2px solid rgba(210, 226, 255, 0.35);
+      border-top-color: rgba(87, 230, 255, 0.95);
+      border-radius: 50%;
+      animation: spin 0.72s linear infinite;
+    }
+
+    .panel-card.loading .pass-list,
+    .panel-card.loading .sky-event-list {
+      opacity: 0.7;
+      filter: saturate(0.82);
+      transition: opacity 0.18s ease;
+    }
+
+    .panel-card.loading::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(110deg, rgba(255, 255, 255, 0) 15%, rgba(170, 210, 255, 0.08) 35%, rgba(255, 255, 255, 0) 55%);
+      transform: translateX(-100%);
+      animation: shimmer 1.15s linear infinite;
+      pointer-events: none;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes shimmer {
+      to { transform: translateX(100%); }
     }
 
     .preview-banner {
@@ -1021,6 +1167,18 @@
         line-height: 1.35;
       }
 
+      .panel-heading {
+        padding-bottom: 10px;
+      }
+
+      .panel-heading::after {
+        width: 124px;
+      }
+
+      .panel-popover {
+        width: min(300px, 86vw);
+      }
+
       .pass-item.compact-mobile,
       .sky-event-item.compact-mobile {
         display: block;
@@ -1042,6 +1200,26 @@
     @media (max-width: 560px) {
       .app {
         gap: 18px;
+      }
+
+      .panel-title {
+        font-size: 0.88rem;
+        letter-spacing: 0.14em;
+      }
+
+      .panel-info-wrap {
+        min-width: 28px;
+        min-height: 28px;
+      }
+
+      .panel-info-btn {
+        width: 20px;
+        height: 20px;
+        font-size: 0.72rem;
+      }
+
+      .panel-popover {
+        right: -8px;
       }
 
       .compact-title-pass {
@@ -1090,19 +1268,20 @@
       <div class="title-row">
         <div>
           <h1>ISS Flyover Explorer</h1>
-          <p class="subtitle">Track the International Space Station in real time, explore its orbital path, and get notified about night-time flyovers over your location.</p>
+          <p class="subtitle">Real-time ISS tracking and night-sky planning for your location.</p>
         </div>
         <div class="actions">
           <button id="locate" class="primary">Use My Location</button>
           <button id="notify">Enable Notifications</button>
-          <button id="refresh">Recalculate Forecast</button>
+          <button id="refresh" class="tertiary">Refresh Forecast</button>
+          <div class="action-status" id="action-status">Awaiting first update...</div>
         </div>
       </div>
     </header>
 
     <section class="section-head">
       <h2 class="section-title">What To Watch Next</h2>
-      <p class="section-subtitle">Fast picks for your local sky: best ISS pass, standout planetary target, and moonlight conditions.</p>
+      <p class="section-subtitle">Best ISS pass, key sky event, and moonlight at a glance.</p>
     </section>
 
     <section class="tonight-grid">
@@ -1156,8 +1335,14 @@
     </section>
 
     <section class="panel-grid">
-      <div class="card">
-        <h3>Flyover Forecast (Next 7 Days)</h3>
+      <div class="card panel-card forecast-card" id="forecast-panel">
+        <div class="panel-heading">
+          <h3 class="panel-title">Upcoming ISS Passes</h3>
+          <div class="panel-info-wrap">
+            <button class="panel-info-btn" id="iss-best-info" type="button" aria-expanded="false" aria-controls="iss-best-note" title="How ISS best pass is chosen">i</button>
+            <div class="panel-popover" id="iss-best-note" hidden>ISS BEST prioritizes higher max elevation, then longer visible duration. If tied, sky context (planet/alignment context) is used as a tie-break only.</div>
+          </div>
+        </div>
         <div class="stat-sub forecast-note" id="forecast-note">Sky highlights show naked-eye planets plus moon phase context. ISS Best remains based on ISS visibility.</div>
         <div class="pass-list" id="pass-list">
           <div class="pass-item">
@@ -1169,8 +1354,14 @@
           </div>
         </div>
       </div>
-      <div class="card">
-        <h3>Naked-Eye Sky Highlights (Next 7 Days)</h3>
+      <div class="card panel-card sky-card" id="sky-panel">
+        <div class="panel-heading">
+          <h3 class="panel-title">Night Sky Highlights</h3>
+          <div class="panel-info-wrap">
+            <button class="panel-info-btn" id="sky-best-info" type="button" aria-expanded="false" aria-controls="sky-best-note" title="How sky best night is chosen">i</button>
+            <div class="panel-popover" id="sky-best-note" hidden>Sky BEST is chosen from one event per day over the next 7 days. Ranking favors more visible bodies first, then event strength (eclipse/alignment/grouping), then darker moonlight conditions.</div>
+          </div>
+        </div>
         <div class="sky-event-list" id="sky-events-list">
           <div class="sky-event-item">
             <div>
@@ -1300,6 +1491,11 @@
       layout: {
         compactMobile: null,
         narrowMobile: null
+      },
+      ui: {
+        refreshing: false,
+        refreshPromise: null,
+        lastRefreshStatus: "idle"
       }
     };
 
@@ -1347,8 +1543,9 @@
         Jupiter: { maxSunAltitudeDeg: -2.5, minElevationDeg: 4 },
         Saturn: { maxSunAltitudeDeg: -3.5, minElevationDeg: 4 }
       },
-      minElevationDeg: 3,
+      minElevationDeg: 10,
       maxSunAltitudeDeg: -4,
+      moonlightElevationDeg: 0,
       brightMagnitude: 1.5,
       darkSkyIlluminationPctMax: 30,
       brightMoonIlluminationPctMin: 70,
@@ -1375,9 +1572,13 @@
     const skyCanvas = document.getElementById("sky");
     const passList = document.getElementById("pass-list");
     const skyEventsList = document.getElementById("sky-events-list");
+    const actionStatusEl = document.getElementById("action-status");
+    const forecastPanelEl = document.getElementById("forecast-panel");
+    const skyPanelEl = document.getElementById("sky-panel");
     const previewBanner = document.getElementById("preview-banner");
     const previewText = document.getElementById("preview-text");
     const shareToast = document.getElementById("share-toast");
+    const refreshButton = document.getElementById("refresh");
 
     const formatCoord = (val) => `${val.toFixed(3)}°`;
     const formatTime = (date) => date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -1429,8 +1630,8 @@
       const note = document.getElementById("forecast-note");
       if (!note) return;
       note.textContent = isCompactMobileLayout()
-        ? "Moon phase shows sky darkness. ISS Best remains ISS-first."
-        : "Sky highlights show naked-eye planets plus moon phase context. ISS Best remains based on ISS visibility.";
+        ? "Tap a pass to preview it in User View. BEST remains ISS-first."
+        : "Tap any pass to preview it. BEST is ranked by elevation then duration (sky context only breaks ties).";
     }
 
     function showToast(message, duration = 2200) {
@@ -1443,6 +1644,40 @@
       }, duration);
     }
     showToast.timerId = null;
+
+    function triggerHaptic(type) {
+      if (typeof navigator.vibrate !== "function") return;
+      if (type === "start") navigator.vibrate(10);
+      else if (type === "success") navigator.vibrate([16, 28, 16]);
+      else if (type === "error") navigator.vibrate([24, 40, 24]);
+      else navigator.vibrate(8);
+    }
+
+    function setRefreshingUI(active) {
+      state.ui.refreshing = active;
+      if (refreshButton) {
+        refreshButton.classList.toggle("is-loading", active);
+        refreshButton.disabled = active;
+        refreshButton.textContent = active ? "Recalculating..." : "Refresh Forecast";
+      }
+      if (forecastPanelEl) forecastPanelEl.classList.toggle("loading", active);
+      if (skyPanelEl) skyPanelEl.classList.toggle("loading", active);
+      if (actionStatusEl && active) {
+        actionStatusEl.textContent = "Updating forecasts...";
+      }
+    }
+
+    function setActionStatus(text) {
+      if (!actionStatusEl) return;
+      actionStatusEl.textContent = text;
+    }
+
+    function getSkyQualityHint(event) {
+      const bodiesCount = event.bodies?.length || 1;
+      const score = Math.round(event.darkSkyScore || 0);
+      const focusTs = event.focusTs || event.start;
+      return `${bodiesCount} bodies • dark-sky ${score}/100 • ${formatTime(new Date(focusTs * 1000))} local`;
+    }
 
     function buildPassShareMessage(pass) {
       const dateLabel = formatDateTime(new Date(pass.start * 1000));
@@ -1738,18 +1973,19 @@
       const darkEnough = sunAltitude < PLANET_VISUALS.maxSunAltitudeDeg;
       const moonPhase = getMoonPhaseInfo(date);
       const moonAltitudeFallback = SunCalc.getMoonPosition(date, lat, lon).altitude * 180 / Math.PI;
+      const moonAboveHorizonFallback = sunAltitude < 0 && moonAltitudeFallback >= PLANET_VISUALS.moonlightElevationDeg;
 
       if (!window.Astronomy || !window.Astronomy.Observer) {
-        const moonVisibleFallback = darkEnough && moonAltitudeFallback >= PLANET_VISUALS.minElevationDeg;
         const moonlight = getMoonlightQuality({
           illuminationPct: moonPhase.illuminationPct,
-          moonVisible: moonVisibleFallback
+          moonVisible: moonAboveHorizonFallback
         });
         const fallbackContext = {
           darkEnough,
           sunAltitude,
           visiblePlanets: [],
           moon: null,
+          moonAboveHorizon: moonAboveHorizonFallback,
           observations: [],
           moonPhase,
           moonlightQuality: moonlight.quality,
@@ -1777,12 +2013,13 @@
         });
 
       const moonObs = getPlanetObservation(PLANET_VISUALS.moon.body, date, observer, sunAltitude);
+      const moonAboveHorizon = Boolean(moonObs && sunAltitude < 0 && moonObs.elevation >= PLANET_VISUALS.moonlightElevationDeg);
       const moonVisible = moonObs && moonObs.elevation >= PLANET_VISUALS.minElevationDeg && darkEnough
         ? { ...moonObs, color: PLANET_VISUALS.moon.color }
         : null;
       const moonlight = getMoonlightQuality({
         illuminationPct: moonPhase.illuminationPct,
-        moonVisible: Boolean(moonVisible)
+        moonVisible: moonAboveHorizon
       });
 
       const context = {
@@ -1790,6 +2027,7 @@
         sunAltitude,
         visiblePlanets,
         moon: moonVisible,
+        moonAboveHorizon,
         observations,
         moonPhase,
         moonlightQuality: moonlight.quality,
@@ -1947,7 +2185,7 @@
               emphasis: eclipse.kind === kinds.Total || eclipse.kind === kinds.Partial,
               bodies: ["Moon"],
               title: lunarEclipseKindLabel(eclipse.kind),
-              meta: `Peak at ${formatDateTime(peakDate)}`,
+              meta: formatDateTime(peakDate),
               details: `Coverage ${obscurationPct}% • Moon ${Math.round(moonAlt)}° ${azimuthToCompass(moonAz)}`,
               moonPhase,
               moonPhaseSummary: formatMoonPhaseLine(moonPhase, "Moon"),
@@ -1996,7 +2234,7 @@
             emphasis: phase.lon === 180 || phase.lon === 0,
             bodies: ["Moon"],
             title: phase.title,
-            meta: `Occurs at ${formatDateTime(found.date)}`,
+            meta: formatDateTime(found.date),
             details: `Moon illumination ${moonPhase.illuminationPct}%`,
             moonPhase,
             moonPhaseSummary: formatMoonPhaseLine(moonPhase, "Moon"),
@@ -2047,7 +2285,6 @@
         const names = topTargets.map((target) => target.body);
         const summary = topTargets.map((target) => formatSkyTarget(target)).join(" • ");
         const context = getSkyContextAt(new Date(entry.timestamp * 1000), lat, lon);
-        const windowLabel = entry.skyWindow === "dawn" ? "Dawn" : "Evening";
         const eventType = names.length === 1 ? "planet" : "group";
         let title = "";
         if (names.length === 1) {
@@ -2067,23 +2304,19 @@
           emphasis: topTargets.length >= 3,
           bodies: names,
           title,
-          meta: `Best ${windowLabel.toLowerCase()} around ${formatDateTime(new Date(entry.timestamp * 1000))}`,
+          meta: formatDateTime(new Date(entry.timestamp * 1000)),
           details: summary,
           moonPhase: context.moonPhase || null,
           moonPhaseSummary: formatMoonPhaseLine(context.moonPhase, "Moon"),
           moonlightSummary: `Moonlight: ${moonlightQualityLabel(context.moonlightQuality)}`,
           moonlightBadge: moonlightBadgeValue(context.moonlightQuality),
           darkSkyScore: context.darkSkyScore,
-          score: entry.score
+          qualityScore: entry.score
         };
       });
 
       const groupingEvents = groupingEventsRaw
-        .sort((left, right) => left.start - right.start)
-        .map((event) => {
-          const { score, ...clean } = event;
-          return clean;
-        });
+        .sort((left, right) => left.start - right.start);
 
       const alignmentHighlights = alignmentEvents
         .filter((event) => event.end > now)
@@ -2098,8 +2331,9 @@
             emphasis: event.minSeparation <= 2.5,
             bodies: event.bodies,
             title: `${event.label} alignment`,
-            meta: `Closest ${event.minSeparation.toFixed(1)}° at ${formatDateTime(new Date(event.peakTs * 1000))}`,
-            details: `Direction ${event.direction} • Altitude ${Math.round(event.elevation)}°`,
+            meta: formatDateTime(new Date(event.peakTs * 1000)),
+            details: `Closest ${event.minSeparation.toFixed(1)}° • ${event.direction} • Altitude ${Math.round(event.elevation)}°`,
+            separationDeg: event.minSeparation,
             moonPhase: context.moonPhase || null,
             moonPhaseSummary: formatMoonPhaseLine(context.moonPhase, "Moon"),
             moonlightSummary: `Moonlight: ${moonlightQualityLabel(context.moonlightQuality)}`,
@@ -2110,10 +2344,68 @@
 
       const lunarEclipseEvents = buildLunarEclipseEvents(now, end, lat, lon);
       const moonPhaseEvents = buildMoonPhaseEvents(now, end, lat, lon);
+      const allEvents = [...lunarEclipseEvents, ...alignmentHighlights, ...moonPhaseEvents, ...groupingEvents]
+        .sort((left, right) => left.start - right.start);
 
-      return [...lunarEclipseEvents, ...alignmentHighlights, ...moonPhaseEvents, ...groupingEvents]
-        .sort((left, right) => left.start - right.start)
-        .slice(0, 35);
+      function eventScore(event) {
+        let score = 0;
+        if (event.type === "lunar-eclipse") {
+          score += 640;
+        } else if (event.type === "alignment") {
+          score += 520;
+          if (Number.isFinite(event.separationDeg)) {
+            score += Math.max(0, (6 - event.separationDeg) * 18);
+          }
+        } else if (event.type === "group" || event.type === "planet") {
+          const bodiesCount = event.bodies?.length || 1;
+          score += 320;
+          score += bodiesCount * 180;
+          score += Math.min(260, (event.qualityScore || 0) * 0.45);
+          if (event.type === "planet") score -= 70;
+        } else if (event.type === "moon-phase") {
+          score += 330;
+        }
+        if (event.emphasis) score += 36;
+        score += (event.darkSkyScore || 0) * 0.7;
+        return score;
+      }
+
+      const byDay = new Map();
+      allEvents.forEach((event) => {
+        const focus = event.focusTs || event.start;
+        const dayKey = new Date(focus * 1000).toLocaleDateString("en-CA");
+        const ranked = { ...event, _score: eventScore(event) };
+        const existing = byDay.get(dayKey);
+        if (!existing || ranked._score > existing._score) {
+          byDay.set(dayKey, ranked);
+        }
+      });
+
+      const dayEvents = Array.from(byDay.values())
+        .sort((left, right) => (left.focusTs || left.start) - (right.focusTs || right.start))
+        .slice(0, FORECAST_DAYS);
+
+      let bestIdx = -1;
+      dayEvents.forEach((event, index) => {
+        if (bestIdx < 0 || event._score > dayEvents[bestIdx]._score) {
+          bestIdx = index;
+        }
+      });
+
+      return dayEvents.map((event, index) => {
+        const { _score, ...clean } = event;
+        let notableReason = "";
+        if (clean.type === "alignment") notableReason = "alignment";
+        else if (clean.type === "lunar-eclipse") notableReason = "eclipse";
+        else if ((clean.bodies?.length || 0) >= 3) notableReason = "multi-body";
+        return {
+          ...clean,
+          isBestOfWeek: index === bestIdx,
+          isNotable: Boolean(notableReason),
+          notableReason,
+          emphasis: index === bestIdx
+        };
+      });
     }
 
     function renderSkyEventsList() {
@@ -2151,7 +2443,7 @@
           <div class="sky-event-item">
             <div>
               <p class="pass-title">No standout naked-eye events in the next ${FORECAST_DAYS} days</p>
-              <div class="pass-meta">Try refreshing or checking a different location</div>
+              <div class="pass-meta">Try another location, or check moonlight and single-planet windows above.</div>
             </div>
             <span class="badge daylight">Quiet</span>
           </div>
@@ -2164,22 +2456,25 @@
       state.skyEvents.forEach((event) => {
         const item = document.createElement("div");
         const isSelected = selectedEventId === event.id;
-        item.className = `sky-event-item clickable${event.emphasis ? " emphasis" : ""}${isSelected ? " selected" : ""}${compactMobile ? " compact-mobile" : ""}`;
+        item.className = `sky-event-item clickable${event.isBestOfWeek ? " best-of-week" : ""}${isSelected ? " selected" : ""}${compactMobile ? " compact-mobile" : ""}`;
         const badgeDescriptors = [];
         if (event.type === "lunar-eclipse") badgeDescriptors.push({ className: "eclipse", label: "Eclipse", priority: 1 });
-        if (event.type === "alignment") badgeDescriptors.push({ className: "alignment", label: "Alignment", priority: 1 });
+        if (event.notableReason === "alignment") badgeDescriptors.push({ className: "alignment", label: "Alignment", priority: 1 });
+        if (event.notableReason === "multi-body") badgeDescriptors.push({ className: "multi", label: "3 Bodies", priority: 2 });
         if (event.type === "moon-phase") badgeDescriptors.push({ className: "phase", label: "Phase", priority: 2 });
-        if (event.emphasis) badgeDescriptors.push({ className: "best", label: "Best Night", priority: 2 });
+        if (event.isBestOfWeek) badgeDescriptors.push({ className: "best", label: "Best", priority: 2 });
         if (event.moonlightBadge === "dark") badgeDescriptors.push({ className: "dark-sky", label: "Dark Sky", priority: 3 });
         if (event.moonlightBadge === "bright") badgeDescriptors.push({ className: "bright-moon", label: "Bright Moon", priority: 3 });
         const badgeSpansCompact = renderBadgeSpans(badgeDescriptors, true);
         const badgeSpansDesktop = renderBadgeSpans(badgeDescriptors, false);
+        const qualityHint = event.isBestOfWeek ? getSkyQualityHint(event) : "";
 
         if (compactMobile) {
           const bodyCount = event.bodies?.length ? String(event.bodies.length) : "--";
           const compactTitle = event.type === "group" && event.bodies?.length
             ? event.bodies.join(" + ")
             : event.title;
+          const compactDateTime = formatDateTime(new Date((event.focusTs || event.start) * 1000));
           const bodyDetail = event.bodies?.length ? `Bodies: ${event.bodies.join(", ")}` : "Bodies: --";
           const moonPct = Number.isFinite(event.moonPhase?.illuminationPct) ? `${event.moonPhase.illuminationPct}%` : "--";
           const moonPhaseCompact = event.moonPhase
@@ -2193,7 +2488,8 @@
                 ${badgeSpansCompact ? `<div class="compact-badges">${badgeSpansCompact}</div>` : ""}
               </div>
             </div>
-            <div class="compact-sub">${event.meta}</div>
+            <div class="compact-time">${compactDateTime}</div>
+            <div class="compact-sub">${event.type === "alignment" ? "Closest planetary alignment window" : "Peak viewing window"}</div>
             <div class="compact-grid">
               <div class="compact-cell"><p class="compact-k">Bodies</p><p class="compact-v">${bodyCount}</p></div>
               <div class="compact-cell"><p class="compact-k">Best</p><p class="compact-v">${formatCompactBestTime(event.focusTs || event.start)}</p></div>
@@ -2201,6 +2497,7 @@
             </div>
             <div class="compact-detail">${bodyDetail}</div>
             <div class="compact-secondary">${event.details} • ${moonPhaseCompact}</div>
+            ${qualityHint ? `<div class="compact-quality-hint">${qualityHint}</div>` : ""}
           `;
         } else {
           const badgeColumn = `
@@ -2213,9 +2510,10 @@
           item.innerHTML = `
             <div>
               <p class="pass-title">${event.title}</p>
-              <div class="pass-meta">${event.meta}</div>
+              <div class="pass-meta event-time">${event.meta}</div>
               <div class="pass-meta sky-highlight">${event.details}</div>
               ${moonContextLine ? `<div class="pass-meta moon-phase">${moonContextLine}</div>` : ""}
+              ${qualityHint ? `<div class="pass-meta quality-hint">${qualityHint}</div>` : ""}
             </div>
             ${badgeColumn}
           `;
@@ -2479,7 +2777,11 @@
         if (nowContext.moonPhase) {
           moonPhase.textContent = `${nowContext.moonPhase.icon} ${nowContext.moonPhase.name} • ${nowContext.moonPhase.illuminationPct}%`;
           if (sunAlt < PLANET_VISUALS.maxSunAltitudeDeg) {
-            moonPhaseMeta.textContent = `Moonlight ${moonlightQualityLabel(nowContext.moonlightQuality)} • Dark-sky score ${Math.round(nowContext.darkSkyScore)}/100`;
+            if (!nowContext.moonAboveHorizon) {
+              moonPhaseMeta.textContent = `Moon below horizon now • Dark-sky score ${Math.round(nowContext.darkSkyScore)}/100`;
+            } else {
+              moonPhaseMeta.textContent = `Moonlight ${moonlightQualityLabel(nowContext.moonlightQuality)} • Dark-sky score ${Math.round(nowContext.darkSkyScore)}/100`;
+            }
           } else {
             moonPhaseMeta.textContent = `Daylight now • Dark-sky score ${Math.round(nowContext.darkSkyScore)}/100`;
           }
@@ -2558,7 +2860,13 @@
       if (context?.moonPhase) {
         const quality = moonlightQualityLabel(context.moonlightQuality);
         tonightMoon.textContent = `${context.moonPhase.icon} ${context.moonPhase.name} • ${context.moonPhase.illuminationPct}%`;
-        tonightMoonMeta.textContent = `Moonlight ${quality} • Dark-sky score ${Math.round(context.darkSkyScore)}/100`;
+        if (context.sunAltitude >= PLANET_VISUALS.maxSunAltitudeDeg) {
+          tonightMoonMeta.textContent = `Daylight now • Dark-sky score ${Math.round(context.darkSkyScore)}/100`;
+        } else if (!context.moonAboveHorizon) {
+          tonightMoonMeta.textContent = `Moon below horizon now • Dark-sky score ${Math.round(context.darkSkyScore)}/100`;
+        } else {
+          tonightMoonMeta.textContent = `Moonlight ${quality} • Dark-sky score ${Math.round(context.darkSkyScore)}/100`;
+        }
       } else {
         tonightMoon.textContent = "Moon phase unavailable";
         tonightMoonMeta.textContent = "Moonlight quality unavailable.";
@@ -3350,7 +3658,7 @@
           <div class="pass-item">
             <div>
               <p class="pass-title">No visible passes in the next ${FORECAST_DAYS} days</p>
-              <div class="pass-meta">Check again later or adjust your location</div>
+              <div class="pass-meta">Try another location, then check again tonight.</div>
             </div>
             <span class="badge low">None</span>
           </div>
@@ -3795,47 +4103,72 @@
       }
     }
 
-    async function refreshAll() {
-      try {
-        state.planetCache.clear();
-        state.passSkyHighlights = {};
-        state.alignmentEvents = [];
-        await fetchISSNow();
-        const hoursRaw = Number(document.getElementById("track-hours")?.value ?? 6);
-        const hours = Number.isFinite(hoursRaw) ? hoursRaw : 6;
-        await fetchISSTrack(hours, 60);
-        const forecast = await fetchISSForecast(FORECAST_DAYS, 120);
-        state.passes = computePasses(forecast);
-        state.passes = await refinePasses(state.passes, 10);
-        state.passes = enrichPassesWithSkyContext(state.passes);
-        state.goodPasses = state.passes.filter((pass) => pass.visible);
-        if (state.preview.active) {
-          if (state.preview.mode === "pass") {
-            const match = state.goodPasses.find((pass) => pass.start === state.preview.pass?.start && pass.end === state.preview.pass?.end);
-            if (match) {
-              state.preview.pass = match;
-            } else {
-              clearPreview();
-            }
-          } else if (state.preview.mode === "event") {
-            const matchEvent = state.skyEvents.find((event) => event.id === state.preview.skyEvent?.id);
-            if (matchEvent) {
-              state.preview.skyEvent = matchEvent;
-            } else {
-              clearPreview();
+    async function refreshAll(options = {}) {
+      const interactive = Boolean(options.interactive);
+      if (state.ui.refreshPromise) return state.ui.refreshPromise;
+
+      const task = (async () => {
+        if (interactive) triggerHaptic("start");
+        setRefreshingUI(true);
+        try {
+          state.planetCache.clear();
+          state.passSkyHighlights = {};
+          state.alignmentEvents = [];
+          await fetchISSNow();
+          const hoursRaw = Number(document.getElementById("track-hours")?.value ?? 6);
+          const hours = Number.isFinite(hoursRaw) ? hoursRaw : 6;
+          await fetchISSTrack(hours, 60);
+          const forecast = await fetchISSForecast(FORECAST_DAYS, 120);
+          state.passes = computePasses(forecast);
+          state.passes = await refinePasses(state.passes, 10);
+          state.passes = enrichPassesWithSkyContext(state.passes);
+          state.goodPasses = state.passes.filter((pass) => pass.visible);
+          if (state.preview.active) {
+            if (state.preview.mode === "pass") {
+              const match = state.goodPasses.find((pass) => pass.start === state.preview.pass?.start && pass.end === state.preview.pass?.end);
+              if (match) {
+                state.preview.pass = match;
+              } else {
+                clearPreview();
+              }
+            } else if (state.preview.mode === "event") {
+              const matchEvent = state.skyEvents.find((event) => event.id === state.preview.skyEvent?.id);
+              if (matchEvent) {
+                state.preview.skyEvent = matchEvent;
+              } else {
+                clearPreview();
+              }
             }
           }
+          updateNextVisible();
+          updateTonightHighlights();
+          renderPassList();
+          renderSkyEventsList();
+          updateForecastNoteCopy();
+          scheduleNotification();
+          updateSkyCanvas();
+          state.ui.lastRefreshStatus = "success";
+          setActionStatus(`Updated ${formatTime(new Date())} local`);
+          if (interactive) {
+            triggerHaptic("success");
+            showToast("Forecast recalculated.");
+          }
+        } catch (error) {
+          console.error(error);
+          state.ui.lastRefreshStatus = "error";
+          setActionStatus("Update failed. Try again.");
+          if (interactive) {
+            triggerHaptic("error");
+            showToast("Recalculation failed. Please try again.", 3000);
+          }
+        } finally {
+          setRefreshingUI(false);
+          state.ui.refreshPromise = null;
         }
-        updateNextVisible();
-        updateTonightHighlights();
-        renderPassList();
-        renderSkyEventsList();
-        updateForecastNoteCopy();
-        scheduleNotification();
-        updateSkyCanvas();
-      } catch (error) {
-        console.error(error);
-      }
+      })();
+
+      state.ui.refreshPromise = task;
+      return task;
     }
 
     function animateISS() {
@@ -3873,6 +4206,7 @@
       const initialLabel = button.textContent;
       button.disabled = true;
       button.textContent = "Locating...";
+      triggerHaptic("start");
 
       let geoError = null;
       try {
@@ -3880,6 +4214,8 @@
           try {
             const pos = await requestDeviceLocationWithRetry();
             await setUserLocation(pos.coords.latitude, pos.coords.longitude, "Device location");
+            triggerHaptic("success");
+            setActionStatus(`Location updated ${formatTime(new Date())} local`);
             showToast("Using precise device location.");
             return;
           } catch (error) {
@@ -3893,6 +4229,8 @@
         if (approx) {
           await setUserLocation(approx.lat, approx.lon, `${approx.source} (approximate)`);
           const prefix = geoError ? `${geolocationErrorMessage(geoError)} ` : "";
+          triggerHaptic("success");
+          setActionStatus(`Approximate location set ${formatTime(new Date())} local`);
           showToast(`${prefix}Using approximate IP location.`, 3600);
           return;
         }
@@ -3903,6 +4241,7 @@
         const baseError = geoError
           ? geolocationErrorMessage(geoError)
           : "Location services are unavailable.";
+        triggerHaptic("error");
         showToast(`${baseError} ${fallbackHint}`, 4200);
       } finally {
         button.disabled = false;
@@ -3914,17 +4253,28 @@
       const lat = parseFloat(document.getElementById("lat").value);
       const lon = parseFloat(document.getElementById("lon").value);
       if (Number.isFinite(lat) && Number.isFinite(lon)) {
-        setUserLocation(lat, lon, "Manual coordinates");
+        triggerHaptic("start");
+        setUserLocation(lat, lon, "Manual coordinates").then(() => {
+          triggerHaptic("success");
+          setActionStatus(`Manual location set ${formatTime(new Date())} local`);
+          showToast("Using manual coordinates.");
+        }).catch(() => {
+          triggerHaptic("error");
+          showToast("Could not apply manual coordinates.", 2800);
+        });
+      } else {
+        triggerHaptic("error");
+        showToast("Enter valid latitude and longitude.", 2600);
       }
     });
 
-    document.getElementById("refresh").addEventListener("click", refreshAll);
+    document.getElementById("refresh").addEventListener("click", () => refreshAll({ interactive: true }));
 
     document.getElementById("track-hours").addEventListener("input", (event) => {
       document.getElementById("track-hours-label").textContent = `${event.target.value} hours of orbit path`;
     });
 
-    document.getElementById("track-hours").addEventListener("change", refreshAll);
+    document.getElementById("track-hours").addEventListener("change", () => refreshAll({ interactive: false }));
 
     document.getElementById("notify").addEventListener("click", async () => {
       if (!("Notification" in window)) {
@@ -3949,6 +4299,43 @@
 
     document.getElementById("share-tonight-sky").addEventListener("click", () => {
       shareSkyEvent(state.tonight.skyEvent || state.skyEvents[0]);
+    });
+
+    const infoNoteBindings = [];
+    function wireInfoNote(buttonId, noteId) {
+      const button = document.getElementById(buttonId);
+      const note = document.getElementById(noteId);
+      if (!button || !note) return;
+      infoNoteBindings.push({ button, note });
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const willOpen = note.hidden;
+        infoNoteBindings.forEach((binding) => {
+          binding.note.hidden = true;
+          binding.button.setAttribute("aria-expanded", "false");
+        });
+        note.hidden = !willOpen;
+        button.setAttribute("aria-expanded", String(willOpen));
+      });
+    }
+
+    wireInfoNote("iss-best-info", "iss-best-note");
+    wireInfoNote("sky-best-info", "sky-best-note");
+
+    function closeInfoNotes() {
+      infoNoteBindings.forEach((binding) => {
+        binding.note.hidden = true;
+        binding.button.setAttribute("aria-expanded", "false");
+      });
+    }
+
+    document.addEventListener("pointerdown", (event) => {
+      if (event.target.closest(".panel-info-wrap")) return;
+      closeInfoNotes();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeInfoNotes();
     });
 
     function setActiveView(view) {
