@@ -682,6 +682,18 @@
       border: 1px solid rgba(255, 188, 105, 0.55);
     }
 
+    .badge.eclipse {
+      background: rgba(255, 114, 130, 0.2);
+      color: #ffb8c2;
+      border: 1px solid rgba(255, 114, 130, 0.6);
+    }
+
+    .badge.phase {
+      background: rgba(194, 203, 255, 0.2);
+      color: #dce2ff;
+      border: 1px solid rgba(194, 203, 255, 0.5);
+    }
+
     .badge.dark-sky {
       background: rgba(23, 241, 177, 0.18);
       color: #8effd0;
@@ -1328,8 +1340,15 @@
         { body: "Saturn", color: "#e7c589" }
       ],
       moon: { body: "Moon", color: "#ccd8ff" },
-      minElevationDeg: 5,
-      maxSunAltitudeDeg: -6,
+      planetVisibility: {
+        Mercury: { maxSunAltitudeDeg: -7, minElevationDeg: 6 },
+        Venus: { maxSunAltitudeDeg: -1.5, minElevationDeg: 4 },
+        Mars: { maxSunAltitudeDeg: -4.5, minElevationDeg: 4 },
+        Jupiter: { maxSunAltitudeDeg: -2.5, minElevationDeg: 4 },
+        Saturn: { maxSunAltitudeDeg: -3.5, minElevationDeg: 4 }
+      },
+      minElevationDeg: 3,
+      maxSunAltitudeDeg: -4,
       brightMagnitude: 1.5,
       darkSkyIlluminationPctMax: 30,
       brightMoonIlluminationPctMin: 70,
@@ -1488,6 +1507,81 @@
       await shareTextPayload(event.title, buildSkyEventShareMessage(event));
     }
 
+    function sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function geolocationErrorMessage(error) {
+      if (!window.isSecureContext) {
+        return "Location needs HTTPS (or localhost) in this browser.";
+      }
+      const code = error?.code;
+      if (code === 1) return "Location permission denied.";
+      if (code === 2) return "Location temporarily unavailable from your device provider.";
+      if (code === 3) return "Location request timed out.";
+      return "Unable to access your location right now.";
+    }
+
+    function getCurrentPositionOnce(options) {
+      return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, options);
+      });
+    }
+
+    async function requestDeviceLocationWithRetry() {
+      const attempts = [
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
+        { enableHighAccuracy: false, timeout: 18000, maximumAge: 120000 },
+        { enableHighAccuracy: false, timeout: 22000, maximumAge: 600000 }
+      ];
+
+      let lastError = null;
+      for (let i = 0; i < attempts.length; i++) {
+        try {
+          return await getCurrentPositionOnce(attempts[i]);
+        } catch (error) {
+          lastError = error;
+          // Permission denied should not be retried.
+          if (error?.code === 1) break;
+          if (i < attempts.length - 1) await sleep(700);
+        }
+      }
+      throw lastError || new Error("Location unavailable");
+    }
+
+    async function requestApproxLocationFromIp() {
+      const providers = [
+        {
+          url: "https://ipapi.co/json/",
+          label: "IP location",
+          parse: (data) => ({ lat: Number(data?.latitude), lon: Number(data?.longitude) })
+        },
+        {
+          url: "https://ipwho.is/",
+          label: "IP location",
+          parse: (data) => {
+            if (data?.success === false) return null;
+            return { lat: Number(data?.latitude), lon: Number(data?.longitude) };
+          }
+        }
+      ];
+
+      for (const provider of providers) {
+        try {
+          const response = await fetch(provider.url, { cache: "no-store" });
+          if (!response.ok) continue;
+          const data = await response.json();
+          const point = provider.parse(data);
+          if (Number.isFinite(point?.lat) && Number.isFinite(point?.lon)) {
+            return { ...point, source: provider.label };
+          }
+        } catch (error) {
+          console.warn(`Approx location lookup failed for ${provider.url}`, error);
+        }
+      }
+      return null;
+    }
+
     function getMoonPhaseInfo(date) {
       const illumination = SunCalc.getMoonIllumination(date);
       const phaseValue = ((illumination?.phase ?? 0) + 1) % 1;
@@ -1591,6 +1685,23 @@
       return toDegrees(Math.acos(Math.max(-1, Math.min(1, cosSep))));
     }
 
+    function getPlanetVisibilityLimits(body, magnitude) {
+      const preset = PLANET_VISUALS.planetVisibility?.[body] || {};
+      let maxSunAltitudeDeg = Number.isFinite(preset.maxSunAltitudeDeg)
+        ? preset.maxSunAltitudeDeg
+        : PLANET_VISUALS.maxSunAltitudeDeg;
+      const minElevationDeg = Number.isFinite(preset.minElevationDeg)
+        ? preset.minElevationDeg
+        : PLANET_VISUALS.minElevationDeg;
+
+      // Very bright Venus can still be obvious in bright twilight.
+      if (body === "Venus" && Number.isFinite(magnitude) && magnitude <= -4.0) {
+        maxSunAltitudeDeg = Math.max(maxSunAltitudeDeg, -0.8);
+      }
+
+      return { maxSunAltitudeDeg, minElevationDeg };
+    }
+
     function getPlanetObservation(body, date, observer, sunAltitude) {
       if (!window.Astronomy || !observer) return null;
       try {
@@ -1600,13 +1711,14 @@
         const elevation = horizontal.altitude;
         const azimuth = (horizontal.azimuth + 360) % 360;
         const magnitude = Number.isFinite(illumination?.mag) ? illumination.mag : null;
+        const visibility = getPlanetVisibilityLimits(body, magnitude);
         return {
           body,
           azimuth,
           elevation,
           magnitude,
           bright: magnitude !== null && magnitude <= PLANET_VISUALS.brightMagnitude,
-          visible: sunAltitude < PLANET_VISUALS.maxSunAltitudeDeg && elevation >= PLANET_VISUALS.minElevationDeg,
+          visible: sunAltitude < visibility.maxSunAltitudeDeg && elevation >= visibility.minElevationDeg,
           raDeg: equatorial.ra * 15,
           decDeg: equatorial.dec
         };
@@ -1775,39 +1887,187 @@
       return `${target.body} ${Math.round(target.elevation)}° ${direction}`;
     }
 
+    function lunarEclipseKindLabel(kind) {
+      const kinds = window.Astronomy?.EclipseKind || {};
+      if (kind === kinds.Total) return "Total lunar eclipse";
+      if (kind === kinds.Partial) return "Partial lunar eclipse";
+      if (kind === kinds.Penumbral) return "Penumbral lunar eclipse";
+      return "Lunar eclipse";
+    }
+
+    function buildLunarEclipseEvents(startTs, endTs, lat, lon) {
+      if (!window.Astronomy?.SearchLunarEclipse || !window.Astronomy?.NextLunarEclipse) return [];
+
+      const events = [];
+      let eclipse;
+      try {
+        eclipse = window.Astronomy.SearchLunarEclipse(new Date(startTs * 1000));
+      } catch (error) {
+        console.warn("Lunar eclipse search failed.", error);
+        return events;
+      }
+
+      let guard = 0;
+      while (eclipse && guard < 16) {
+        guard += 1;
+        const peakDate = eclipse.peak?.date instanceof Date ? eclipse.peak.date : null;
+        const peakTs = peakDate ? Math.floor(peakDate.getTime() / 1000) : null;
+        if (!peakTs) break;
+        if (peakTs > endTs) break;
+
+        const kinds = window.Astronomy?.EclipseKind || {};
+        const isPenumbral = eclipse.kind === kinds.Penumbral;
+        const obscurationPct = Math.round((eclipse.obscuration || 0) * 100);
+
+        // Ignore weak penumbral eclipses because they are usually imperceptible.
+        if (!(isPenumbral && obscurationPct < 65) && peakTs >= startTs) {
+          const sunAlt = SunCalc.getPosition(peakDate, lat, lon).altitude * 180 / Math.PI;
+          const moonPos = SunCalc.getMoonPosition(peakDate, lat, lon);
+          const moonAlt = moonPos.altitude * 180 / Math.PI;
+          const moonAz = (moonPos.azimuth * 180 / Math.PI + 180) % 360;
+          const moonVisible = moonAlt > 0 && sunAlt < 0;
+          if (moonVisible) {
+            const context = getSkyContextAt(peakDate, lat, lon);
+            const moonPhase = context.moonPhase || getMoonPhaseInfo(peakDate);
+            const moonlight = getMoonlightQuality({
+              illuminationPct: moonPhase.illuminationPct,
+              moonVisible: true
+            });
+            const durationMin = Math.max(
+              1,
+              Math.round(Math.max(eclipse.sd_penum || 0, eclipse.sd_partial || 0, eclipse.sd_total || 0) * 2)
+            );
+
+            events.push({
+              id: `lunar-eclipse-${peakTs}`,
+              type: "lunar-eclipse",
+              focusTs: peakTs,
+              start: peakTs - durationMin * 30,
+              end: peakTs + durationMin * 30,
+              emphasis: eclipse.kind === kinds.Total || eclipse.kind === kinds.Partial,
+              bodies: ["Moon"],
+              title: lunarEclipseKindLabel(eclipse.kind),
+              meta: `Peak at ${formatDateTime(peakDate)}`,
+              details: `Coverage ${obscurationPct}% • Moon ${Math.round(moonAlt)}° ${azimuthToCompass(moonAz)}`,
+              moonPhase,
+              moonPhaseSummary: formatMoonPhaseLine(moonPhase, "Moon"),
+              moonlightSummary: `Moonlight: ${moonlightQualityLabel(moonlight.quality)}`,
+              moonlightBadge: moonlightBadgeValue(moonlight.quality),
+              darkSkyScore: moonlight.darkSkyScore
+            });
+          }
+        }
+
+        try {
+          eclipse = window.Astronomy.NextLunarEclipse(eclipse.peak);
+        } catch (error) {
+          break;
+        }
+      }
+
+      return events;
+    }
+
+    function buildMoonPhaseEvents(startTs, endTs, lat, lon) {
+      if (!window.Astronomy?.SearchMoonPhase) return [];
+      const phaseDefs = [
+        { lon: 0, title: "New Moon" },
+        { lon: 90, title: "First Quarter" },
+        { lon: 180, title: "Full Moon" },
+        { lon: 270, title: "Last Quarter" }
+      ];
+
+      const events = [];
+      phaseDefs.forEach((phase) => {
+        try {
+          const found = window.Astronomy.SearchMoonPhase(phase.lon, new Date(startTs * 1000), FORECAST_DAYS + 1);
+          if (!found?.date) return;
+          const ts = Math.floor(found.date.getTime() / 1000);
+          if (ts < startTs || ts > endTs) return;
+
+          const context = getSkyContextAt(found.date, lat, lon);
+          const moonPhase = context.moonPhase || getMoonPhaseInfo(found.date);
+          events.push({
+            id: `moon-phase-${phase.lon}-${ts}`,
+            type: "moon-phase",
+            focusTs: ts,
+            start: ts - 1800,
+            end: ts + 1800,
+            emphasis: phase.lon === 180 || phase.lon === 0,
+            bodies: ["Moon"],
+            title: phase.title,
+            meta: `Occurs at ${formatDateTime(found.date)}`,
+            details: `Moon illumination ${moonPhase.illuminationPct}%`,
+            moonPhase,
+            moonPhaseSummary: formatMoonPhaseLine(moonPhase, "Moon"),
+            moonlightSummary: `Moonlight: ${moonlightQualityLabel(context.moonlightQuality)}`,
+            moonlightBadge: moonlightBadgeValue(context.moonlightQuality),
+            darkSkyScore: context.darkSkyScore
+          });
+        } catch (error) {
+          console.warn("Moon phase search failed.", error);
+        }
+      });
+
+      return events;
+    }
+
     function buildSkyEvents(lat, lon, alignmentEvents) {
       const now = Math.floor(Date.now() / 1000);
       const end = now + FORECAST_DAYS * 24 * 3600;
       const groupingStepSeconds = PLANET_VISUALS.alignmentStepMinutes * 60;
-      const dailyBest = new Map();
+      const windowBest = new Map();
 
       for (let ts = now; ts <= end; ts += groupingStepSeconds) {
-        const context = getSkyContextAt(new Date(ts * 1000), lat, lon);
-        if (!context.darkEnough || context.visiblePlanets.length < 2) continue;
-        const topTargets = context.visiblePlanets.slice(0, 4);
-        const score = topTargets.length * 100 + topTargets.reduce((sum, target) => sum + target.elevation, 0);
-        const dayKey = new Date(ts * 1000).toLocaleDateString("en-CA");
-        const existing = dailyBest.get(dayKey);
+        const sampleDate = new Date(ts * 1000);
+        const context = getSkyContextAt(sampleDate, lat, lon);
+        if (context.visiblePlanets.length < 1) continue;
+        const topTargets = context.visiblePlanets.slice(0, 5);
+        const score = topTargets.reduce((sum, target) => {
+          const brightBonus = target.bright ? 18 : 0;
+          const venusBonus = target.body === "Venus" ? 8 : 0;
+          return sum + target.elevation + brightBonus + venusBonus;
+        }, topTargets.length * 80);
+        const localHour = sampleDate.getHours();
+        const skyWindow = localHour < 12 ? "dawn" : "evening";
+        const windowKey = `${sampleDate.toLocaleDateString("en-CA")}|${skyWindow}`;
+        const existing = windowBest.get(windowKey);
         if (!existing || score > existing.score) {
-          dailyBest.set(dayKey, { timestamp: ts, score, topTargets });
+          windowBest.set(windowKey, {
+            timestamp: ts,
+            score,
+            topTargets,
+            skyWindow
+          });
         }
       }
 
-      const groupingEventsRaw = Array.from(dailyBest.values()).map((entry) => {
+      const groupingEventsRaw = Array.from(windowBest.values()).map((entry) => {
         const topTargets = entry.topTargets;
         const names = topTargets.map((target) => target.body);
         const summary = topTargets.map((target) => formatSkyTarget(target)).join(" • ");
         const context = getSkyContextAt(new Date(entry.timestamp * 1000), lat, lon);
+        const windowLabel = entry.skyWindow === "dawn" ? "Dawn" : "Evening";
+        const eventType = names.length === 1 ? "planet" : "group";
+        let title = "";
+        if (names.length === 1) {
+          title = `${names[0]} visible`;
+        } else if (names.length === 2) {
+          title = `${names[0]} + ${names[1]}`;
+        } else {
+          title = `${names[0]}, ${names[1]} +${names.length - 2} planets`;
+        }
+
         return {
-          id: `group-${entry.timestamp}-${names.join("-")}`,
-          type: "group",
+          id: `group-${entry.skyWindow}-${entry.timestamp}-${names.join("-")}`,
+          type: eventType,
           focusTs: entry.timestamp,
           start: entry.timestamp - 45 * 60,
           end: entry.timestamp + 45 * 60,
           emphasis: topTargets.length >= 3,
           bodies: names,
-          title: `Planet grouping: ${names.join(", ")}`,
-          meta: `Best around ${formatDateTime(new Date(entry.timestamp * 1000))}`,
+          title,
+          meta: `Best ${windowLabel.toLowerCase()} around ${formatDateTime(new Date(entry.timestamp * 1000))}`,
           details: summary,
           moonPhase: context.moonPhase || null,
           moonPhaseSummary: formatMoonPhaseLine(context.moonPhase, "Moon"),
@@ -1848,9 +2108,12 @@
           };
         });
 
-      return [...alignmentHighlights, ...groupingEvents]
+      const lunarEclipseEvents = buildLunarEclipseEvents(now, end, lat, lon);
+      const moonPhaseEvents = buildMoonPhaseEvents(now, end, lat, lon);
+
+      return [...lunarEclipseEvents, ...alignmentHighlights, ...moonPhaseEvents, ...groupingEvents]
         .sort((left, right) => left.start - right.start)
-        .slice(0, 14);
+        .slice(0, 35);
     }
 
     function renderSkyEventsList() {
@@ -1903,7 +2166,9 @@
         const isSelected = selectedEventId === event.id;
         item.className = `sky-event-item clickable${event.emphasis ? " emphasis" : ""}${isSelected ? " selected" : ""}${compactMobile ? " compact-mobile" : ""}`;
         const badgeDescriptors = [];
+        if (event.type === "lunar-eclipse") badgeDescriptors.push({ className: "eclipse", label: "Eclipse", priority: 1 });
         if (event.type === "alignment") badgeDescriptors.push({ className: "alignment", label: "Alignment", priority: 1 });
+        if (event.type === "moon-phase") badgeDescriptors.push({ className: "phase", label: "Phase", priority: 2 });
         if (event.emphasis) badgeDescriptors.push({ className: "best", label: "Best Night", priority: 2 });
         if (event.moonlightBadge === "dark") badgeDescriptors.push({ className: "dark-sky", label: "Dark Sky", priority: 3 });
         if (event.moonlightBadge === "bright") badgeDescriptors.push({ className: "bright-moon", label: "Bright Moon", priority: 3 });
@@ -3603,20 +3868,46 @@
       await refreshAll();
     }
 
-    document.getElementById("locate").addEventListener("click", () => {
-      if (!navigator.geolocation) {
-        alert("Geolocation not supported.");
-        return;
+    document.getElementById("locate").addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      const initialLabel = button.textContent;
+      button.disabled = true;
+      button.textContent = "Locating...";
+
+      let geoError = null;
+      try {
+        if (navigator.geolocation && window.isSecureContext) {
+          try {
+            const pos = await requestDeviceLocationWithRetry();
+            await setUserLocation(pos.coords.latitude, pos.coords.longitude, "Device location");
+            showToast("Using precise device location.");
+            return;
+          } catch (error) {
+            geoError = error;
+          }
+        } else if (!window.isSecureContext) {
+          geoError = { code: 0 };
+        }
+
+        const approx = await requestApproxLocationFromIp();
+        if (approx) {
+          await setUserLocation(approx.lat, approx.lon, `${approx.source} (approximate)`);
+          const prefix = geoError ? `${geolocationErrorMessage(geoError)} ` : "";
+          showToast(`${prefix}Using approximate IP location.`, 3600);
+          return;
+        }
+
+        const fallbackHint = state.user
+          ? "Keeping your saved location."
+          : "Enter coordinates manually.";
+        const baseError = geoError
+          ? geolocationErrorMessage(geoError)
+          : "Location services are unavailable.";
+        showToast(`${baseError} ${fallbackHint}`, 4200);
+      } finally {
+        button.disabled = false;
+        button.textContent = initialLabel;
       }
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setUserLocation(pos.coords.latitude, pos.coords.longitude, "Device location");
-        },
-        () => {
-          alert("Unable to access your location. You can enter coordinates manually.");
-        },
-        { enableHighAccuracy: true }
-      );
     });
 
     document.getElementById("apply-coords").addEventListener("click", () => {
