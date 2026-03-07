@@ -1679,13 +1679,22 @@
       return `${bodiesCount} bodies • dark-sky ${score}/100 • ${formatTime(new Date(focusTs * 1000))} local`;
     }
 
+    function getSkyEventWindowLabel(event) {
+      if (event.type === "alignment") return "Alignment window";
+      if (event.type === "lunar-eclipse") return "Lunar eclipse window";
+      if (event.type === "moon-phase") return "Moon phase moment";
+      if (event.skyWindow === "dawn") return "Morning sky window";
+      if (event.skyWindow === "evening") return "Evening sky window";
+      return "Peak viewing window";
+    }
+
     function buildPassShareMessage(pass) {
       const dateLabel = formatDateTime(new Date(pass.start * 1000));
       const details = [
         `Max elevation ${pass.maxEl.toFixed(0)}°`,
         `Visible ${pass.duration} min`
       ];
-      if (pass.skySummary) details.push(pass.skySummary.replace(/^Sky:\s*/i, "Sky: "));
+      if (pass.skySummary) details.push(pass.skySummary);
       if (pass.moonPhase) details.push(`Moon ${pass.moonPhase.icon} ${pass.moonPhase.name} (${pass.moonPhase.illuminationPct}%)`);
       return `ISS Flyover Explorer\n${dateLabel}\n${details.join(" • ")}`;
     }
@@ -1925,9 +1934,10 @@
       let maxSunAltitudeDeg = Number.isFinite(preset.maxSunAltitudeDeg)
         ? preset.maxSunAltitudeDeg
         : PLANET_VISUALS.maxSunAltitudeDeg;
-      const minElevationDeg = Number.isFinite(preset.minElevationDeg)
-        ? preset.minElevationDeg
-        : PLANET_VISUALS.minElevationDeg;
+      const minElevationDeg = Math.max(
+        PLANET_VISUALS.minElevationDeg,
+        Number.isFinite(preset.minElevationDeg) ? preset.minElevationDeg : PLANET_VISUALS.minElevationDeg
+      );
 
       // Very bright Venus can still be obvious in bright twilight.
       if (body === "Venus" && Number.isFinite(magnitude) && magnitude <= -4.0) {
@@ -2301,6 +2311,7 @@
           focusTs: entry.timestamp,
           start: entry.timestamp - 45 * 60,
           end: entry.timestamp + 45 * 60,
+          skyWindow: entry.skyWindow,
           emphasis: topTargets.length >= 3,
           bodies: names,
           title,
@@ -2328,6 +2339,7 @@
             focusTs: event.peakTs,
             start: event.start,
             end: event.end,
+            skyWindow: new Date(event.peakTs * 1000).getHours() < 12 ? "dawn" : "evening",
             emphasis: event.minSeparation <= 2.5,
             bodies: event.bodies,
             title: `${event.label} alignment`,
@@ -2475,6 +2487,7 @@
             ? event.bodies.join(" + ")
             : event.title;
           const compactDateTime = formatDateTime(new Date((event.focusTs || event.start) * 1000));
+          const windowLabel = getSkyEventWindowLabel(event);
           const bodyDetail = event.bodies?.length ? `Bodies: ${event.bodies.join(", ")}` : "Bodies: --";
           const moonPct = Number.isFinite(event.moonPhase?.illuminationPct) ? `${event.moonPhase.illuminationPct}%` : "--";
           const moonPhaseCompact = event.moonPhase
@@ -2489,7 +2502,7 @@
               </div>
             </div>
             <div class="compact-time">${compactDateTime}</div>
-            <div class="compact-sub">${event.type === "alignment" ? "Closest planetary alignment window" : "Peak viewing window"}</div>
+            <div class="compact-sub">${windowLabel}</div>
             <div class="compact-grid">
               <div class="compact-cell"><p class="compact-k">Bodies</p><p class="compact-v">${bodyCount}</p></div>
               <div class="compact-cell"><p class="compact-k">Best</p><p class="compact-v">${formatCompactBestTime(event.focusTs || event.start)}</p></div>
@@ -2511,6 +2524,7 @@
             <div>
               <p class="pass-title">${event.title}</p>
               <div class="pass-meta event-time">${event.meta}</div>
+              <div class="pass-meta">${getSkyEventWindowLabel(event)}</div>
               <div class="pass-meta sky-highlight">${event.details}</div>
               ${moonContextLine ? `<div class="pass-meta moon-phase">${moonContextLine}</div>` : ""}
               ${qualityHint ? `<div class="pass-meta quality-hint">${qualityHint}</div>` : ""}
@@ -2597,7 +2611,7 @@
         }, null);
         const peakContext = peakContextEntry ? peakContextEntry.context : null;
         const alignmentEvent = findNearbyAlignment(peakTimestamp, state.alignmentEvents);
-        const skySummary = topTargets.length ? `Sky: ${topTargets.map(formatSkyTarget).join(", ")}` : "";
+        const skySummary = topTargets.length ? `During pass: ${topTargets.map(formatSkyTarget).join(", ")}` : "";
         const moonSummary = bestMoon ? `Moon: ${Math.round(bestMoon.elevation)}° ${azimuthToCompass(bestMoon.azimuth)}` : "";
         const moonPhaseSummary = peakContext?.moonPhase ? formatMoonPhaseLine(peakContext.moonPhase, "Moon phase") : "";
         const moonlightQuality = peakContext?.moonlightQuality || "balanced";
@@ -2836,7 +2850,7 @@
           ? tonightPass.topTargets.slice(0, 2).map(formatSkyTarget).join(" • ")
           : "";
         tonightIss.textContent = formatTonightMoment(tonightPass.start);
-        tonightIssMeta.textContent = `Max ${tonightPass.maxEl.toFixed(0)}° • Visible ${tonightPass.duration} min${skySnippet ? ` • ${skySnippet}` : ""}`;
+        tonightIssMeta.textContent = `Max ${tonightPass.maxEl.toFixed(0)}° • Visible ${tonightPass.duration} min${skySnippet ? ` • During pass: ${skySnippet}` : ""}`;
       } else {
         tonightIss.textContent = "No visible ISS pass";
         tonightIssMeta.textContent = `No high-quality night pass in the next ${FORECAST_DAYS} days.`;
@@ -2850,7 +2864,7 @@
           ? tonightEvent.bodies.join(" + ")
           : tonightEvent.title;
         tonightSky.textContent = eventLabel;
-        tonightSkyMeta.textContent = `Best at ${formatTonightMoment(eventFocus(tonightEvent))} • ${tonightEvent.details}`;
+        tonightSkyMeta.textContent = `${getSkyEventWindowLabel(tonightEvent)} • ${formatTonightMoment(eventFocus(tonightEvent))} • ${tonightEvent.details}`;
       } else {
         tonightSky.textContent = "Quiet sky window";
         tonightSkyMeta.textContent = "No standout naked-eye grouping detected in the next week.";
@@ -3686,8 +3700,8 @@
         if (compactMobile) {
           const moonPct = Number.isFinite(pass.moonPhase?.illuminationPct) ? `${pass.moonPhase.illuminationPct}%` : "--";
           const compactSky = pass.topTargets?.length
-            ? pass.topTargets.slice(0, 2).map(formatSkyTarget).join(" • ")
-            : (pass.skySummary ? pass.skySummary.replace(/^Sky:\s*/i, "") : "No major planet target");
+            ? `During pass: ${pass.topTargets.slice(0, 2).map(formatSkyTarget).join(" • ")}`
+            : (pass.skySummary || "During pass: No major planet target");
           const compactMoon = pass.moonPhase
             ? `${pass.moonPhase.icon} ${pass.moonPhase.name}`
             : "Moon phase unavailable";
