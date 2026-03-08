@@ -1280,22 +1280,22 @@
     </header>
 
     <section class="section-head">
-      <h2 class="section-title">What To Watch Next</h2>
-      <p class="section-subtitle">Best ISS pass, key sky event, and moonlight at a glance.</p>
+      <h2 class="section-title">What To See Tonight</h2>
+      <p class="section-subtitle">Tonight's ISS pass, standout sky event, and moonlight conditions.</p>
     </section>
 
     <section class="tonight-grid">
       <div class="card tonight-card tonight-iss">
         <div class="tonight-head">
-          <h3>Best ISS Pass</h3>
+          <h3>ISS Tonight</h3>
           <button class="share-chip" id="share-tonight-iss" type="button">Share</button>
         </div>
         <div class="tonight-value" id="tonight-iss">Calculating…</div>
-        <div class="tonight-sub" id="tonight-iss-meta">Need location to evaluate your next visible ISS pass.</div>
+        <div class="tonight-sub" id="tonight-iss-meta">Need location to evaluate tonight's visible ISS pass.</div>
       </div>
       <div class="card tonight-card tonight-sky">
         <div class="tonight-head">
-          <h3>Sky Event Window</h3>
+          <h3>Sky Tonight</h3>
           <button class="share-chip" id="share-tonight-sky" type="button">Share</button>
         </div>
         <div class="tonight-value" id="tonight-sky">Calculating…</div>
@@ -1303,7 +1303,7 @@
       </div>
       <div class="card tonight-card tonight-moon">
         <div class="tonight-head">
-          <h3>Moonlight Outlook</h3>
+          <h3>Moonlight Tonight</h3>
         </div>
         <div class="tonight-value" id="tonight-moon">Calculating…</div>
         <div class="tonight-sub" id="tonight-moon-meta">Moon phase and sky darkness guidance.</div>
@@ -1680,12 +1680,12 @@
     }
 
     function getSkyEventWindowLabel(event) {
-      if (event.type === "alignment") return "Alignment window";
-      if (event.type === "lunar-eclipse") return "Lunar eclipse window";
+      if (event.type === "alignment") return "Alignment peak";
+      if (event.type === "lunar-eclipse") return "Eclipse peak";
       if (event.type === "moon-phase") return "Moon phase moment";
-      if (event.skyWindow === "dawn") return "Morning sky window";
-      if (event.skyWindow === "evening") return "Evening sky window";
-      return "Peak viewing window";
+      if (event.skyWindow === "dawn") return "Morning peak";
+      if (event.skyWindow === "evening") return "Evening peak";
+      return "Viewing peak";
     }
 
     function buildPassShareMessage(pass) {
@@ -2828,7 +2828,7 @@
         state.tonight.pass = null;
         state.tonight.skyEvent = null;
         tonightIss.textContent = "Set your location";
-        tonightIssMeta.textContent = "Need location to find your next visible ISS pass.";
+        tonightIssMeta.textContent = "Need location to find tonight's visible ISS pass.";
         tonightSky.textContent = "Set your location";
         tonightSkyMeta.textContent = "Need location to evaluate visible planets and alignments.";
         tonightMoon.textContent = "Moon phase pending";
@@ -2843,7 +2843,8 @@
       endTonight.setHours(23, 59, 59, 999);
       const endTonightTs = endTonight.getTime() / 1000;
 
-      const tonightPass = state.goodPasses.find((pass) => pass.start >= nowTs && pass.start <= endTonightTs) || state.goodPasses[0] || null;
+      const tonightPass = state.goodPasses.find((pass) => pass.start >= nowTs && pass.start <= endTonightTs) || null;
+      const nextPass = state.goodPasses.find((pass) => pass.start > endTonightTs) || state.goodPasses[0] || null;
       state.tonight.pass = tonightPass;
       if (tonightPass) {
         const skySnippet = tonightPass.topTargets?.length
@@ -2852,12 +2853,15 @@
         tonightIss.textContent = formatTonightMoment(tonightPass.start);
         tonightIssMeta.textContent = `Max ${tonightPass.maxEl.toFixed(0)}° • Visible ${tonightPass.duration} min${skySnippet ? ` • During pass: ${skySnippet}` : ""}`;
       } else {
-        tonightIss.textContent = "No visible ISS pass";
-        tonightIssMeta.textContent = `No high-quality night pass in the next ${FORECAST_DAYS} days.`;
+        tonightIss.textContent = "No ISS pass tonight";
+        tonightIssMeta.textContent = nextPass
+          ? `Next good pass ${formatDateTime(new Date(nextPass.start * 1000))}`
+          : `No high-quality night pass in the next ${FORECAST_DAYS} days.`;
       }
 
       const eventFocus = (event) => event?.focusTs || event?.start || 0;
-      const tonightEvent = state.skyEvents.find((event) => eventFocus(event) >= nowTs && eventFocus(event) <= endTonightTs) || state.skyEvents[0] || null;
+      const tonightEvent = state.skyEvents.find((event) => eventFocus(event) >= nowTs && eventFocus(event) <= endTonightTs) || null;
+      const nextSkyEvent = state.skyEvents.find((event) => eventFocus(event) > endTonightTs) || state.skyEvents[0] || null;
       state.tonight.skyEvent = tonightEvent;
       if (tonightEvent) {
         const eventLabel = tonightEvent.type === "group" && tonightEvent.bodies?.length
@@ -2866,8 +2870,10 @@
         tonightSky.textContent = eventLabel;
         tonightSkyMeta.textContent = `${getSkyEventWindowLabel(tonightEvent)} • ${formatTonightMoment(eventFocus(tonightEvent))} • ${tonightEvent.details}`;
       } else {
-        tonightSky.textContent = "Quiet sky window";
-        tonightSkyMeta.textContent = "No standout naked-eye grouping detected in the next week.";
+        tonightSky.textContent = "No standout sky event tonight";
+        tonightSkyMeta.textContent = nextSkyEvent
+          ? `Next highlight ${formatDateTime(new Date(eventFocus(nextSkyEvent) * 1000))}`
+          : "No standout naked-eye grouping detected in the next week.";
       }
 
       const context = getSkyContextAt(new Date(), state.user.lat, state.user.lon);
@@ -4308,11 +4314,13 @@
     });
 
     document.getElementById("share-tonight-iss").addEventListener("click", () => {
-      sharePass(state.tonight.pass || state.nextVisible);
+      if (!state.tonight.pass) return;
+      sharePass(state.tonight.pass);
     });
 
     document.getElementById("share-tonight-sky").addEventListener("click", () => {
-      shareSkyEvent(state.tonight.skyEvent || state.skyEvents[0]);
+      if (!state.tonight.skyEvent) return;
+      shareSkyEvent(state.tonight.skyEvent);
     });
 
     const infoNoteBindings = [];
