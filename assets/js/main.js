@@ -89,7 +89,6 @@ function getSkyEventWindowLabel(event) {
   if (event.type === "solar-eclipse") return "Eclipse peak";
   if (event.type === "meteor-shower") return "Meteor peak";
   if (event.type === "bright-object") return "Pass peak";
-  if (event.type === "moon-phase") return "Moon phase moment";
   if (event.skyWindow === "dawn") return "Morning peak";
   if (event.skyWindow === "evening") return "Evening peak";
   return "Viewing peak";
@@ -1170,11 +1169,10 @@ function buildSkyEvents(lat, lon, alignmentEvents) {
 
   const lunarEclipseEvents = buildLunarEclipseEvents(now, end, lat, lon);
   const solarEclipseEvents = buildSolarEclipseEvents(now, end, lat, lon);
-  const moonPhaseEvents = buildMoonPhaseEvents(now, end, lat, lon);
   const guideEvents = buildGuideEvents(lat, lon, now, end);
   const meteorEvents = state.meteorEvents || [];
   const brightObjectEvents = state.brightObjectEvents || [];
-  const allEvents = [...solarEclipseEvents, ...lunarEclipseEvents, ...alignmentHighlights, ...meteorEvents, ...brightObjectEvents, ...moonPhaseEvents, ...groupingEvents, ...guideEvents]
+  const allEvents = [...solarEclipseEvents, ...lunarEclipseEvents, ...alignmentHighlights, ...meteorEvents, ...brightObjectEvents, ...groupingEvents, ...guideEvents]
     .sort((left, right) => left.start - right.start);
 
   function eventScore(event) {
@@ -1202,8 +1200,6 @@ function buildSkyEvents(lat, lon, alignmentEvents) {
       score += bodiesCount * 180;
       score += Math.min(260, (event.qualityScore || 0) * 0.45);
       if (event.type === "planet") score -= 70;
-    } else if (event.type === "moon-phase") {
-      score += 330;
     }
     if (event.emphasis) score += 36;
     score += (event.darkSkyScore || 0) * 0.7;
@@ -1290,7 +1286,6 @@ function createSkyEventCard(event, compactMobile, selectedEventId) {
   if (event.guideKind === "star") badgeDescriptors.push({ className: "weather-clear", label: "Bright Star", priority: 2 });
   if (event.notableReason === "alignment") badgeDescriptors.push({ className: "alignment", label: "Alignment", priority: 1 });
   if (event.notableReason === "multi-body") badgeDescriptors.push({ className: "multi", label: "3 Bodies", priority: 2 });
-  if (event.type === "moon-phase") badgeDescriptors.push({ className: "phase", label: "Phase", priority: 2 });
   if (event.isBestOfWeek) badgeDescriptors.push({ className: "best", label: "Best", priority: 1 });
   if (event.visibilityTier === "binoculars") badgeDescriptors.push({ className: "tier-binoculars", label: "Binoculars", priority: 3 });
   if (event.moonlightBadge === "dark") badgeDescriptors.push({ className: "dark-sky", label: "Dark Sky", priority: 3 });
