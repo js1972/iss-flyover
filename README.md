@@ -1,6 +1,6 @@
 # ISS Flyover Explorer
 
-A single-file, dark-themed web app for tracking the International Space Station, previewing visible passes, and exploring the orbit on a globe.
+A dark-themed static web app for tracking the International Space Station, previewing visible passes, and exploring the orbit on a globe.
 
 ## Features
 - Real-time ISS position with smooth animation
@@ -11,24 +11,38 @@ A single-file, dark-themed web app for tracking the International Space Station,
 - Location persistence between reloads
 
 ## Run
-This is a single HTML file.
+This app is served as plain static files.
 
-Option A (quick):
-- Open `index.html` directly in your browser.
-
-Option B (recommended for best compatibility):
+Option A (recommended):
 - Run a local server from this folder:
   - `python3 -m http.server`
 - Open the URL shown in your terminal.
 
+Option B:
+- Open `index.html` directly in your browser.
+- Note: some browser features work more reliably over `http://` than `file://`.
+
 ## Notes
 - Forecasts and orbit paths are computed from live TLE data in the browser.
 - Notifications require permission and the tab to stay open.
+- Cloudflare Pages can deploy this repo directly as static files; no build step is required.
 
 ## APIs & Libraries
 - Where the ISS at? (ISS position + TLE): `https://api.wheretheiss.at`
 - Carto basemap tiles: `https://basemaps.cartocdn.com`
 - Leaflet (map), SunCalc (sun position), satellite.js (orbit propagation), Three.js (globe rendering)
 
-## Files
-- `index.html` — the entire app
+## Structure
+- `index.html` — static HTML shell and third-party script includes
+- `assets/css/app.css` — app styles
+- `assets/js/main.js` — app bootstrap, rendering, actions, and orchestration
+- `assets/js/config.js` — visual settings, API URLs, and forecast constants
+- `assets/js/state.js` — shared runtime state
+- `assets/js/dom.js` — DOM element references used by the app
+- `assets/js/utils.js` — formatting and layout helpers
+- `assets/icons/` — PWA and favicon assets
+- `manifest.webmanifest` — PWA metadata
+
+## Data Model
+- Local/static data is the preferred pattern for stable astronomy catalogs.
+- Live remote data is used where freshness matters, such as ISS telemetry, map tiles, and fallback geolocation providers.

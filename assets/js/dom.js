@@ -1,0 +1,17 @@
+export const mapEl = document.getElementById("map");
+export const globeViewEl = document.getElementById("globe-view");
+export const globeEl = document.getElementById("globe");
+export const skyViewEl = document.getElementById("sky-view");
+export const skyCanvas = document.getElementById("sky");
+export const passList = document.getElementById("pass-list");
+export const skyEventsList = document.getElementById("sky-events-list");
+export const actionStatusEl = document.getElementById("action-status");
+export const forecastPanelEl = document.getElementById("forecast-panel");
+export const skyPanelEl = document.getElementById("sky-panel");
+export const previewBanner = document.getElementById("preview-banner");
+export const previewText = document.getElementById("preview-text");
+export const shareToast = document.getElementById("share-toast");
+export const refreshButton = document.getElementById("refresh");
+export const timelineList = document.getElementById("timeline-list");
+export const guideList = document.getElementById("guide-list");
+export const conditionsList = document.getElementById("conditions-list");

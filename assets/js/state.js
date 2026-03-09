@@ -1,0 +1,70 @@
+export const state =  {
+  user: null,
+  iss: null,
+  issSamples: { prev: null, next: null },
+  tle: null,
+  tleUpdated: 0,
+  map: null,
+  mapTileLayer: null,
+  mapTheme: "primary",
+  mapFitZoom: 2,
+  mapFallbackNotified: false,
+  markers: {},
+  trackOutline: null,
+  trackLine: null,
+  trackGlow: null,
+  trackData: [],
+  trail: [],
+  passes: [],
+  goodPasses: [],
+  passSkyHighlights: {},
+  alignmentEvents: [],
+  skyEvents: [],
+  meteorEvents: [],
+  brightObjectEvents: [],
+  skyGuide: [],
+  tonightTimeline: [],
+  catalogTles: {},
+  tonightWindow: null,
+  weather: {
+    summary: null,
+    hourly: [],
+    fetchedAt: 0,
+    error: null
+  },
+  planetCache: new Map(),
+  nextVisible: null,
+  notificationTimer: null,
+  notificationsEnabled: false,
+  tonight: { pass: null, skyEvent: null },
+  anim: { rafId: null, lastStatus: 0 },
+  preview: { active: false, mode: "live", pass: null, skyEvent: null },
+  globe: {
+    ready: false,
+    scene: null,
+    camera: null,
+    renderer: null,
+    controls: null,
+    earth: null,
+    issMesh: null,
+    userMesh: null,
+    trackLine: null,
+    trackGlow: null
+  },
+  sky: {
+    rotation: 0,
+    zoom: 1,
+    dragging: false,
+    dragStart: null,
+    stars: []
+  },
+  layout: {
+    compactMobile: null,
+    narrowMobile: null
+  },
+  ui: {
+    refreshing: false,
+    refreshPromise: null,
+    lastRefreshStatus: "idle"
+  }
+};
