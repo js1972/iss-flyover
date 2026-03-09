@@ -1,7 +1,7 @@
 
 import { state } from "./state.js";
 import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, WEATHER_URL, CELESTRAK_TLE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js";
-import { mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, passList, skyEventsList, actionStatusEl, forecastPanelEl, skyPanelEl, previewBanner, previewText, shareToast, refreshButton, timelineList, guideList, conditionsList } from "./dom.js";
+import { mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, passList, skyEventsList, actionStatusEl, forecastPanelEl, skyPanelEl, previewBanner, previewText, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, guideList, conditionsList } from "./dom.js";
 import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js";
 import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS, BRIGHT_OBJECTS } from "./data/catalogs.js";
 
@@ -74,6 +74,16 @@ function setRefreshingUI(active) {
 function setActionStatus(text) {
   if (!actionStatusEl) return;
   actionStatusEl.textContent = text;
+}
+
+function setTimelineExpanded(expanded) {
+  state.ui.timelineExpanded = expanded;
+  if (timelinePanel) timelinePanel.classList.toggle("is-collapsed", !expanded);
+  if (timelineContent) timelineContent.hidden = !expanded;
+  if (timelineToggle) {
+    timelineToggle.textContent = expanded ? "Hide" : "Show";
+    timelineToggle.setAttribute("aria-expanded", String(expanded));
+  }
 }
 
 function getSkyQualityHint(event) {
@@ -3483,7 +3493,6 @@ async function refreshAll(options = {}) {
         state.meteorEvents = buildMeteorEvents(now, end, state.user.lat, state.user.lon);
         state.skyEvents = buildSkyEvents(state.user.lat, state.user.lon, state.alignmentEvents);
         state.tonightWindow = getTonightWindow(state.user.lat, state.user.lon, new Date());
-        state.tonightTimeline = buildTonightTimeline(state.user.lat, state.user.lon, state.tonightWindow);
         state.skyGuide = buildSkyGuide(state.user.lat, state.user.lon, state.tonightWindow);
       } else {
         state.weather.hourly = [];
@@ -3514,6 +3523,9 @@ async function refreshAll(options = {}) {
       }
       updateNextVisible();
       updateTonightHighlights();
+      state.tonightTimeline = state.user && state.tonightWindow
+        ? buildTonightTimeline(state.user.lat, state.user.lon, state.tonightWindow)
+        : [];
       renderPassList();
       renderSkyEventsList();
       renderTimeline();
@@ -3645,6 +3657,12 @@ document.getElementById("apply-coords").addEventListener("click", () => {
 
 document.getElementById("refresh").addEventListener("click", () => refreshAll({ interactive: true }));
 
+if (timelineToggle) {
+  timelineToggle.addEventListener("click", () => {
+    setTimelineExpanded(!state.ui.timelineExpanded);
+  });
+}
+
 document.getElementById("track-hours").addEventListener("input", (event) => {
   document.getElementById("track-hours-label").textContent = `${event.target.value} hours of orbit path`;
 });
@@ -3760,6 +3778,7 @@ initMapResizing();
 initGlobe();
 initSky();
 handleLayoutChange(true);
+setTimelineExpanded(false);
 clearPreview();
 registerGestureBlocker(mapEl, () => mapEl.classList.contains("active"));
 registerGestureBlocker(globeEl, () => globeViewEl.classList.contains("active"));

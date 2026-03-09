@@ -65,6 +65,7 @@ export const state =  {
   ui: {
     refreshing: false,
     refreshPromise: null,
-    lastRefreshStatus: "idle"
+    lastRefreshStatus: "idle",
+    timelineExpanded: false
   }
 };
