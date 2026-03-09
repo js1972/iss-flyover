@@ -257,5 +257,3 @@ export const BRIGHT_OBJECTS = [
     hint: "China's space station can rival bright stars on a good pass."
   }
 ];
-
-export const TRANSIENT_TARGETS = [];

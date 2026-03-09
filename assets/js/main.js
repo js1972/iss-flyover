@@ -3,7 +3,7 @@ import { state } from "./state.js";
 import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, WEATHER_URL, CELESTRAK_TLE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js";
 import { mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, passList, skyEventsList, actionStatusEl, forecastPanelEl, skyPanelEl, previewBanner, previewText, shareToast, refreshButton, timelineList, guideList, conditionsList } from "./dom.js";
 import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js";
-import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS, BRIGHT_OBJECTS, TRANSIENT_TARGETS } from "./data/catalogs.js";
+import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS, BRIGHT_OBJECTS } from "./data/catalogs.js";
 
 function pickVisibleBadges(descriptors) {
   const ordered = [...descriptors].sort((a, b) => a.priority - b.priority);
