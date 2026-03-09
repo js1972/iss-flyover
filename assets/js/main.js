@@ -83,6 +83,19 @@ function getSkyQualityHint(event) {
   return `${bodiesCount} bodies • dark-sky ${score}/100 • ${formatTime(new Date(focusTs * 1000))} local`;
 }
 
+function getSecondarySkyBadgeSpans(descriptors) {
+  const secondaryDescriptors = descriptors
+    .filter((badge) => !["best", "dark-sky", "bright-moon"].includes(badge.className))
+    .slice(0, 2);
+  return renderBadgeSpans(secondaryDescriptors, false);
+}
+
+function getSecondarySkyDetailLine(event) {
+  const parts = [event.details];
+  if (event.type === "bright-object" && event.hint) parts.push(event.hint);
+  return parts.filter(Boolean).join(" • ");
+}
+
 function getSkyEventWindowLabel(event) {
   if (event.type === "alignment") return "Alignment peak";
   if (event.type === "lunar-eclipse") return "Eclipse peak";
@@ -1292,6 +1305,7 @@ function createSkyEventCard(event, compactMobile, selectedEventId) {
   if (event.moonlightBadge === "bright") badgeDescriptors.push({ className: "bright-moon", label: "Bright Moon", priority: 3 });
   const badgeSpansCompact = renderBadgeSpans(badgeDescriptors, true);
   const badgeSpansDesktop = renderBadgeSpans(badgeDescriptors, false);
+  const badgeSpansSecondary = getSecondarySkyBadgeSpans(badgeDescriptors);
   const qualityHint = event.isBestOfWeek ? getSkyQualityHint(event) : "";
 
   if (compactMobile) {
@@ -1324,6 +1338,21 @@ function createSkyEventCard(event, compactMobile, selectedEventId) {
       <div class="compact-detail">${bodyDetail}</div>
       <div class="compact-secondary">${event.details}${event.hint ? ` • ${event.hint}` : ` • ${moonPhaseCompact}`}</div>
       ${qualityHint ? `<div class="compact-quality-hint">${qualityHint}</div>` : ""}
+    `;
+  } else if (!event.isTopOfDay) {
+    const focusLabel = formatDateTime(new Date((event.focusTs || event.start) * 1000));
+    const detailLine = getSecondarySkyDetailLine(event);
+    const moonContextLine = [event.moonPhaseSummary, event.moonlightSummary].filter(Boolean).join(" • ");
+    item.innerHTML = `
+      <div class="sky-row-main">
+        <div class="sky-row-head">
+          <p class="pass-title">${event.title}</p>
+          ${badgeSpansSecondary ? `<div class="sky-row-badges">${badgeSpansSecondary}</div>` : ""}
+        </div>
+        <div class="pass-meta event-time">${focusLabel} • ${getSkyEventWindowLabel(event)}</div>
+        <div class="pass-meta sky-highlight">${detailLine}</div>
+        ${moonContextLine ? `<div class="pass-meta moon-phase">${moonContextLine}</div>` : ""}
+      </div>
     `;
   } else {
     const badgeColumn = `
