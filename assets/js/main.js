@@ -2073,7 +2073,6 @@ function setStatus() {
     moonPhase.textContent = "Calculating…";
     moonPhaseMeta.textContent = "Need location to evaluate sky darkness";
   }
-  updateTonightHighlights();
 }
 
 function updateTonightHighlights() {
