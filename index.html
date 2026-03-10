@@ -116,9 +116,9 @@
 
     <div class="view-toolbar">
       <div class="view-toggle" role="tablist">
+        <button class="active" id="btn-sky">User View</button>
+        <button id="btn-globe">Globe View</button>
         <button id="btn-map">Map View</button>
-        <button class="active" id="btn-globe">Globe View</button>
-        <button id="btn-sky">User View</button>
       </div>
       <div class="preview-banner" id="preview-banner" hidden>
         <span id="preview-text">Previewing pass</span>
@@ -128,11 +128,11 @@
 
     <section class="viewer" id="viewer-panel">
       <div id="map" class="view-panel" aria-label="ISS ground track map"></div>
-      <div id="globe-view" class="view-panel active" aria-label="ISS globe view">
+      <div id="globe-view" class="view-panel" aria-label="ISS globe view">
         <div id="globe"></div>
         <div class="globe-overlay">Drag to rotate, scroll to zoom. Track paths are computed from live ISS TLE data.</div>
       </div>
-      <div id="sky-view" class="view-panel" aria-label="ISS sky view">
+      <div id="sky-view" class="view-panel active" aria-label="ISS sky view">
         <canvas id="sky"></canvas>
         <div class="sky-overlay">Drag to rotate the sky, scroll to zoom. The arc shows the ISS pass and planet markers show naked-eye targets.</div>
       </div>
