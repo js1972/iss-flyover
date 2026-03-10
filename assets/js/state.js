@@ -66,6 +66,11 @@ export const state =  {
     refreshing: false,
     refreshPromise: null,
     lastRefreshStatus: "idle",
-    timelineExpanded: false
+    timelineExpanded: false,
+    booting: true,
+    bootReady: false,
+    bootStage: "iss",
+    hasCompletedInitialLoad: false,
+    bootError: null
   }
 };

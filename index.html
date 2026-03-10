@@ -26,7 +26,23 @@
   <link rel="stylesheet" href="assets/css/app.css" />
 </head>
 <body>
-  <div class="app">
+  <div class="boot-overlay" id="boot-overlay" role="status" aria-live="polite" aria-atomic="true">
+    <div class="boot-overlay__scrim"></div>
+    <div class="boot-overlay__panel">
+      <div class="boot-loader" aria-hidden="true">
+        <div class="boot-loader__halo"></div>
+        <div class="boot-loader__orbit boot-loader__orbit--outer"></div>
+        <div class="boot-loader__orbit boot-loader__orbit--inner"></div>
+        <div class="boot-loader__dot"></div>
+        <div class="boot-loader__core"></div>
+      </div>
+      <div class="boot-overlay__title">Calculating tonight&#39;s sky</div>
+      <div class="boot-overlay__stage" id="boot-stage">Fetching live orbital data</div>
+      <div class="boot-overlay__meta" id="boot-meta">This takes a moment while live orbit, weather, and visibility data arrive.</div>
+    </div>
+  </div>
+
+  <div class="app is-booting" id="app-root">
     <header>
       <div class="title-row">
         <div>
@@ -42,12 +58,12 @@
       </div>
     </header>
 
-    <section class="section-head">
+    <section class="section-head" id="tonight-head">
       <h2 class="section-title">What To See Tonight</h2>
       <p class="section-subtitle">Tonight's ISS pass, standout sky event, moonlight, and weather at a glance.</p>
     </section>
 
-    <section class="tonight-grid">
+    <section class="tonight-grid" id="tonight-grid">
       <div class="card tonight-card tonight-iss">
         <div class="tonight-head">
           <h3>ISS Tonight</h3>
@@ -112,7 +128,7 @@
       </div>
     </div>
 
-    <section class="viewer">
+    <section class="viewer" id="viewer-panel">
       <div id="map" class="view-panel" aria-label="ISS ground track map"></div>
       <div id="globe-view" class="view-panel active" aria-label="ISS globe view">
         <div id="globe"></div>
@@ -203,7 +219,7 @@
       </div>
     </section>
 
-    <section class="status-section">
+    <section class="status-section" id="live-data-panel">
       <div class="section-head">
         <h2 class="section-title">Live Data</h2>
         <p class="section-subtitle">Live telemetry and observing context. Useful for tuning coordinates and checking real-time ISS state.</p>

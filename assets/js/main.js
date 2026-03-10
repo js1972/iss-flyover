@@ -1,9 +1,28 @@
 
 import { state } from "./state.js";
 import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, WEATHER_URL, CELESTRAK_TLE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js";
-import { mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, passList, skyEventsList, actionStatusEl, forecastPanelEl, skyPanelEl, previewBanner, previewText, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, guideList, conditionsList } from "./dom.js";
+import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, tonightGridEl, passList, skyEventsList, actionStatusEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, previewBanner, previewText, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, guideList, conditionsList } from "./dom.js";
 import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js";
 import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS, BRIGHT_OBJECTS } from "./data/catalogs.js";
+
+const BOOT_STAGE_COPY = {
+  iss: {
+    title: "Fetching live orbital data",
+    meta: "Pulling the latest ISS position, orbit path, and forecast samples."
+  },
+  weather: {
+    title: "Checking weather and moonlight",
+    meta: "Estimating cloud cover, wind, and moonlight conditions for tonight."
+  },
+  sky: {
+    title: "Scoring tonight's best targets",
+    meta: "Ranking visible passes, sky highlights, and dark-sky quality."
+  },
+  finalizing: {
+    title: "Preparing the night plan",
+    meta: "Rendering tonight cards, schedules, and forecast lists."
+  }
+};
 
 function pickVisibleBadges(descriptors) {
   const ordered = [...descriptors].sort((a, b) => a.priority - b.priority);
@@ -59,13 +78,28 @@ function triggerHaptic(type) {
 
 function setRefreshingUI(active) {
   state.ui.refreshing = active;
+  const showSectionVeil = active && state.ui.hasCompletedInitialLoad;
   if (refreshButton) {
     refreshButton.classList.toggle("is-loading", active);
     refreshButton.disabled = active;
     refreshButton.textContent = active ? "Recalculating..." : "Refresh Forecast";
   }
-  if (forecastPanelEl) forecastPanelEl.classList.toggle("loading", active);
-  if (skyPanelEl) skyPanelEl.classList.toggle("loading", active);
+  if (tonightGridEl) {
+    tonightGridEl.classList.toggle("loading", showSectionVeil);
+    tonightGridEl.setAttribute("aria-busy", String(active));
+  }
+  if (forecastPanelEl) {
+    forecastPanelEl.classList.toggle("loading", showSectionVeil);
+    forecastPanelEl.setAttribute("aria-busy", String(active));
+  }
+  if (skyPanelEl) {
+    skyPanelEl.classList.toggle("loading", showSectionVeil);
+    skyPanelEl.setAttribute("aria-busy", String(active));
+  }
+  if (conditionsPanelEl) {
+    conditionsPanelEl.classList.toggle("loading", showSectionVeil);
+    conditionsPanelEl.setAttribute("aria-busy", String(active));
+  }
   if (actionStatusEl && active) {
     actionStatusEl.textContent = "Updating forecasts...";
   }
@@ -84,6 +118,50 @@ function setTimelineExpanded(expanded) {
     timelineToggle.textContent = expanded ? "Hide" : "Show";
     timelineToggle.setAttribute("aria-expanded", String(expanded));
   }
+}
+
+function setBootStage(stage) {
+  state.ui.bootStage = stage;
+  const copy = BOOT_STAGE_COPY[stage] || BOOT_STAGE_COPY.iss;
+  if (bootStageEl) bootStageEl.textContent = copy.title;
+  if (bootMetaEl) bootMetaEl.textContent = copy.meta;
+}
+
+function setBooting(active) {
+  state.ui.booting = active;
+  if (appEl) {
+    appEl.classList.toggle("is-booting", active);
+    if (active) {
+      appEl.classList.remove("is-boot-revealing");
+    }
+    appEl.inert = active;
+    appEl.setAttribute("aria-busy", String(active));
+  }
+  if (bootOverlay) {
+    bootOverlay.hidden = false;
+    bootOverlay.classList.toggle("is-ready", !active);
+  }
+}
+
+function finishInitialBoot() {
+  if (state.ui.hasCompletedInitialLoad) return;
+  state.ui.booting = false;
+  state.ui.bootReady = true;
+  state.ui.hasCompletedInitialLoad = true;
+  setBootStage("finalizing");
+  if (appEl) {
+    appEl.classList.remove("is-booting");
+    appEl.classList.add("is-boot-revealing");
+    appEl.setAttribute("aria-busy", "false");
+    window.setTimeout(() => appEl.classList.remove("is-boot-revealing"), 720);
+  }
+  if (bootOverlay) {
+    bootOverlay.classList.add("is-ready");
+    window.setTimeout(() => {
+      if (bootOverlay) bootOverlay.hidden = true;
+    }, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 280);
+  }
+  if (appEl) appEl.inert = false;
 }
 
 function getSkyQualityHint(event) {
@@ -3461,10 +3539,16 @@ function handleLayoutChange(force = false) {
 
 async function refreshAll(options = {}) {
   const interactive = Boolean(options.interactive);
+  const initialBoot = !state.ui.hasCompletedInitialLoad;
   if (state.ui.refreshPromise) return state.ui.refreshPromise;
 
   const task = (async () => {
     if (interactive) triggerHaptic("start");
+    if (initialBoot) {
+      state.ui.bootError = null;
+      setBooting(true);
+      setBootStage("iss");
+    }
     setRefreshingUI(true);
     try {
       state.planetCache.clear();
@@ -3480,6 +3564,7 @@ async function refreshAll(options = {}) {
       state.passes = enrichPassesWithSkyContext(state.passes);
       state.goodPasses = state.passes.filter((pass) => pass.visible);
       if (state.user) {
+        if (initialBoot) setBootStage("weather");
         try {
           await fetchWeatherForecast(state.user.lat, state.user.lon);
         } catch (error) {
@@ -3491,10 +3576,12 @@ async function refreshAll(options = {}) {
         const now = Math.floor(Date.now() / 1000);
         const end = now + FORECAST_DAYS * 24 * 3600;
         state.meteorEvents = buildMeteorEvents(now, end, state.user.lat, state.user.lon);
+        if (initialBoot) setBootStage("sky");
         state.skyEvents = buildSkyEvents(state.user.lat, state.user.lon, state.alignmentEvents);
         state.tonightWindow = getTonightWindow(state.user.lat, state.user.lon, new Date());
         state.skyGuide = buildSkyGuide(state.user.lat, state.user.lon, state.tonightWindow);
       } else {
+        if (initialBoot) setBootStage("sky");
         state.weather.hourly = [];
         state.weather.error = null;
         state.brightObjectEvents = [];
@@ -3521,6 +3608,7 @@ async function refreshAll(options = {}) {
           }
         }
       }
+      if (initialBoot) setBootStage("finalizing");
       updateNextVisible();
       updateTonightHighlights();
       state.tonightTimeline = state.user && state.tonightWindow
@@ -3543,13 +3631,17 @@ async function refreshAll(options = {}) {
     } catch (error) {
       console.error(error);
       state.ui.lastRefreshStatus = "error";
+      state.ui.bootError = error.message || "Startup calculations failed.";
       setActionStatus("Update failed. Try again.");
-      if (interactive) {
+      if (interactive || initialBoot) {
         triggerHaptic("error");
-        showToast("Recalculation failed. Please try again.", 3000);
+        showToast(initialBoot ? "Initial sky calculations failed. Showing available data." : "Recalculation failed. Please try again.", 3400);
       }
     } finally {
       setRefreshingUI(false);
+      if (initialBoot) {
+        finishInitialBoot();
+      }
       state.ui.refreshPromise = null;
     }
   })();
@@ -3778,6 +3870,8 @@ initMapResizing();
 initGlobe();
 initSky();
 handleLayoutChange(true);
+setBootStage(state.ui.bootStage);
+setBooting(true);
 setTimelineExpanded(false);
 clearPreview();
 registerGestureBlocker(mapEl, () => mapEl.classList.contains("active"));
