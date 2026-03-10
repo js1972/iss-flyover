@@ -247,13 +247,3 @@ export const CONSTELLATIONS = [
     tip: "Canopus anchors a rich southern region full of clusters and nebulae."
   }
 ];
-
-export const BRIGHT_OBJECTS = [
-  {
-    id: "tiangong",
-    name: "Tiangong",
-    catalogNumber: "48274",
-    tier: "naked-eye",
-    hint: "China's space station can rival bright stars on a good pass."
-  }
-];

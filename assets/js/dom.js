@@ -22,5 +22,4 @@ export const timelinePanel = document.getElementById("timeline-panel");
 export const timelineToggle = document.getElementById("timeline-toggle");
 export const timelineContent = document.getElementById("timeline-content");
 export const timelineList = document.getElementById("timeline-list");
-export const guideList = document.getElementById("guide-list");
 export const conditionsList = document.getElementById("conditions-list");

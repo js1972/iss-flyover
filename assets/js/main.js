@@ -1,9 +1,11 @@
 
 import { state } from "./state.js";
-import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, WEATHER_URL, CELESTRAK_TLE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js";
-import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, tonightGridEl, passList, skyEventsList, actionStatusEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, previewBanner, previewText, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, guideList, conditionsList } from "./dom.js";
+import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, WEATHER_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js";
+import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, tonightGridEl, passList, skyEventsList, actionStatusEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, previewBanner, previewText, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, conditionsList } from "./dom.js";
 import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js";
-import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS, BRIGHT_OBJECTS } from "./data/catalogs.js";
+import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js";
+
+const AUTO_REFRESH_STALE_MS = 15 * 60 * 1000;
 
 const BOOT_STAGE_COPY = {
   iss: {
@@ -82,7 +84,7 @@ function setRefreshingUI(active) {
   if (refreshButton) {
     refreshButton.classList.toggle("is-loading", active);
     refreshButton.disabled = active;
-    refreshButton.textContent = active ? "Recalculating..." : "Refresh Forecast";
+    refreshButton.textContent = active ? "Refreshing..." : "Refresh Now";
   }
   if (tonightGridEl) {
     tonightGridEl.classList.toggle("loading", showSectionVeil);
@@ -108,6 +110,24 @@ function setRefreshingUI(active) {
 function setActionStatus(text) {
   if (!actionStatusEl) return;
   actionStatusEl.textContent = text;
+}
+
+function getLocalDateKey(date = new Date()) {
+  return new Date(date).toLocaleDateString("en-CA");
+}
+
+function shouldAutoRefresh() {
+  if (!state.ui.hasCompletedInitialLoad || state.ui.refreshing) return false;
+  const now = Date.now();
+  const dateChanged = state.ui.lastRefreshLocalDate && state.ui.lastRefreshLocalDate !== getLocalDateKey(now);
+  if (dateChanged) return true;
+  if (!state.ui.lastSuccessfulRefreshAt) return true;
+  return (now - state.ui.lastSuccessfulRefreshAt) >= AUTO_REFRESH_STALE_MS;
+}
+
+function maybeAutoRefresh() {
+  if (!shouldAutoRefresh()) return;
+  refreshAll({ interactive: false });
 }
 
 function setTimelineExpanded(expanded) {
@@ -171,17 +191,22 @@ function getSkyQualityHint(event) {
   return `${bodiesCount} bodies • dark-sky ${score}/100 • ${formatTime(new Date(focusTs * 1000))} local`;
 }
 
+function getTopSkyBadgeSpans(descriptors) {
+  const topDescriptors = [...descriptors]
+    .sort((a, b) => a.priority - b.priority)
+    .slice(0, 2);
+  return renderBadgeSpans(topDescriptors, false);
+}
+
 function getSecondarySkyBadgeSpans(descriptors) {
   const secondaryDescriptors = descriptors
     .filter((badge) => !["best", "dark-sky", "bright-moon"].includes(badge.className))
-    .slice(0, 2);
+    .slice(0, 1);
   return renderBadgeSpans(secondaryDescriptors, false);
 }
 
 function getSecondarySkyDetailLine(event) {
-  const parts = [event.details];
-  if (event.type === "bright-object" && event.hint) parts.push(event.hint);
-  return parts.filter(Boolean).join(" • ");
+  return event.details || "";
 }
 
 function getSkyEventWindowLabel(event) {
@@ -189,7 +214,6 @@ function getSkyEventWindowLabel(event) {
   if (event.type === "lunar-eclipse") return "Eclipse peak";
   if (event.type === "solar-eclipse") return "Eclipse peak";
   if (event.type === "meteor-shower") return "Meteor peak";
-  if (event.type === "bright-object") return "Pass peak";
   if (event.skyWindow === "dawn") return "Morning peak";
   if (event.skyWindow === "evening") return "Evening peak";
   return "Viewing peak";
@@ -848,118 +872,6 @@ function buildSolarEclipseEvents(startTs, endTs, lat, lon) {
   return events;
 }
 
-async function fetchCatalogTle(catalogNumber) {
-  const cache = state.catalogTles[catalogNumber];
-  if (cache && Date.now() - cache.fetchedAt < 12 * 3600 * 1000) {
-    return cache;
-  }
-  const response = await fetch(`${CELESTRAK_TLE_URL}${catalogNumber}&FORMAT=TLE`, { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(`TLE fetch failed for catalog ${catalogNumber}`);
-  }
-  const text = await response.text();
-  const lines = text.split(/\r?\n/).map((line) => line.trimEnd()).filter(Boolean);
-  const line1 = lines.find((line) => line.startsWith("1 "));
-  const line2 = lines.find((line) => line.startsWith("2 "));
-  if (!line1 || !line2) {
-    throw new Error(`Malformed TLE for catalog ${catalogNumber}`);
-  }
-  const tle = {
-    fetchedAt: Date.now(),
-    name: lines[0] || `Catalog ${catalogNumber}`,
-    line1,
-    line2,
-    satrec: window.satellite.twoline2satrec(line1, line2)
-  };
-  state.catalogTles[catalogNumber] = tle;
-  return tle;
-}
-
-function computePassesForObserver(samples, lat, lon, options = {}) {
-  const { minPeakElevation = 20, minDurationMinutes = 2 } = options;
-  const observer = ecefFromLatLon(lat, lon, 0);
-  const enriched = samples.map((point) => {
-    const sat = ecefFromLatLon(point.latitude, point.longitude, point.altitude || 0);
-    const look = topocentricAzEl(observer, sat);
-    return { ...point, ...look };
-  });
-
-  const passes = [];
-  let current = null;
-  for (const point of enriched) {
-    if (point.elevation > 0) {
-      if (!current) {
-        current = { start: point.timestamp, end: point.timestamp, points: [point], maxEl: point.elevation };
-      } else {
-        current.end = point.timestamp;
-        current.points.push(point);
-        current.maxEl = Math.max(current.maxEl, point.elevation);
-      }
-    } else if (current) {
-      passes.push(current);
-      current = null;
-    }
-  }
-  if (current) passes.push(current);
-
-  return passes.map((pass) => {
-    const peak = pass.points.reduce((best, point) => (point.elevation > best.elevation ? point : best), pass.points[0]);
-    const duration = Math.max(1, Math.round((pass.end - pass.start) / 60));
-    const sunAlt = SunCalc.getPosition(new Date(peak.timestamp * 1000), lat, lon).altitude * 180 / Math.PI;
-    return {
-      ...pass,
-      duration,
-      peakPoint: peak,
-      night: sunAlt < -6,
-      visible: sunAlt < -6 && peak.elevation >= minPeakElevation && duration >= minDurationMinutes
-    };
-  });
-}
-
-async function buildBrightObjectEvents(lat, lon) {
-  if (!window.satellite || !BRIGHT_OBJECTS.length) return [];
-  const events = [];
-  for (const object of BRIGHT_OBJECTS) {
-    try {
-      const tle = await fetchCatalogTle(object.catalogNumber);
-      const timestamps = buildTimestamps(FORECAST_DAYS * 24, 90, 7000);
-      const track = buildTrackFromTLE(tle.satrec, timestamps);
-      const passes = computePassesForObserver(track, lat, lon, { minPeakElevation: 25, minDurationMinutes: 2 })
-        .filter((pass) => pass.visible)
-        .slice(0, FORECAST_DAYS);
-      passes.forEach((pass) => {
-        const focusTs = pass.peakPoint?.timestamp || pass.start;
-        const context = getSkyContextAt(new Date(focusTs * 1000), lat, lon);
-        events.push({
-          id: `bright-${object.id}-${focusTs}`,
-          type: "bright-object",
-          focusTs,
-          start: pass.start,
-          end: pass.end,
-          skyWindow: new Date(focusTs * 1000).getHours() < 12 ? "dawn" : "evening",
-          emphasis: pass.maxEl >= 50,
-          bodies: [object.name],
-          visibilityTier: object.tier || "naked-eye",
-          title: `${object.name} pass`,
-          meta: formatDateTime(new Date(focusTs * 1000)),
-          details: `Max ${pass.maxEl.toFixed(0)}° • Visible ${pass.duration} min`,
-          moonPhase: context.moonPhase || null,
-          moonPhaseSummary: formatMoonPhaseLine(context.moonPhase, "Moon"),
-          moonlightSummary: `Moonlight: ${moonlightQualityLabel(context.moonlightQuality)}`,
-          moonlightBadge: moonlightBadgeValue(context.moonlightQuality),
-          darkSkyScore: context.darkSkyScore,
-          qualityScore: pass.maxEl * 3 + pass.duration * 18 + context.darkSkyScore * 0.6,
-          hint: object.hint,
-          objectName: object.name
-        });
-      });
-    } catch (error) {
-      console.warn(`Bright object fetch failed for ${object.name}.`, error);
-    }
-  }
-  return events.sort((left, right) => left.start - right.start);
-}
-
 function computeAlignmentEvents(startTimestamp, endTimestamp, lat, lon) {
   if (!window.Astronomy || !window.Astronomy.Observer) return [];
   const stepSeconds = PLANET_VISUALS.alignmentStepMinutes * 60;
@@ -1272,8 +1184,7 @@ function buildSkyEvents(lat, lon, alignmentEvents) {
   const solarEclipseEvents = buildSolarEclipseEvents(now, end, lat, lon);
   const guideEvents = buildGuideEvents(lat, lon, now, end);
   const meteorEvents = state.meteorEvents || [];
-  const brightObjectEvents = state.brightObjectEvents || [];
-  const allEvents = [...solarEclipseEvents, ...lunarEclipseEvents, ...alignmentHighlights, ...meteorEvents, ...brightObjectEvents, ...groupingEvents, ...guideEvents]
+  const allEvents = [...solarEclipseEvents, ...lunarEclipseEvents, ...alignmentHighlights, ...meteorEvents, ...groupingEvents, ...guideEvents]
     .sort((left, right) => left.start - right.start);
 
   function eventScore(event) {
@@ -1287,9 +1198,6 @@ function buildSkyEvents(lat, lon, alignmentEvents) {
     } else if (event.type === "meteor-shower") {
       score += 560;
       score += Math.min(220, (event.qualityScore || 0) * 0.5);
-    } else if (event.type === "bright-object") {
-      score += 420;
-      score += Math.min(180, (event.qualityScore || 0) * 0.45);
     } else if (event.type === "alignment") {
       score += 520;
       if (Number.isFinite(event.separationDeg)) {
@@ -1373,15 +1281,11 @@ function buildSkyEvents(lat, lon, alignmentEvents) {
   }));
 }
 
-function createSkyEventCard(event, compactMobile, selectedEventId) {
-  const item = document.createElement("div");
-  const isSelected = selectedEventId === event.id;
-  item.className = `sky-event-item clickable${event.isBestOfWeek ? " best-of-week" : ""}${isSelected ? " selected" : ""}${compactMobile ? " compact-mobile" : ""}${event.isTopOfDay ? " primary" : " secondary"}`;
+function getSkyBadgeDescriptors(event) {
   const badgeDescriptors = [];
   if (event.type === "lunar-eclipse") badgeDescriptors.push({ className: "eclipse", label: "Eclipse", priority: 1 });
   if (event.type === "solar-eclipse") badgeDescriptors.push({ className: "eclipse", label: "Solar", priority: 1 });
   if (event.type === "meteor-shower") badgeDescriptors.push({ className: "meteor", label: "Meteor", priority: 1 });
-  if (event.type === "bright-object") badgeDescriptors.push({ className: "station", label: "Station", priority: 2 });
   if (event.guideKind === "deep-sky") badgeDescriptors.push({ className: "tier-binoculars", label: "Deep Sky", priority: 2 });
   if (event.guideKind === "constellation") badgeDescriptors.push({ className: "weather-clear", label: "Constellation", priority: 2 });
   if (event.guideKind === "star") badgeDescriptors.push({ className: "weather-clear", label: "Bright Star", priority: 2 });
@@ -1391,78 +1295,35 @@ function createSkyEventCard(event, compactMobile, selectedEventId) {
   if (event.visibilityTier === "binoculars") badgeDescriptors.push({ className: "tier-binoculars", label: "Binoculars", priority: 3 });
   if (event.moonlightBadge === "dark") badgeDescriptors.push({ className: "dark-sky", label: "Dark Sky", priority: 3 });
   if (event.moonlightBadge === "bright") badgeDescriptors.push({ className: "bright-moon", label: "Bright Moon", priority: 3 });
-  const badgeSpansCompact = renderBadgeSpans(badgeDescriptors, true);
-  const badgeSpansDesktop = renderBadgeSpans(badgeDescriptors, false);
-  const badgeSpansSecondary = getSecondarySkyBadgeSpans(badgeDescriptors);
-  const qualityHint = event.isBestOfWeek ? getSkyQualityHint(event) : "";
+  return badgeDescriptors;
+}
 
-  if (compactMobile) {
-    const bodyCount = event.bodies?.length ? String(event.bodies.length) : "--";
-    const compactTitle = event.type === "group" && event.bodies?.length
-      ? event.bodies.join(" + ")
-      : event.title;
-    const compactDateTime = formatDateTime(new Date((event.focusTs || event.start) * 1000));
-    const windowLabel = getSkyEventWindowLabel(event);
-    const bodyDetail = event.bodies?.length ? `Bodies: ${event.bodies.join(", ")}` : "Bodies: --";
-    const moonPct = Number.isFinite(event.moonPhase?.illuminationPct) ? `${event.moonPhase.illuminationPct}%` : "--";
-    const moonPhaseCompact = event.moonPhase
-      ? `${event.moonPhase.icon} ${event.moonPhase.name}`
-      : "Moon phase unavailable";
-    item.innerHTML = `
-      <div class="compact-head">
-        <p class="compact-title compact-title-event">${compactTitle}</p>
-        <div class="compact-actions">
-          <button class="share-chip" type="button">Share</button>
-          ${badgeSpansCompact ? `<div class="compact-badges">${badgeSpansCompact}</div>` : ""}
-        </div>
+function createSkyTopPick(event, selectedEventId) {
+  const item = document.createElement("div");
+  const isSelected = selectedEventId === event.id;
+  item.className = `sky-top-pick clickable${event.isBestOfWeek ? " best-of-week" : ""}${isSelected ? " selected" : ""}`;
+  const badgeDescriptors = getSkyBadgeDescriptors(event);
+  const badgeSpans = getTopSkyBadgeSpans(badgeDescriptors);
+  const focusLabel = formatDateTime(new Date((event.focusTs || event.start) * 1000));
+  const moonContextLine = [event.moonPhaseSummary, event.moonlightSummary].filter(Boolean).join(" • ");
+  const qualityHint = event.isBestOfWeek ? getSkyQualityHint(event) : "";
+  item.innerHTML = `
+    <div class="sky-top-head">
+      <div class="sky-top-copy">
+        <div class="sky-top-kicker">Top pick</div>
+        <p class="pass-title sky-top-title">${event.title}</p>
+        <div class="pass-meta event-time">${focusLabel}</div>
       </div>
-      <div class="compact-time">${compactDateTime}</div>
-      <div class="compact-sub">${windowLabel}</div>
-      <div class="compact-grid">
-        <div class="compact-cell"><p class="compact-k">Bodies</p><p class="compact-v">${bodyCount}</p></div>
-        <div class="compact-cell"><p class="compact-k">Best</p><p class="compact-v">${formatCompactBestTime(event.focusTs || event.start)}</p></div>
-        <div class="compact-cell"><p class="compact-k">Moon %</p><p class="compact-v">${moonPct}</p></div>
-      </div>
-      <div class="compact-detail">${bodyDetail}</div>
-      <div class="compact-secondary">${event.details}${event.hint ? ` • ${event.hint}` : ` • ${moonPhaseCompact}`}</div>
-      ${qualityHint ? `<div class="compact-quality-hint">${qualityHint}</div>` : ""}
-    `;
-  } else if (!event.isTopOfDay) {
-    const focusLabel = formatDateTime(new Date((event.focusTs || event.start) * 1000));
-    const detailLine = getSecondarySkyDetailLine(event);
-    const moonContextLine = [event.moonPhaseSummary, event.moonlightSummary].filter(Boolean).join(" • ");
-    item.innerHTML = `
-      <div class="sky-row-main">
-        <div class="sky-row-head">
-          <p class="pass-title">${event.title}</p>
-          ${badgeSpansSecondary ? `<div class="sky-row-badges">${badgeSpansSecondary}</div>` : ""}
-        </div>
-        <div class="pass-meta event-time">${focusLabel} • ${getSkyEventWindowLabel(event)}</div>
-        <div class="pass-meta sky-highlight">${detailLine}</div>
-        ${moonContextLine ? `<div class="pass-meta moon-phase">${moonContextLine}</div>` : ""}
-      </div>
-    `;
-  } else {
-    const badgeColumn = `
-      <div class="badge-row">
+      <div class="sky-top-actions">
         <button class="share-chip" type="button">Share</button>
-        ${badgeSpansDesktop}
+        ${badgeSpans ? `<div class="sky-top-badges">${badgeSpans}</div>` : ""}
       </div>
-    `;
-    const moonContextLine = [event.moonPhaseSummary, event.moonlightSummary].filter(Boolean).join(" • ");
-    item.innerHTML = `
-      <div>
-        <p class="pass-title">${event.title}</p>
-        <div class="pass-meta event-time">${event.meta}</div>
-        <div class="pass-meta">${getSkyEventWindowLabel(event)}</div>
-        <div class="pass-meta sky-highlight">${event.details}</div>
-        ${event.hint ? `<div class="pass-meta">${event.hint}</div>` : ""}
-        ${moonContextLine ? `<div class="pass-meta moon-phase">${moonContextLine}</div>` : ""}
-        ${qualityHint ? `<div class="pass-meta quality-hint">${qualityHint}</div>` : ""}
-      </div>
-      ${badgeColumn}
-    `;
-  }
+    </div>
+    <div class="sky-top-meta">${getSkyEventWindowLabel(event)} • ${event.details}</div>
+    ${event.hint ? `<div class="sky-top-detail">${event.hint}</div>` : ""}
+    ${moonContextLine ? `<div class="pass-meta moon-phase">${moonContextLine}</div>` : ""}
+    ${qualityHint ? `<div class="pass-meta quality-hint">${qualityHint}</div>` : ""}
+  `;
 
   const shareButton = item.querySelector(".share-chip");
   if (shareButton) {
@@ -1471,6 +1332,28 @@ function createSkyEventCard(event, compactMobile, selectedEventId) {
       shareSkyEvent(event);
     });
   }
+  item.addEventListener("click", () => setSkyEventPreview(event));
+  return item;
+}
+
+function createSkySecondaryRow(event, selectedEventId) {
+  const item = document.createElement("button");
+  item.type = "button";
+  item.className = `sky-secondary-row clickable${selectedEventId === event.id ? " selected" : ""}`;
+  const badgeDescriptors = getSkyBadgeDescriptors(event);
+  const badgeSpansSecondary = getSecondarySkyBadgeSpans(badgeDescriptors);
+  const focusLabel = formatDateTime(new Date((event.focusTs || event.start) * 1000));
+  const detailLine = getSecondarySkyDetailLine(event);
+  item.innerHTML = `
+    <div class="sky-secondary-main">
+      <div class="sky-secondary-head">
+        <p class="pass-title sky-secondary-title">${event.title}</p>
+        ${badgeSpansSecondary ? `<div class="sky-row-badges">${badgeSpansSecondary}</div>` : ""}
+      </div>
+      <div class="pass-meta event-time">${focusLabel} • ${getSkyEventWindowLabel(event)}</div>
+      <div class="pass-meta sky-highlight">${detailLine}</div>
+    </div>
+  `;
   item.addEventListener("click", () => setSkyEventPreview(event));
   return item;
 }
@@ -1519,7 +1402,6 @@ function renderSkyEventsList() {
   }
 
   const selectedEventId = state.preview.active && state.preview.mode === "event" ? state.preview.skyEvent?.id : null;
-  const compactMobile = isCompactMobileLayout();
   const groups = new Map();
   state.skyEvents.forEach((event) => {
     if (!groups.has(event.dayKey)) {
@@ -1536,15 +1418,21 @@ function renderSkyEventsList() {
   });
 
   Array.from(groups.values()).forEach((group) => {
-    const wrapper = document.createElement("div");
-    wrapper.className = `sky-day-group${group.isBestNight ? " best-night" : ""}`;
     const topEvent = group.events.find((event) => event.isTopOfDay) || group.events[0];
     const weather = getWeatherAt(topEvent.focusTs || topEvent.start);
     const weatherLabel = weatherQualityLabel(weather);
     const moonPct = Number.isFinite(topEvent.moonPhase?.illuminationPct) ? `${topEvent.moonPhase.illuminationPct}% moon` : "Moon unknown";
+    const extraCount = Math.max(0, group.events.length - 1);
+    const hasSecondaryItems = extraCount > 0;
+    const expanded = hasSecondaryItems && (
+      state.ui.expandedSkyDayKeys.has(group.dayKey) ||
+      group.events.some((event) => !event.isTopOfDay && event.id === selectedEventId)
+    );
+    const wrapper = document.createElement("div");
+    wrapper.className = `sky-day-group${group.isBestNight ? " best-night" : ""}`;
     wrapper.innerHTML = `
       <div class="sky-day-header">
-        <div>
+        <div class="sky-day-heading">
           <div class="sky-day-label">${group.dayLabel}</div>
           <div class="sky-day-meta">${group.events.length} highlight${group.events.length === 1 ? "" : "s"} • ${moonPct} • ${weatherLabel}</div>
         </div>
@@ -1554,18 +1442,41 @@ function renderSkyEventsList() {
       </div>
     `;
 
-    const list = document.createElement("div");
-    list.className = "sky-day-items";
-    group.events.forEach((event) => {
-      list.appendChild(createSkyEventCard(event, compactMobile, selectedEventId));
-    });
-    wrapper.appendChild(list);
+    wrapper.appendChild(createSkyTopPick(topEvent, selectedEventId));
+
+    if (hasSecondaryItems) {
+      const toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "sky-day-toggle";
+      toggle.setAttribute("aria-expanded", String(expanded));
+      toggle.innerHTML = `
+        <span>${expanded ? "Hide extra highlights" : `Show ${extraCount} more tonight`}</span>
+        <span class="sky-day-toggle-icon">${expanded ? "−" : "+"}</span>
+      `;
+      toggle.addEventListener("click", () => {
+        if (state.ui.expandedSkyDayKeys.has(group.dayKey)) {
+          state.ui.expandedSkyDayKeys.delete(group.dayKey);
+        } else {
+          state.ui.expandedSkyDayKeys.add(group.dayKey);
+        }
+        renderSkyEventsList();
+      });
+      wrapper.appendChild(toggle);
+
+      if (expanded) {
+        const list = document.createElement("div");
+        list.className = "sky-day-secondary";
+        group.events
+          .filter((event) => !event.isTopOfDay)
+          .forEach((event) => {
+            list.appendChild(createSkySecondaryRow(event, selectedEventId));
+          });
+        wrapper.appendChild(list);
+      }
+    }
+
     skyEventsList.appendChild(wrapper);
   });
-}
-
-function describeVisibilityTier(tier) {
-  return tier === "binoculars" ? "Binoculars help" : "Naked-eye";
 }
 
 function buildGuideCandidatesForWindow(lat, lon, tonightWindow) {
@@ -1705,7 +1616,7 @@ function buildGuideEvents(lat, lon, startTs, endTs) {
   return events;
 }
 
-function buildTonightTimeline(lat, lon, tonightWindow) {
+function buildTonightScheduleEntries(lat, lon, tonightWindow, snapshot) {
   const entries = [];
   const timelineStartTs = Math.max(Math.floor(Date.now() / 1000), tonightWindow.startTs);
   const pushEntry = (timestamp, label, sub, tone = "default") => {
@@ -1730,17 +1641,12 @@ function buildTonightTimeline(lat, lon, tonightWindow) {
   if (moonTimes?.rise instanceof Date) maybePush(moonTimes.rise, "Moonrise", "Moonlight increases", "moon");
   if (moonTimes?.set instanceof Date) maybePush(moonTimes.set, "Moonset", "Skies darken", "moon");
 
-  if (state.tonight.pass) {
-    pushEntry(state.tonight.pass.start, "ISS pass begins", `Max ${state.tonight.pass.maxEl.toFixed(0)}° • ${state.tonight.pass.duration} min`, "iss");
+  if (snapshot.issTonight?.pass) {
+    pushEntry(snapshot.issTonight.pass.start, "ISS pass begins", `Max ${snapshot.issTonight.pass.maxEl.toFixed(0)}° • ${snapshot.issTonight.pass.duration} min`, "iss");
   }
-  if (state.tonight.skyEvent) {
-    const focusTs = state.tonight.skyEvent.focusTs || state.tonight.skyEvent.start;
-    pushEntry(focusTs, state.tonight.skyEvent.title, `${getSkyEventWindowLabel(state.tonight.skyEvent)} • ${state.tonight.skyEvent.details}`, "event");
-  }
-
-  const tonightMeteor = (state.meteorEvents || []).find((event) => (event.focusTs || event.start) >= tonightWindow.startTs && (event.focusTs || event.start) <= tonightWindow.endTs);
-  if (tonightMeteor) {
-    pushEntry(tonightMeteor.focusTs, tonightMeteor.title, tonightMeteor.details, "meteor");
+  if (snapshot.skyTonight?.event) {
+    const focusTs = snapshot.skyTonight.event.focusTs || snapshot.skyTonight.event.start;
+    pushEntry(focusTs, snapshot.skyTonight.event.title, `${getSkyEventWindowLabel(snapshot.skyTonight.event)} • ${snapshot.skyTonight.event.details}`, "event");
   }
 
   const clearWindow = findClearestWindow(timelineStartTs, tonightWindow.endTs);
@@ -1756,6 +1662,48 @@ function buildTonightTimeline(lat, lon, tonightWindow) {
     .slice(0, 9);
 }
 
+function buildTonightSnapshot() {
+  if (!state.user) {
+    return {
+      issTonight: { pass: null, nextPass: null },
+      skyTonight: { event: null, nextEvent: null },
+      moonTonight: null,
+      weatherTonight: { summary: null, clearestWindow: null, error: null },
+      scheduleEntries: [],
+      window: null
+    };
+  }
+
+  const nowTs = Date.now() / 1000;
+  const windowInfo = getTonightWindow(state.user.lat, state.user.lon, new Date());
+  const tonightStartTs = Math.max(nowTs, windowInfo.startTs);
+  const tonightEndTs = windowInfo.endTs;
+  const eventFocus = (event) => event?.focusTs || event?.start || 0;
+
+  const tonightPass = state.goodPasses.find((pass) => pass.start >= tonightStartTs && pass.start <= tonightEndTs) || null;
+  const nextPass = state.goodPasses.find((pass) => pass.start > tonightEndTs) || state.goodPasses[0] || null;
+  const tonightEvent = state.skyEvents
+    .filter((event) => eventFocus(event) >= tonightStartTs && eventFocus(event) <= tonightEndTs)
+    .sort((left, right) => (right.rankScore || 0) - (left.rankScore || 0) || eventFocus(left) - eventFocus(right))[0] || null;
+  const nextEvent = state.skyEvents.find((event) => eventFocus(event) > tonightEndTs) || state.skyEvents[0] || null;
+  const moonFocusTs = tonightPass?.peakPoint?.timestamp || tonightEvent?.focusTs || tonightStartTs;
+  const moonContext = getSkyContextAt(new Date(moonFocusTs * 1000), state.user.lat, state.user.lon);
+  const weatherSummary = summarizeWeatherWindow(tonightStartTs, tonightEndTs);
+  const clearestWindow = findClearestWindow(tonightStartTs, tonightEndTs);
+
+  const snapshot = {
+    issTonight: { pass: tonightPass, nextPass },
+    skyTonight: { event: tonightEvent, nextEvent },
+    moonTonight: { context: moonContext, focusTs: moonFocusTs },
+    weatherTonight: { summary: weatherSummary, clearestWindow, error: state.weather.error },
+    scheduleEntries: [],
+    window: windowInfo
+  };
+
+  snapshot.scheduleEntries = buildTonightScheduleEntries(state.user.lat, state.user.lon, windowInfo, snapshot);
+  return snapshot;
+}
+
 function renderTimeline() {
   if (!timelineList) return;
   if (!state.user) {
@@ -1769,7 +1717,8 @@ function renderTimeline() {
     `;
     return;
   }
-  if (!state.tonightTimeline.length) {
+  const scheduleEntries = state.tonightSnapshot?.scheduleEntries || [];
+  if (!scheduleEntries.length) {
     timelineList.innerHTML = `
       <div class="timeline-item">
         <div class="timeline-dot"></div>
@@ -1780,7 +1729,7 @@ function renderTimeline() {
     `;
     return;
   }
-  timelineList.innerHTML = state.tonightTimeline.map((entry) => `
+  timelineList.innerHTML = scheduleEntries.map((entry) => `
     <div class="timeline-item ${entry.tone === "event" || entry.tone === "meteor" ? "sky" : entry.tone === "weather" ? "weather" : entry.tone === "iss" ? "iss" : entry.tone === "moon" || entry.tone === "dark" ? "moon" : entry.tone === "sun" || entry.tone === "twilight" ? "rare" : ""}">
       <div class="timeline-dot"></div>
       <div class="timeline-time">${formatTime(new Date(entry.timestamp * 1000))}</div>
@@ -1788,53 +1737,6 @@ function renderTimeline() {
       <div class="timeline-sub">${entry.sub}</div>
     </div>
   `).join("");
-}
-
-function renderGuideList() {
-  if (!guideList) return;
-  if (!state.user) {
-    guideList.innerHTML = `
-      <div class="guide-item">
-        <div>
-          <p class="pass-title">Waiting for location…</p>
-          <div class="pass-meta">Deep-sky, constellation, and bright-star guidance appears here.</div>
-        </div>
-        <span class="badge daylight">Standby</span>
-      </div>
-    `;
-    return;
-  }
-  if (!state.skyGuide.length) {
-    guideList.innerHTML = `
-      <div class="guide-item">
-        <div>
-          <p class="pass-title">Nothing strong for tonight</p>
-          <div class="pass-meta">Try again later, or use User View to scan live planets and stars.</div>
-        </div>
-      </div>
-    `;
-    return;
-  }
-  guideList.innerHTML = state.skyGuide.map((item) => {
-    const weatherBadge = weatherBadgeValue(item.weather);
-    const badges = [
-      `<span class="badge ${item.tier === "binoculars" ? "tier-binoculars" : "tier-naked-eye"}">${describeVisibilityTier(item.tier)}</span>`,
-      weatherBadge ? `<span class="badge ${weatherBadge === "clear" ? "weather-clear" : "weather-risk"}">${weatherQualityLabel(item.weather)}</span>` : ""
-    ].join("");
-    return `
-      <div class="guide-item">
-        <div class="guide-head">
-          <div>
-            <div class="guide-kicker">${item.kicker}</div>
-            <div class="guide-title">${item.title}</div>
-          </div>
-          <div class="guide-tags">${badges}</div>
-        </div>
-        <div class="guide-meta">${item.detail}</div>
-        <div class="guide-note">${item.note}</div>
-      </div>
-    `;
-  }).join("");
 }
 
 function renderConditionsList() {
@@ -2188,10 +2090,13 @@ function updateTonightHighlights() {
 
   if (!tonightIss || !tonightSky || !tonightMoon || !tonightWeather) return;
 
+  state.tonightSnapshot = buildTonightSnapshot();
+
   if (!state.user) {
     state.tonight.pass = null;
     state.tonight.skyEvent = null;
     state.tonightWindow = null;
+    state.tonightTimeline = [];
     tonightIss.textContent = "Set your location";
     tonightIssMeta.textContent = "Need location to find tonight's visible ISS pass.";
     tonightSky.textContent = "Set your location";
@@ -2205,21 +2110,22 @@ function updateTonightHighlights() {
     return;
   }
 
-  const nowTs = Date.now() / 1000;
-  const tonightWindow = getTonightWindow(state.user.lat, state.user.lon, new Date());
-  state.tonightWindow = tonightWindow;
-  const tonightStartTs = Math.max(nowTs, tonightWindow.startTs);
-  const tonightEndTs = tonightWindow.endTs;
-
-  const tonightPass = state.goodPasses.find((pass) => pass.start >= tonightStartTs && pass.start <= tonightEndTs) || null;
-  const nextPass = state.goodPasses.find((pass) => pass.start > tonightEndTs) || state.goodPasses[0] || null;
+  const snapshot = state.tonightSnapshot;
+  const tonightPass = snapshot.issTonight.pass;
+  const nextPass = snapshot.issTonight.nextPass;
+  const tonightEvent = snapshot.skyTonight.event;
+  const nextSkyEvent = snapshot.skyTonight.nextEvent;
   state.tonight.pass = tonightPass;
+  state.tonight.skyEvent = tonightEvent;
+  state.tonightWindow = snapshot.window;
+  state.tonightTimeline = snapshot.scheduleEntries;
+  if (state.ui.timelineExpanded && !state.ui.booting) {
+    renderTimeline();
+  }
+
   if (tonightPass) {
-    const skySnippet = tonightPass.topTargets?.length
-      ? tonightPass.topTargets.slice(0, 2).map(formatSkyTarget).join(" • ")
-      : "";
     tonightIss.textContent = formatTonightMoment(tonightPass.start);
-    tonightIssMeta.textContent = `Max ${tonightPass.maxEl.toFixed(0)}° • Visible ${tonightPass.duration} min${skySnippet ? ` • During pass: ${skySnippet}` : ""}`;
+    tonightIssMeta.textContent = `Max ${tonightPass.maxEl.toFixed(0)}° • Visible ${tonightPass.duration} min`;
   } else {
     tonightIss.textContent = "No ISS pass tonight";
     tonightIssMeta.textContent = nextPass
@@ -2227,27 +2133,20 @@ function updateTonightHighlights() {
       : `No high-quality night pass in the next ${FORECAST_DAYS} days.`;
   }
 
-  const eventFocus = (event) => event?.focusTs || event?.start || 0;
-  const tonightEvent = state.skyEvents
-    .filter((event) => eventFocus(event) >= tonightStartTs && eventFocus(event) <= tonightEndTs)
-    .sort((left, right) => (right.rankScore || 0) - (left.rankScore || 0) || eventFocus(left) - eventFocus(right))[0] || null;
-  const nextSkyEvent = state.skyEvents.find((event) => eventFocus(event) > tonightEndTs) || state.skyEvents[0] || null;
-  state.tonight.skyEvent = tonightEvent;
   if (tonightEvent) {
     const eventLabel = tonightEvent.type === "group" && tonightEvent.bodies?.length
       ? tonightEvent.bodies.join(" + ")
       : tonightEvent.title;
     tonightSky.textContent = eventLabel;
-    tonightSkyMeta.textContent = `${getSkyEventWindowLabel(tonightEvent)} • ${formatTonightMoment(eventFocus(tonightEvent))} • ${tonightEvent.details}`;
+    tonightSkyMeta.textContent = `${getSkyEventWindowLabel(tonightEvent)} • ${formatTonightMoment(tonightEvent.focusTs || tonightEvent.start)} • ${tonightEvent.details}`;
   } else {
     tonightSky.textContent = "No standout sky event tonight";
     tonightSkyMeta.textContent = nextSkyEvent
-      ? `Next highlight ${formatDateTime(new Date(eventFocus(nextSkyEvent) * 1000))}`
+      ? `Next highlight ${formatDateTime(new Date((nextSkyEvent.focusTs || nextSkyEvent.start) * 1000))}`
       : "No standout naked-eye grouping detected in the next week.";
   }
 
-  const moonFocusTs = tonightPass?.peakPoint?.timestamp || tonightEvent?.focusTs || tonightStartTs;
-  const context = getSkyContextAt(new Date(moonFocusTs * 1000), state.user.lat, state.user.lon);
+  const context = snapshot.moonTonight?.context;
   if (context?.moonPhase) {
     const quality = moonlightQualityLabel(context.moonlightQuality);
     tonightMoon.textContent = `${context.moonPhase.icon} ${context.moonPhase.name} • ${context.moonPhase.illuminationPct}%`;
@@ -2263,15 +2162,15 @@ function updateTonightHighlights() {
     tonightMoonMeta.textContent = "Moonlight quality unavailable.";
   }
 
-  const weatherSummary = summarizeWeatherWindow(tonightStartTs, tonightEndTs);
-  const clearestWindow = findClearestWindow(tonightStartTs, tonightEndTs);
+  const weatherSummary = snapshot.weatherTonight.summary;
+  const clearestWindow = snapshot.weatherTonight.clearestWindow;
   if (weatherSummary) {
     tonightWeather.textContent = weatherSummary.label;
     const clearSnippet = clearestWindow
       ? ` • Clearest ${formatTime(new Date(clearestWindow.timestamp * 1000))}`
       : "";
     tonightWeatherMeta.textContent = `Cloud ${Math.round(weatherSummary.cloudCover)}% • Wind ${Math.round(weatherSummary.windSpeed)} km/h${clearSnippet}`;
-  } else if (state.weather.error) {
+  } else if (snapshot.weatherTonight.error) {
     tonightWeather.textContent = "Weather unavailable";
     tonightWeatherMeta.textContent = "Could not load observing weather.";
   } else {
@@ -3092,15 +2991,9 @@ function renderPassList() {
     const badgeSpansDesktop = renderBadgeSpans(badgeDescriptors, false);
     if (compactMobile) {
       const moonPct = Number.isFinite(pass.moonPhase?.illuminationPct) ? `${pass.moonPhase.illuminationPct}%` : "--";
-      const compactSky = pass.topTargets?.length
-        ? `During pass: ${pass.topTargets.slice(0, 2).map(formatSkyTarget).join(" • ")}`
-        : (pass.skySummary || "During pass: No major planet target");
       const compactMoon = pass.moonPhase
         ? `${pass.moonPhase.icon} ${pass.moonPhase.name}`
         : "Moon phase unavailable";
-      const compactSecondary = pass.alignmentSummary
-        ? `${compactMoon} • ${pass.alignmentSummary}`
-        : compactMoon;
       item.innerHTML = `
         <div class="compact-head">
           <p class="compact-title compact-title-pass">${formatDateTime(new Date(pass.start * 1000))}</p>
@@ -3115,8 +3008,7 @@ function renderPassList() {
           <div class="compact-cell"><p class="compact-k">Duration</p><p class="compact-v">${pass.duration} min</p></div>
           <div class="compact-cell"><p class="compact-k">Moon %</p><p class="compact-v">${moonPct}</p></div>
         </div>
-        <div class="compact-detail">${compactSky}</div>
-        <div class="compact-secondary">${compactSecondary}</div>
+        <div class="compact-secondary">${compactMoon}</div>
       `;
     } else {
       const badgeColumn = `
@@ -3126,11 +3018,9 @@ function renderPassList() {
         </div>
       `;
       const highlights = [
-        pass.skySummary ? `<div class="pass-meta sky-highlight">${pass.skySummary}</div>` : "",
         pass.moonSummary ? `<div class="pass-meta sky-highlight">${pass.moonSummary}</div>` : "",
         pass.moonPhaseSummary ? `<div class="pass-meta moon-phase">${pass.moonPhaseSummary}</div>` : "",
-        pass.moonlightSummary ? `<div class="pass-meta moon-phase">${pass.moonlightSummary}</div>` : "",
-        pass.alignmentSummary ? `<div class="pass-meta alignment-highlight">Alignment: ${pass.alignmentSummary}</div>` : ""
+        pass.moonlightSummary ? `<div class="pass-meta moon-phase">${pass.moonlightSummary}</div>` : ""
       ].join("");
       item.innerHTML = `
         <div>
@@ -3157,6 +3047,24 @@ function updateNextVisible() {
   const now = Date.now() / 1000;
   const upcoming = state.goodPasses.filter((p) => p.end > now + 60);
   state.nextVisible = upcoming[0] || null;
+}
+
+function getLiveSkyFocusDate() {
+  if (!state.user || !state.tonightSnapshot?.window) return new Date();
+  const now = new Date();
+  const nowContext = getSkyContextAt(now, state.user.lat, state.user.lon);
+  if (nowContext.darkEnough) return now;
+
+  const focusTs =
+    state.tonightSnapshot.skyTonight?.event?.focusTs ||
+    state.tonightSnapshot.skyTonight?.event?.start ||
+    state.tonightSnapshot.issTonight?.pass?.peakPoint?.timestamp ||
+    state.tonightSnapshot.issTonight?.pass?.start ||
+    (state.tonightSnapshot.window.civilDusk instanceof Date ? Math.floor(state.tonightSnapshot.window.civilDusk.getTime() / 1000) : 0) ||
+    (state.tonightSnapshot.window.astronomicalDusk instanceof Date ? Math.floor(state.tonightSnapshot.window.astronomicalDusk.getTime() / 1000) : 0) ||
+    (state.tonightSnapshot.window.sunset instanceof Date ? Math.floor(state.tonightSnapshot.window.sunset.getTime() / 1000) : 0);
+
+  return focusTs ? new Date(focusTs * 1000) : now;
 }
 
 function getBestPass(passes) {
@@ -3209,25 +3117,6 @@ function clearPreview() {
   renderSkyEventsList();
   previewBanner.hidden = true;
   updateSkyCanvas();
-}
-
-function scheduleNotification() {
-  if (!state.notificationsEnabled) return;
-  if (state.notificationTimer) clearTimeout(state.notificationTimer);
-  if (!state.nextVisible) return;
-
-  const notifyTime = (state.nextVisible.start * 1000) - 10 * 60 * 1000;
-  const delay = notifyTime - Date.now();
-  if (delay <= 0) return;
-
-  state.notificationTimer = setTimeout(() => {
-    if (Notification.permission === "granted") {
-      new Notification("ISS flyover tonight", {
-        body: `Visible pass at ${formatTime(new Date(state.nextVisible.start * 1000))} • Max ${state.nextVisible.maxEl.toFixed(0)}°`,
-        tag: "iss-flyover"
-      });
-    }
-  }, delay);
 }
 
 function updateSkyCanvas() {
@@ -3297,13 +3186,13 @@ function updateSkyCanvas() {
   });
 
   const previewMode = state.preview.active ? state.preview.mode : "live";
-  const skyPass = previewMode === "pass" ? state.preview.pass : previewMode === "event" ? null : state.nextVisible;
+  const skyPass = previewMode === "pass" ? state.preview.pass : previewMode === "event" ? null : state.tonight.pass;
   const previewEvent = previewMode === "event" ? state.preview.skyEvent : null;
   const contextDate = previewMode === "pass" && state.preview.pass
     ? new Date((state.preview.pass.peakPoint?.timestamp || state.preview.pass.start) * 1000)
-    : previewMode === "event" && previewEvent
+      : previewMode === "event" && previewEvent
       ? new Date((previewEvent.focusTs || previewEvent.start) * 1000)
-      : new Date();
+      : getLiveSkyFocusDate();
 
   if (state.user) {
     const skyContext = getSkyContextAt(contextDate, state.user.lat, state.user.lon);
@@ -3458,17 +3347,6 @@ function updateSkyCanvas() {
     ctx.beginPath();
     ctx.arc(x, y, 5, 0, Math.PI * 2);
     ctx.fill();
-  } else if (state.iss && state.user) {
-    const observer = ecefFromLatLon(state.user.lat, state.user.lon, 0);
-    const sat = ecefFromLatLon(state.iss.latitude, state.iss.longitude, state.iss.altitude || 0);
-    const look = topocentricAzEl(observer, sat);
-    if (look.elevation > 0) {
-      const { x, y } = toXY(look.azimuth, look.elevation);
-      ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-      ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
-      ctx.fill();
-    }
   }
 
   ctx.restore();
@@ -3572,7 +3450,6 @@ async function refreshAll(options = {}) {
           state.weather.hourly = [];
           state.weather.error = error.message || "Weather unavailable";
         }
-        state.brightObjectEvents = await buildBrightObjectEvents(state.user.lat, state.user.lon);
         const now = Math.floor(Date.now() / 1000);
         const end = now + FORECAST_DAYS * 24 * 3600;
         state.meteorEvents = buildMeteorEvents(now, end, state.user.lat, state.user.lon);
@@ -3584,7 +3461,6 @@ async function refreshAll(options = {}) {
         if (initialBoot) setBootStage("sky");
         state.weather.hourly = [];
         state.weather.error = null;
-        state.brightObjectEvents = [];
         state.meteorEvents = [];
         state.skyEvents = [];
         state.tonightWindow = null;
@@ -3611,18 +3487,15 @@ async function refreshAll(options = {}) {
       if (initialBoot) setBootStage("finalizing");
       updateNextVisible();
       updateTonightHighlights();
-      state.tonightTimeline = state.user && state.tonightWindow
-        ? buildTonightTimeline(state.user.lat, state.user.lon, state.tonightWindow)
-        : [];
       renderPassList();
       renderSkyEventsList();
       renderTimeline();
-      renderGuideList();
       renderConditionsList();
       updateForecastNoteCopy();
-      scheduleNotification();
       updateSkyCanvas();
       state.ui.lastRefreshStatus = "success";
+      state.ui.lastSuccessfulRefreshAt = Date.now();
+      state.ui.lastRefreshLocalDate = getLocalDateKey(state.ui.lastSuccessfulRefreshAt);
       setActionStatus(`Updated ${formatTime(new Date())} local`);
       if (interactive) {
         triggerHaptic("success");
@@ -3632,6 +3505,11 @@ async function refreshAll(options = {}) {
       console.error(error);
       state.ui.lastRefreshStatus = "error";
       state.ui.bootError = error.message || "Startup calculations failed.";
+      updateTonightHighlights();
+      renderPassList();
+      renderSkyEventsList();
+      renderTimeline();
+      renderConditionsList();
       setActionStatus("Update failed. Try again.");
       if (interactive || initialBoot) {
         triggerHaptic("error");
@@ -3761,18 +3639,6 @@ document.getElementById("track-hours").addEventListener("input", (event) => {
 
 document.getElementById("track-hours").addEventListener("change", () => refreshAll({ interactive: false }));
 
-document.getElementById("notify").addEventListener("click", async () => {
-  if (!("Notification" in window)) {
-    alert("This browser does not support notifications.");
-    return;
-  }
-  const permission = await Notification.requestPermission();
-  state.notificationsEnabled = permission === "granted";
-  if (state.notificationsEnabled) {
-    scheduleNotification();
-  }
-});
-
 document.getElementById("preview-exit").addEventListener("click", () => {
   clearPreview();
   setActiveView("sky");
@@ -3863,6 +3729,20 @@ window.addEventListener("resize", () => {
     layoutQueued = false;
     handleLayoutChange();
   });
+});
+
+window.addEventListener("pageshow", () => {
+  maybeAutoRefresh();
+});
+
+window.addEventListener("focus", () => {
+  maybeAutoRefresh();
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    maybeAutoRefresh();
+  }
 });
 
 initMap();

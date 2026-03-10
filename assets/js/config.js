@@ -2,7 +2,6 @@ export const ISS_NOW_URL = "https://api.wheretheiss.at/v1/satellites/25544";
 export const ISS_POS_URL = "https://api.wheretheiss.at/v1/satellites/25544/positions?timestamps=";
 export const ISS_TLE_URL = "https://api.wheretheiss.at/v1/satellites/25544/tles";
 export const WEATHER_URL = "https://api.open-meteo.com/v1/forecast";
-export const CELESTRAK_TLE_URL = "https://celestrak.org/NORAD/elements/gp.php?CATNR=";
 export const STORAGE_KEY = "iss-flyover-location";
 export const FORECAST_DAYS = 7;
 export const GLOBE_VISUALS = {

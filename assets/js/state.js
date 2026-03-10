@@ -21,10 +21,9 @@ export const state =  {
   alignmentEvents: [],
   skyEvents: [],
   meteorEvents: [],
-  brightObjectEvents: [],
   skyGuide: [],
   tonightTimeline: [],
-  catalogTles: {},
+  tonightSnapshot: null,
   tonightWindow: null,
   weather: {
     summary: null,
@@ -34,8 +33,6 @@ export const state =  {
   },
   planetCache: new Map(),
   nextVisible: null,
-  notificationTimer: null,
-  notificationsEnabled: false,
   tonight: { pass: null, skyEvent: null },
   anim: { rafId: null, lastStatus: 0 },
   preview: { active: false, mode: "live", pass: null, skyEvent: null },
@@ -71,6 +68,9 @@ export const state =  {
     bootReady: false,
     bootStage: "iss",
     hasCompletedInitialLoad: false,
-    bootError: null
+    bootError: null,
+    lastSuccessfulRefreshAt: 0,
+    lastRefreshLocalDate: "",
+    expandedSkyDayKeys: new Set()
   }
 };

@@ -51,8 +51,6 @@
         </div>
         <div class="actions">
           <button id="locate" class="primary">Use My Location</button>
-          <button id="notify">Enable Notifications</button>
-          <button id="refresh" class="tertiary">Refresh Forecast</button>
           <div class="action-status" id="action-status">Awaiting first update...</div>
         </div>
       </div>
@@ -213,9 +211,15 @@
         </div>
         <div class="control-group">
           <label>Update Interval</label>
-          <div class="stat-sub">ISS position refreshes every 6 seconds. Forecast recalculates on refresh.</div>
+          <div class="stat-sub">ISS position refreshes every 6 seconds. Forecast refreshes automatically when the app resumes or the day changes.</div>
         </div>
-        <p class="footnote">Notifications use the browser Notification API and require this tab to stay open. Full push requires a service worker and a server-side push subscription.</p>
+        <div class="control-group control-group--compact">
+          <label>Manual Refresh</label>
+          <div class="control-row control-row--compact">
+            <button id="refresh" class="tertiary">Refresh Now</button>
+            <div class="stat-sub">Usually not needed. Use it if the forecast looks stale.</div>
+          </div>
+        </div>
       </div>
     </section>
 

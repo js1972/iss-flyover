@@ -7,8 +7,8 @@ A dark-themed static web app for tracking the International Space Station, previ
 - Globe view with draggable orbit track
 - User view sky projection with preview mode for upcoming passes
 - 7-day visibility forecast (night + high elevation)
-- Browser notifications for the next visible pass
 - Location persistence between reloads
+- Automatic forecast refresh on app resume and date rollover
 
 ## Run
 This app is served as plain static files.
@@ -20,11 +20,10 @@ Option A (recommended):
 
 Option B:
 - Open `index.html` directly in your browser.
-- Note: some browser features work more reliably over `http://` than `file://`.
+- Note: ES module loading requires `http://`; use a local server instead of `file://`.
 
 ## Notes
 - Forecasts and orbit paths are computed from live TLE data in the browser.
-- Notifications require permission and the tab to stay open.
 - Cloudflare Pages can deploy this repo directly as static files; no build step is required.
 
 ## APIs & Libraries
