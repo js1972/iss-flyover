@@ -2033,14 +2033,17 @@ function renderLocationStatus() {
   if (!locateButton || !locationLabelEl || !locationCoordsEl || !locationMetaEl) return;
 
   const hasLocation = Boolean(state.user && Number.isFinite(state.user.lat) && Number.isFinite(state.user.lon));
-  if (!locateButton.dataset.busy) {
-    locateButton.textContent = hasLocation ? "Update Location" : "Use My Location";
-  }
+  const buttonLabel = hasLocation ? "Update location" : "Use my location";
+  locateButton.setAttribute("aria-label", buttonLabel);
+  locateButton.setAttribute("title", buttonLabel);
+  const hiddenText = locateButton.querySelector(".visually-hidden");
+  if (hiddenText) hiddenText.textContent = buttonLabel;
 
   if (!hasLocation) {
     locationLabelEl.textContent = "Location not set";
     locationCoordsEl.textContent = "Use your location for local passes, sky events, and weather.";
     locationCoordsEl.hidden = false;
+    locationMetaEl.hidden = false;
     locationMetaEl.textContent = "Update if you've moved since the last visit.";
     return;
   }
@@ -2055,7 +2058,8 @@ function renderLocationStatus() {
     locationCoordsEl.hidden = true;
   }
 
-  locationMetaEl.textContent = `${getUserSourceMeta(state.user.source)} · Update if you've moved.`;
+  locationMetaEl.hidden = true;
+  locationMetaEl.textContent = "";
 }
 
 function buildStoredLocationPayload(user) {
@@ -3738,10 +3742,13 @@ async function setUserLocation(lat, lon, source, persist = true) {
 
 locateButton.addEventListener("click", async (event) => {
   const button = event.currentTarget;
-  const initialLabel = button.textContent;
   button.disabled = true;
   button.dataset.busy = "true";
-  button.textContent = "Locating...";
+  button.classList.add("loading");
+  button.setAttribute("aria-label", "Updating location");
+  button.setAttribute("title", "Updating location");
+  const hiddenText = button.querySelector(".visually-hidden");
+  if (hiddenText) hiddenText.textContent = "Updating location";
   triggerHaptic("start");
 
   let geoError = null;
@@ -3782,7 +3789,7 @@ locateButton.addEventListener("click", async (event) => {
   } finally {
     button.disabled = false;
     delete button.dataset.busy;
-    button.textContent = initialLabel;
+    button.classList.remove("loading");
     renderLocationStatus();
   }
 });
