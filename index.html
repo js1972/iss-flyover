@@ -50,7 +50,14 @@
           <p class="subtitle">Real-time ISS tracking and night-sky planning for your location.</p>
         </div>
         <div class="actions">
-          <button id="locate" class="primary">Use My Location</button>
+          <div class="location-control">
+            <button id="locate" class="primary">Use My Location</button>
+            <div class="location-status" id="location-status" aria-live="polite">
+              <div class="location-status__label" id="location-label">Location not set</div>
+              <div class="location-status__coords" id="location-coords">Use your location for local passes, sky events, and weather.</div>
+              <div class="location-status__meta" id="location-meta">Update if you've moved since the last visit.</div>
+            </div>
+          </div>
           <div class="action-status" id="action-status">Awaiting first update...</div>
         </div>
       </div>

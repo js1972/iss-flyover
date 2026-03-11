@@ -28,6 +28,7 @@ Option B:
 
 ## APIs & Libraries
 - Where the ISS at? (ISS position + TLE): `https://api.wheretheiss.at`
+- OpenStreetMap Nominatim (best-effort reverse geocoding): `https://nominatim.openstreetmap.org`
 - Carto basemap tiles: `https://basemaps.cartocdn.com`
 - Leaflet (map), SunCalc (sun position), satellite.js (orbit propagation), Three.js (globe rendering)
 

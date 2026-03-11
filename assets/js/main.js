@@ -1,11 +1,21 @@
 
 import { state } from "./state.js";
-import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, WEATHER_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js";
-import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, tonightGridEl, passList, skyEventsList, actionStatusEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, previewBanner, previewText, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, conditionsList } from "./dom.js";
+import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js";
+import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, tonightGridEl, passList, skyEventsList, actionStatusEl, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, previewBanner, previewText, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, conditionsList } from "./dom.js";
 import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js";
 import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js";
 
 const AUTO_REFRESH_STALE_MS = 15 * 60 * 1000;
+const AU_STATE_CODES = {
+  "Western Australia": "WA",
+  "New South Wales": "NSW",
+  Victoria: "VIC",
+  Queensland: "QLD",
+  Tasmania: "TAS",
+  "South Australia": "SA",
+  "Northern Territory": "NT",
+  "Australian Capital Territory": "ACT"
+};
 
 const BOOT_STAGE_COPY = {
   iss: {
@@ -25,6 +35,88 @@ const BOOT_STAGE_COPY = {
     meta: "Rendering tonight cards, schedules, and forecast lists."
   }
 };
+
+function getCoordsLine(lat, lon) {
+  return `${formatCoord(lat)}, ${formatCoord(lon)}`;
+}
+
+function getUserSourceMeta(source = "") {
+  if (!source) return "Saved location";
+  return source
+    .replace(/ \(saved\)$/u, "")
+    .replace(" (saved)", "")
+    .replace("IP location (approximate)", "Approximate location")
+    .replace("Device location", "Device location")
+    .replace("Manual coordinates", "Manual coordinates");
+}
+
+function getStoredLocationSource(source = "") {
+  return source.replace(/ \(saved\)$/u, "");
+}
+
+function getReverseGeocodeLanguage() {
+  const preferred = navigator.languages?.find(Boolean) || navigator.language || "en";
+  return preferred.toLowerCase().replace("_", "-");
+}
+
+function toRegionCode(countryCode, regionName) {
+  if (!regionName) return "";
+  if (countryCode === "AU") return AU_STATE_CODES[regionName] || regionName;
+  return regionName;
+}
+
+function parseReverseGeocode(data) {
+  const address = data?.address || {};
+  const countryCode = (address.country_code || "").toUpperCase();
+  const locality = address.city
+    || address.town
+    || address.village
+    || address.municipality
+    || address.suburb
+    || address.city_district
+    || address.hamlet
+    || address.county
+    || "";
+  const regionName = address.state || address.region || address.province || address.state_district || address.county || "";
+  const regionCode = toRegionCode(countryCode, regionName);
+  let label = "";
+
+  if (locality && regionCode && locality.toLowerCase() !== regionCode.toLowerCase()) {
+    label = `${locality}, ${regionCode}`;
+  } else if (locality && regionName && locality.toLowerCase() !== regionName.toLowerCase()) {
+    label = `${locality}, ${regionName}`;
+  } else {
+    label = locality || regionCode || regionName || "";
+  }
+
+  if (!label && typeof data?.display_name === "string") {
+    label = data.display_name.split(",").slice(0, 2).map((part) => part.trim()).filter(Boolean).join(", ");
+  }
+
+  return {
+    label: label || "",
+    regionCode: regionCode || ""
+  };
+}
+
+async function reverseGeocodeLocation(lat, lon) {
+  const url = new URL(REVERSE_GEOCODE_URL);
+  url.searchParams.set("format", "jsonv2");
+  url.searchParams.set("lat", lat.toFixed(5));
+  url.searchParams.set("lon", lon.toFixed(5));
+  url.searchParams.set("zoom", "10");
+  url.searchParams.set("addressdetails", "1");
+  url.searchParams.set("accept-language", getReverseGeocodeLanguage());
+
+  const response = await fetch(url.toString(), {
+    cache: "no-store",
+    headers: { Accept: "application/json" }
+  });
+  if (!response.ok) {
+    throw new Error(`Reverse geocode failed (${response.status})`);
+  }
+  return parseReverseGeocode(await response.json());
+}
 
 function pickVisibleBadges(descriptors) {
   const ordered = [...descriptors].sort((a, b) => a.priority - b.priority);
@@ -1928,14 +2020,75 @@ function registerGestureBlocker(element, isActive) {
   element.addEventListener("touchcancel", onTouchEnd, { passive: true });
 }
 
+function renderLocationStatus() {
+  if (!locateButton || !locationLabelEl || !locationCoordsEl || !locationMetaEl) return;
+
+  const hasLocation = Boolean(state.user && Number.isFinite(state.user.lat) && Number.isFinite(state.user.lon));
+  if (!locateButton.dataset.busy) {
+    locateButton.textContent = hasLocation ? "Update Location" : "Use My Location";
+  }
+
+  if (!hasLocation) {
+    locationLabelEl.textContent = "Location not set";
+    locationCoordsEl.textContent = "Use your location for local passes, sky events, and weather.";
+    locationCoordsEl.hidden = false;
+    locationMetaEl.textContent = "Update if you've moved since the last visit.";
+    return;
+  }
+
+  const coordsLine = getCoordsLine(state.user.lat, state.user.lon);
+  if (state.user.label) {
+    locationLabelEl.textContent = state.user.label;
+    locationCoordsEl.textContent = coordsLine;
+    locationCoordsEl.hidden = false;
+  } else {
+    locationLabelEl.textContent = coordsLine;
+    locationCoordsEl.hidden = true;
+  }
+
+  locationMetaEl.textContent = `${getUserSourceMeta(state.user.source)} · Update if you've moved.`;
+}
+
+function buildStoredLocationPayload(user) {
+  return {
+    lat: user.lat,
+    lon: user.lon,
+    source: getStoredLocationSource(user.source || ""),
+    label: user.label || "",
+    regionCode: user.regionCode || "",
+    geocodedAt: user.geocodedAt || 0,
+    savedAt: Date.now()
+  };
+}
+
+async function ensureUserLocationLabel({ persist = true } = {}) {
+  const user = state.user;
+  if (!user || user.label || !Number.isFinite(user.lat) || !Number.isFinite(user.lon)) return;
+
+  try {
+    const result = await reverseGeocodeLocation(user.lat, user.lon);
+    if (!state.user || state.user.lat !== user.lat || state.user.lon !== user.lon) return;
+    if (!result.label) return;
+
+    state.user = {
+      ...state.user,
+      label: result.label,
+      regionCode: result.regionCode || "",
+      geocodedAt: Date.now()
+    };
+    if (persist) {
+      saveUserLocation(state.user);
+    }
+    setStatus();
+  } catch (error) {
+    console.warn("Reverse geocoding unavailable", error);
+  }
+}
+
 function saveUserLocation(lat, lon, source) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      lat,
-      lon,
-      source,
-      savedAt: Date.now()
-    }));
+    const user = typeof lat === "object" && lat !== null ? lat : { lat, lon, source };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(buildStoredLocationPayload(user)));
   } catch (error) {
     console.warn("Unable to persist location", error);
   }
@@ -1947,13 +2100,20 @@ function loadStoredLocation() {
     if (!raw) return false;
     const data = JSON.parse(raw);
     if (!Number.isFinite(data.lat) || !Number.isFinite(data.lon)) return false;
+    const rawSource = typeof data.source === "string" ? getStoredLocationSource(data.source) : "";
     state.user = {
       lat: data.lat,
       lon: data.lon,
-      source: data.source ? `${data.source} (saved)` : "Saved location"
+      source: rawSource ? `${rawSource} (saved)` : "Saved location",
+      label: typeof data.label === "string" && data.label.trim() ? data.label.trim() : "",
+      regionCode: typeof data.regionCode === "string" ? data.regionCode : "",
+      geocodedAt: Number.isFinite(data.geocodedAt) ? data.geocodedAt : 0
     };
     updateUserMarker();
     setStatus();
+    if (!state.user.label) {
+      void ensureUserLocationLabel();
+    }
     return true;
   } catch (error) {
     console.warn("Stored location unavailable", error);
@@ -2030,9 +2190,11 @@ function setStatus() {
     issMeta.textContent = "Awaiting data";
   }
 
+  renderLocationStatus();
+
   if (state.user) {
-    userCoords.textContent = `${formatCoord(state.user.lat)}, ${formatCoord(state.user.lon)}`;
-    userMeta.textContent = state.user.source || "Custom location";
+    userCoords.textContent = getCoordsLine(state.user.lat, state.user.lon);
+    userMeta.textContent = [state.user.label, getUserSourceMeta(state.user.source)].filter(Boolean).join(" · ") || "Custom location";
   } else {
     userCoords.textContent = "Unknown";
     userMeta.textContent = "Geolocation not set";
@@ -3548,19 +3710,28 @@ function animateISS() {
 }
 
 async function setUserLocation(lat, lon, source, persist = true) {
-  state.user = { lat, lon, source };
+  state.user = {
+    lat,
+    lon,
+    source,
+    label: "",
+    regionCode: "",
+    geocodedAt: 0
+  };
   if (persist) {
-    saveUserLocation(lat, lon, source);
+    saveUserLocation(state.user);
   }
   updateUserMarker();
   setStatus();
+  void ensureUserLocationLabel({ persist });
   await refreshAll();
 }
 
-document.getElementById("locate").addEventListener("click", async (event) => {
+locateButton.addEventListener("click", async (event) => {
   const button = event.currentTarget;
   const initialLabel = button.textContent;
   button.disabled = true;
+  button.dataset.busy = "true";
   button.textContent = "Locating...";
   triggerHaptic("start");
 
@@ -3601,7 +3772,9 @@ document.getElementById("locate").addEventListener("click", async (event) => {
     showToast(`${baseError} ${fallbackHint}`, 4200);
   } finally {
     button.disabled = false;
+    delete button.dataset.busy;
     button.textContent = initialLabel;
+    renderLocationStatus();
   }
 });
 
