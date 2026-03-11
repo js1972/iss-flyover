@@ -301,28 +301,39 @@
       align-items: center;
       gap: 12px;
       width: 100%;
-    }
-
-    .location-control > .primary {
-      flex: 0 0 auto;
-      min-width: 0;
+      justify-content: flex-end;
     }
 
     .icon-button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 50px;
-      height: 50px;
+      width: 42px;
+      height: 42px;
       padding: 0;
     }
 
     .location-refresh {
-      box-shadow: 0 0 0 1px rgba(42, 209, 255, 0.08), 0 10px 24px rgba(3, 12, 28, 0.2);
+      flex: 0 0 auto;
+      background: rgba(20, 32, 55, 0.82);
+      border-color: rgba(104, 132, 180, 0.3);
+      color: #b8c9e8;
+      box-shadow: 0 8px 18px rgba(3, 12, 28, 0.16);
+    }
+
+    .location-refresh:hover {
+      background: rgba(27, 42, 71, 0.92);
+      border-color: rgba(148, 173, 219, 0.42);
+    }
+
+    .location-refresh.needs-location {
+      background: linear-gradient(135deg, rgba(42, 209, 255, 0.3), rgba(155, 92, 255, 0.4));
+      border-color: rgba(42, 209, 255, 0.6);
+      color: #eff8ff;
     }
 
     .location-refresh__icon {
-      font-size: 1.18rem;
+      font-size: 1rem;
       line-height: 1;
       transform-origin: 50% 50%;
       transition: transform 0.2s ease;
@@ -350,15 +361,15 @@
     }
 
     .location-status {
-      flex: 1 1 auto;
+      flex: 1 1 260px;
       min-width: 0;
-      padding: 8px 12px;
-      border-radius: 16px;
+      padding: 6px 0;
+      border-radius: 0;
       border: 1px solid rgba(112, 139, 186, 0.24);
-      background:
-        linear-gradient(145deg, rgba(14, 34, 61, 0.9), rgba(6, 16, 34, 0.94)),
-        rgba(12, 22, 43, 0.9);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      background: none;
+      border: none;
+      box-shadow: none;
+      text-align: right;
     }
 
     .location-status__label {
@@ -371,7 +382,7 @@
     }
 
     .location-status__coords {
-      margin-top: 3px;
+      margin-top: 2px;
       font-family: "IBM Plex Mono", monospace;
       font-size: 0.69rem;
       line-height: 1.35;
@@ -386,15 +397,6 @@
       line-height: 1.3;
       letter-spacing: 0.03em;
       color: #7d97c4;
-    }
-
-    .action-status {
-      width: 100%;
-      font-family: "IBM Plex Mono", monospace;
-      font-size: 0.72rem;
-      letter-spacing: 0.04em;
-      color: #8fa4c9;
-      margin-top: 2px;
     }
 
     button {
@@ -446,11 +448,8 @@
       }
 
       .location-control {
-        align-items: flex-start;
-      }
-
-      .location-control > .primary {
-        min-width: 0;
+        align-items: center;
+        justify-content: space-between;
       }
     }
 
@@ -465,7 +464,7 @@
       }
 
       .location-status {
-        padding: 7px 10px;
+        padding: 4px 0;
       }
 
       .location-status__label {

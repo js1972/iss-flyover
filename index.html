@@ -51,17 +51,17 @@
         </div>
         <div class="actions">
           <div class="location-control">
-            <button id="locate" class="icon-button primary location-refresh" type="button" aria-label="Use my location" title="Use my location">
-              <span class="location-refresh__icon" aria-hidden="true">↻</span>
-              <span class="visually-hidden">Use my location</span>
-            </button>
             <div class="location-status" id="location-status" aria-live="polite">
               <div class="location-status__label" id="location-label">Location not set</div>
               <div class="location-status__coords" id="location-coords">Use your location for local passes, sky events, and weather.</div>
               <div class="location-status__meta" id="location-meta">Update if you've moved since the last visit.</div>
             </div>
+            <button id="locate" class="icon-button location-refresh" type="button" aria-label="Use my location" title="Use my location">
+              <span class="location-refresh__icon" aria-hidden="true">↻</span>
+              <span class="visually-hidden">Use my location</span>
+            </button>
           </div>
-          <div class="action-status" id="action-status">Awaiting first update...</div>
+          <div class="action-status visually-hidden" id="action-status" aria-live="polite">Awaiting first update...</div>
         </div>
       </div>
     </header>

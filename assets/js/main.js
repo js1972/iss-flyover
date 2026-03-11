@@ -2036,6 +2036,7 @@ function renderLocationStatus() {
   const buttonLabel = hasLocation ? "Update location" : "Use my location";
   locateButton.setAttribute("aria-label", buttonLabel);
   locateButton.setAttribute("title", buttonLabel);
+  locateButton.classList.toggle("needs-location", !hasLocation);
   const hiddenText = locateButton.querySelector(".visually-hidden");
   if (hiddenText) hiddenText.textContent = buttonLabel;
 
@@ -2050,7 +2051,7 @@ function renderLocationStatus() {
 
   const coordsLine = getCoordsLine(state.user.lat, state.user.lon);
   if (state.user.label) {
-    locationLabelEl.textContent = state.user.label;
+    locationLabelEl.textContent = normalizeLocalityName(state.user.label);
     locationCoordsEl.textContent = coordsLine;
     locationCoordsEl.hidden = false;
   } else {
