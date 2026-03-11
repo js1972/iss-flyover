@@ -838,6 +838,76 @@ function getEquatorialObservation(entry, date, observer) {
   }
 }
 
+function getVisibleConstellationGuides(date, lat, lon, skyContext = null) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return [];
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [];
+
+  const context = skyContext || getSkyContextAt(date, lat, lon);
+  if (!context.darkEnough || !window.Astronomy?.Observer) return [];
+
+  const observer = new window.Astronomy.Observer(lat, lon, 0);
+  const month = date.getMonth() + 1;
+
+  return CONSTELLATIONS
+    .map((constellation) => {
+      if (!Array.isArray(constellation.guideStars) || !Array.isArray(constellation.segments)) return null;
+
+      const projectedStars = new Map();
+      const visibleStars = [];
+
+      constellation.guideStars.forEach((star) => {
+        const observation = getEquatorialObservation(star, date, observer);
+        if (!observation) return;
+        const projected = {
+          ...star,
+          azimuth: observation.azimuth,
+          elevation: observation.elevation
+        };
+        projectedStars.set(star.id, projected);
+        if (projected.elevation >= 5) visibleStars.push(projected);
+      });
+
+      if (visibleStars.length < 3) return null;
+
+      const labelStar = projectedStars.get(constellation.labelStarId);
+      if (!labelStar || labelStar.elevation < 12) return null;
+
+      const visibleSegments = constellation.segments
+        .map(([fromId, toId]) => {
+          const from = projectedStars.get(fromId);
+          const to = projectedStars.get(toId);
+          if (!from || !to || from.elevation < 0 || to.elevation < 0) return null;
+          return { from, to };
+        })
+        .filter(Boolean);
+
+      if (visibleSegments.length < 2) return null;
+
+      const averageVisibleGuideStarElevation = visibleStars.reduce((sum, star) => sum + star.elevation, 0) / visibleStars.length;
+      const anchorGuideStarId = constellation.guideStars.find((star) => star.anchor)?.id || constellation.labelStarId;
+
+      return {
+        ...constellation,
+        labelStar,
+        projectedStars: Array.from(projectedStars.values()),
+        visibleStars,
+        visibleSegments,
+        score: labelStar.elevation
+          + averageVisibleGuideStarElevation * 0.35
+          + (constellation.bestMonths.includes(month) ? 8 : 0),
+        anchorGuideStarId
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => (
+      right.score - left.score
+      || right.visibleSegments.length - left.visibleSegments.length
+      || right.visibleStars.length - left.visibleStars.length
+      || left.name.localeCompare(right.name)
+    ))
+    .slice(0, 2);
+}
+
 function isCatalogDateInRange(monthDay, year) {
   const [month, day] = monthDay.split("-").map(Number);
   return new Date(year, month - 1, day);
@@ -3371,34 +3441,70 @@ function updateSkyCanvas() {
 
   if (state.user) {
     const skyContext = getSkyContextAt(contextDate, state.user.lat, state.user.lon);
-    if (skyContext.darkEnough && (skyContext.visiblePlanets.length || skyContext.moon)) {
-      ctx.font = "11px IBM Plex Mono";
+    const observer = window.Astronomy?.Observer
+      ? new window.Astronomy.Observer(state.user.lat, state.user.lon, 0)
+      : null;
+    const constellationGuides = getVisibleConstellationGuides(contextDate, state.user.lat, state.user.lon, skyContext);
+    const drawableSkyGuideItems = observer
+      ? state.skyGuide.filter((item) => item.kind !== "constellation").slice(0, 4)
+      : [];
+
+    if (skyContext.darkEnough && (constellationGuides.length || skyContext.visiblePlanets.length || skyContext.moon || drawableSkyGuideItems.length)) {
       const labelBoxes = [];
+      const safePadding = 12;
       const hasOverlap = (candidate) => labelBoxes.some((box) => (
         candidate.x < box.x + box.width &&
         candidate.x + candidate.width > box.x &&
         candidate.y < box.y + box.height &&
         candidate.y + candidate.height > box.y
       ));
-
-      const placeLabel = (text, anchor) => {
-        const width = ctx.measureText(text).width + 6;
-        const height = 14;
-        const candidates = [
-          { x: anchor.x + 8, y: anchor.y - 14, width, height },
-          { x: anchor.x + 8, y: anchor.y + 4, width, height },
-          { x: anchor.x - width - 8, y: anchor.y - 14, width, height },
-          { x: anchor.x - width - 8, y: anchor.y + 4, width, height },
-          { x: anchor.x - width / 2, y: anchor.y - 20, width, height },
-          { x: anchor.x - width / 2, y: anchor.y + 10, width, height }
+      const isWithinSafeBounds = (candidate, padding = safePadding) => (
+        candidate.x >= -cx + padding &&
+        candidate.x + candidate.width <= width - cx - padding &&
+        candidate.y >= -cy + padding &&
+        candidate.y + candidate.height <= height - cy - padding
+      );
+      const buildDefaultLabelCandidates = (anchor, boxWidth, boxHeight) => ([
+        { x: anchor.x + 8, y: anchor.y - 14, width: boxWidth, height: boxHeight },
+        { x: anchor.x + 8, y: anchor.y + 4, width: boxWidth, height: boxHeight },
+        { x: anchor.x - boxWidth - 8, y: anchor.y - 14, width: boxWidth, height: boxHeight },
+        { x: anchor.x - boxWidth - 8, y: anchor.y + 4, width: boxWidth, height: boxHeight },
+        { x: anchor.x - boxWidth / 2, y: anchor.y - 20, width: boxWidth, height: boxHeight },
+        { x: anchor.x - boxWidth / 2, y: anchor.y + 10, width: boxWidth, height: boxHeight }
+      ]);
+      const buildConstellationLabelCandidates = (anchor, boxWidth, boxHeight, options = {}) => {
+        const offset = options.labelOffsetPx || { x: 10, y: -14 };
+        const offsetX = Math.abs(offset.x ?? 10);
+        const offsetY = Math.abs(offset.y ?? 14);
+        const preferredSide = (offset.x ?? 10) >= 0 ? "right" : "left";
+        const oppositeSide = preferredSide === "right" ? "left" : "right";
+        const preferredVertical = (offset.y ?? -14) >= 0 ? "below" : "above";
+        const oppositeVertical = preferredVertical === "above" ? "below" : "above";
+        const resolveX = (side) => side === "right" ? anchor.x + offsetX : anchor.x - boxWidth - offsetX;
+        const resolveY = (vertical) => vertical === "below" ? anchor.y + offsetY : anchor.y - boxHeight - offsetY;
+        return [
+          { x: resolveX(preferredSide), y: resolveY(preferredVertical), width: boxWidth, height: boxHeight },
+          { x: resolveX(preferredSide), y: resolveY(oppositeVertical), width: boxWidth, height: boxHeight },
+          { x: resolveX(oppositeSide), y: resolveY(preferredVertical), width: boxWidth, height: boxHeight },
+          { x: resolveX(oppositeSide), y: resolveY(oppositeVertical), width: boxWidth, height: boxHeight },
+          { x: anchor.x - boxWidth / 2, y: resolveY(preferredVertical), width: boxWidth, height: boxHeight },
+          { x: anchor.x - boxWidth / 2, y: resolveY(oppositeVertical), width: boxWidth, height: boxHeight }
         ];
-
-        const choice = candidates.find((candidate) => !hasOverlap(candidate)) || candidates[0];
+      };
+      const placeLabel = (text, anchor, options = {}) => {
+        const boxWidth = ctx.measureText(text).width + (options.horizontalPadding ?? 6);
+        const boxHeight = options.height ?? 14;
+        const candidates = (options.candidatesBuilder || buildDefaultLabelCandidates)(anchor, boxWidth, boxHeight, options);
+        const choice = candidates.find((candidate) => (
+          (!options.requireSafeBounds || isWithinSafeBounds(candidate, options.safePadding))
+          && !hasOverlap(candidate)
+        )) || (options.allowOverlapFallback === false ? null : candidates[0]);
+        if (!choice) return null;
         labelBoxes.push(choice);
         return choice;
       };
-
       const highlightedBodies = previewEvent?.bodies ? new Set(previewEvent.bodies) : null;
+      const pendingConstellationLabels = [];
       const drawTarget = (target, size) => {
         const point = toXY(target.azimuth, target.elevation);
         const isHighlighted = highlightedBodies ? highlightedBodies.has(target.body) : false;
@@ -3430,35 +3536,96 @@ function updateSkyCanvas() {
         ctx.fillText(label, box.x + 3, box.y + 10.5);
       };
 
+      if (constellationGuides.length) {
+        constellationGuides.forEach((guide) => {
+          const pointsById = new Map(
+            guide.projectedStars.map((star) => [
+              star.id,
+              {
+                x: toXY(star.azimuth, star.elevation).x,
+                y: toXY(star.azimuth, star.elevation).y
+              }
+            ])
+          );
+
+          ctx.strokeStyle = "rgba(180,220,245,0.18)";
+          ctx.lineWidth = 0.85;
+          guide.visibleSegments.forEach(({ from, to }) => {
+            const fromPoint = pointsById.get(from.id);
+            const toPoint = pointsById.get(to.id);
+            if (!fromPoint || !toPoint) return;
+            ctx.beginPath();
+            ctx.moveTo(fromPoint.x, fromPoint.y);
+            ctx.lineTo(toPoint.x, toPoint.y);
+            ctx.stroke();
+          });
+
+          guide.visibleStars.forEach((star) => {
+            const point = pointsById.get(star.id);
+            if (!point) return;
+            const emphasized = star.anchor || star.id === guide.labelStarId || star.id === guide.anchorGuideStarId;
+            ctx.fillStyle = emphasized ? "rgba(220,240,255,0.30)" : "rgba(205,230,250,0.20)";
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, emphasized ? 1.8 : 1.2, 0, Math.PI * 2);
+            ctx.fill();
+          });
+
+          const labelPoint = pointsById.get(guide.labelStar.id);
+          if (labelPoint) {
+            pendingConstellationLabels.push({
+              label: guide.name,
+              point: labelPoint,
+              labelOffsetPx: guide.labelOffsetPx
+            });
+          }
+        });
+      }
+
+      ctx.font = "11px IBM Plex Mono";
       skyContext.visiblePlanets.forEach((target) => drawTarget(target, 3.1));
       if (skyContext.moon) {
         drawTarget(skyContext.moon, 3.6);
       }
 
-      if (window.Astronomy?.Observer && state.skyGuide.length) {
-        const observer = new window.Astronomy.Observer(state.user.lat, state.user.lon, 0);
-        state.skyGuide.slice(0, 4).forEach((item) => {
-          if (!Number.isFinite(item.raHours) || !Number.isFinite(item.decDeg)) return;
-          const obs = getEquatorialObservation({ raHours: item.raHours, decDeg: item.decDeg }, contextDate, observer);
-          if (!obs || obs.elevation < 10) return;
-          const point = toXY(obs.azimuth, obs.elevation);
-          ctx.strokeStyle = item.tier === "binoculars" ? "rgba(255, 196, 130, 0.92)" : "rgba(165, 240, 255, 0.92)";
-          ctx.lineWidth = 1.4;
-          ctx.beginPath();
-          ctx.moveTo(point.x - 4, point.y);
-          ctx.lineTo(point.x + 4, point.y);
-          ctx.moveTo(point.x, point.y - 4);
-          ctx.lineTo(point.x, point.y + 4);
-          ctx.stroke();
+      drawableSkyGuideItems.forEach((item) => {
+        if (!Number.isFinite(item.raHours) || !Number.isFinite(item.decDeg)) return;
+        const obs = getEquatorialObservation({ raHours: item.raHours, decDeg: item.decDeg }, contextDate, observer);
+        if (!obs || obs.elevation < 10) return;
+        const point = toXY(obs.azimuth, obs.elevation);
+        ctx.strokeStyle = item.tier === "binoculars" ? "rgba(255, 196, 130, 0.92)" : "rgba(165, 240, 255, 0.92)";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(point.x - 4, point.y);
+        ctx.lineTo(point.x + 4, point.y);
+        ctx.moveTo(point.x, point.y - 4);
+        ctx.lineTo(point.x, point.y + 4);
+        ctx.stroke();
 
-          const label = item.kind === "star" ? item.title : `${item.title}`;
-          const box = placeLabel(label, point);
-          ctx.fillStyle = "rgba(6, 12, 22, 0.7)";
-          ctx.fillRect(box.x - 2, box.y - 1, box.width + 4, box.height + 2);
-          ctx.strokeStyle = item.tier === "binoculars" ? "rgba(255, 196, 130, 0.4)" : "rgba(126, 217, 255, 0.35)";
-          ctx.strokeRect(box.x - 2, box.y - 1, box.width + 4, box.height + 2);
-          ctx.fillStyle = item.tier === "binoculars" ? "#ffd9aa" : "#b8f9ff";
-          ctx.fillText(label, box.x + 3, box.y + 10.5);
+        const label = item.kind === "star" ? item.title : `${item.title}`;
+        const box = placeLabel(label, point);
+        ctx.fillStyle = "rgba(6, 12, 22, 0.7)";
+        ctx.fillRect(box.x - 2, box.y - 1, box.width + 4, box.height + 2);
+        ctx.strokeStyle = item.tier === "binoculars" ? "rgba(255, 196, 130, 0.4)" : "rgba(126, 217, 255, 0.35)";
+        ctx.strokeRect(box.x - 2, box.y - 1, box.width + 4, box.height + 2);
+        ctx.fillStyle = item.tier === "binoculars" ? "#ffd9aa" : "#b8f9ff";
+        ctx.fillText(label, box.x + 3, box.y + 10.5);
+      });
+
+      if (pendingConstellationLabels.length) {
+        ctx.font = "10px IBM Plex Mono";
+        ctx.fillStyle = "rgba(220,240,255,0.38)";
+        pendingConstellationLabels.forEach((label) => {
+          const box = placeLabel(label.label, label.point, {
+            allowOverlapFallback: false,
+            requireSafeBounds: true,
+            safePadding,
+            height: 12,
+            horizontalPadding: 2,
+            labelOffsetPx: label.labelOffsetPx,
+            candidatesBuilder: buildConstellationLabelCandidates
+          });
+          if (!box) return;
+          ctx.fillText(label.label, box.x, box.y + 9.5);
         });
       }
     }

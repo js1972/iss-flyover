@@ -199,7 +199,26 @@ export const CONSTELLATIONS = [
     raHours: 5.92,
     decDeg: 7.41,
     bestMonths: [12, 1, 2, 3],
-    tip: "Look for the belt first, then sweep down to the Orion Nebula."
+    tip: "Look for the belt first, then sweep down to the Orion Nebula.",
+    labelStarId: "betelgeuse",
+    labelOffsetPx: { x: 10, y: -16 },
+    guideStars: [
+      { id: "betelgeuse", name: "Betelgeuse", raHours: 5.92, decDeg: 7.41, anchor: true },
+      { id: "bellatrix", name: "Bellatrix", raHours: 5.42, decDeg: 6.35 },
+      { id: "mintaka", name: "Mintaka", raHours: 5.53, decDeg: -0.3 },
+      { id: "alnilam", name: "Alnilam", raHours: 5.6, decDeg: -1.2 },
+      { id: "alnitak", name: "Alnitak", raHours: 5.68, decDeg: -1.94 },
+      { id: "saiph", name: "Saiph", raHours: 5.79, decDeg: -9.67 },
+      { id: "rigel", name: "Rigel", raHours: 5.24, decDeg: -8.2 }
+    ],
+    segments: [
+      ["betelgeuse", "bellatrix"],
+      ["bellatrix", "mintaka"],
+      ["mintaka", "alnilam"],
+      ["alnilam", "alnitak"],
+      ["alnitak", "saiph"],
+      ["saiph", "rigel"]
+    ]
   },
   {
     id: "southern-cross",
@@ -208,7 +227,21 @@ export const CONSTELLATIONS = [
     raHours: 12.45,
     decDeg: -63.1,
     bestMonths: [3, 4, 5, 6],
-    tip: "Use the Cross to find south and the Coalsack dark nebula."
+    tip: "Use the Cross to find south and the Coalsack dark nebula.",
+    labelStarId: "gacrux",
+    labelOffsetPx: { x: 10, y: -14 },
+    guideStars: [
+      { id: "gacrux", name: "Gacrux", raHours: 12.52, decDeg: -57.11 },
+      { id: "mimosa", name: "Mimosa", raHours: 12.8, decDeg: -59.69 },
+      { id: "delta-crucis", name: "Delta Crucis", raHours: 12.25, decDeg: -58.75 },
+      { id: "acrux", name: "Acrux", raHours: 12.45, decDeg: -63.1, anchor: true }
+    ],
+    segments: [
+      ["gacrux", "acrux"],
+      ["delta-crucis", "mimosa"],
+      ["gacrux", "delta-crucis"],
+      ["gacrux", "mimosa"]
+    ]
   },
   {
     id: "scorpius",
@@ -217,7 +250,24 @@ export const CONSTELLATIONS = [
     raHours: 16.49,
     decDeg: -26.43,
     bestMonths: [5, 6, 7, 8],
-    tip: "Curving tail and bright red Antares make this easy to spot."
+    tip: "Curving tail and bright red Antares make this easy to spot.",
+    labelStarId: "antares",
+    labelOffsetPx: { x: 10, y: -14 },
+    guideStars: [
+      { id: "acrab", name: "Acrab", raHours: 16.09, decDeg: -19.81 },
+      { id: "dschubba", name: "Dschubba", raHours: 16, decDeg: -22.62 },
+      { id: "antares", name: "Antares", raHours: 16.49, decDeg: -26.43, anchor: true },
+      { id: "sargas", name: "Sargas", raHours: 17.62, decDeg: -42.99 },
+      { id: "shaula", name: "Shaula", raHours: 17.56, decDeg: -37.1 },
+      { id: "lesath", name: "Lesath", raHours: 17.51, decDeg: -37.3 }
+    ],
+    segments: [
+      ["acrab", "dschubba"],
+      ["dschubba", "antares"],
+      ["antares", "sargas"],
+      ["sargas", "shaula"],
+      ["shaula", "lesath"]
+    ]
   },
   {
     id: "sagittarius",
@@ -226,7 +276,25 @@ export const CONSTELLATIONS = [
     raHours: 18.4,
     decDeg: -34.38,
     bestMonths: [6, 7, 8, 9],
-    tip: "The Teapot points into the Milky Way's brightest region."
+    tip: "The Teapot points into the Milky Way's brightest region.",
+    labelStarId: "kaus-media",
+    labelOffsetPx: { x: 10, y: -14 },
+    guideStars: [
+      { id: "kaus-borealis", name: "Kaus Borealis", raHours: 18.47, decDeg: -25.42 },
+      { id: "kaus-media", name: "Kaus Media", raHours: 18.35, decDeg: -29.83 },
+      { id: "kaus-australis", name: "Kaus Australis", raHours: 18.4, decDeg: -34.38, anchor: true },
+      { id: "alnasl", name: "Alnasl", raHours: 18.1, decDeg: -30.42 },
+      { id: "nunki", name: "Nunki", raHours: 18.92, decDeg: -26.3 },
+      { id: "ascella", name: "Ascella", raHours: 19.05, decDeg: -29.88 }
+    ],
+    segments: [
+      ["kaus-borealis", "kaus-media"],
+      ["kaus-media", "kaus-australis"],
+      ["kaus-media", "alnasl"],
+      ["kaus-borealis", "nunki"],
+      ["nunki", "ascella"],
+      ["ascella", "kaus-australis"]
+    ]
   },
   {
     id: "taurus",
@@ -235,7 +303,20 @@ export const CONSTELLATIONS = [
     raHours: 4.6,
     decDeg: 16.51,
     bestMonths: [11, 12, 1, 2],
-    tip: "Aldebaran, the Hyades, and nearby Pleiades make a strong binocular area."
+    tip: "Aldebaran, the Hyades, and nearby Pleiades make a strong binocular area.",
+    labelStarId: "aldebaran",
+    labelOffsetPx: { x: 10, y: -14 },
+    guideStars: [
+      { id: "elnath", name: "Elnath", raHours: 5.43, decDeg: 28.61 },
+      { id: "aldebaran", name: "Aldebaran", raHours: 4.6, decDeg: 16.51, anchor: true },
+      { id: "ain", name: "Ain", raHours: 4.48, decDeg: 19.18 },
+      { id: "zeta-tauri", name: "Zeta Tauri", raHours: 5.63, decDeg: 21.14 }
+    ],
+    segments: [
+      ["ain", "aldebaran"],
+      ["aldebaran", "zeta-tauri"],
+      ["zeta-tauri", "elnath"]
+    ]
   },
   {
     id: "carina",
@@ -244,6 +325,22 @@ export const CONSTELLATIONS = [
     raHours: 6.4,
     decDeg: -52.69,
     bestMonths: [1, 2, 3, 4],
-    tip: "Canopus anchors a rich southern region full of clusters and nebulae."
+    tip: "Canopus anchors a rich southern region full of clusters and nebulae.",
+    labelStarId: "canopus",
+    labelOffsetPx: { x: 10, y: -14 },
+    guideStars: [
+      { id: "canopus", name: "Canopus", raHours: 6.4, decDeg: -52.69, anchor: true },
+      { id: "miaplacidus", name: "Miaplacidus", raHours: 9.22, decDeg: -69.72 },
+      { id: "avior", name: "Avior", raHours: 8.38, decDeg: -59.51 },
+      { id: "aspidiske", name: "Aspidiske", raHours: 9.28, decDeg: -59.28 },
+      { id: "theta-carinae", name: "Theta Carinae", raHours: 10.72, decDeg: -64.39 }
+    ],
+    segments: [
+      ["canopus", "avior"],
+      ["avior", "miaplacidus"],
+      ["avior", "aspidiske"],
+      ["aspidiske", "theta-carinae"],
+      ["miaplacidus", "theta-carinae"]
+    ]
   }
 ];
