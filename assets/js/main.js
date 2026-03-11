@@ -503,6 +503,21 @@ function formatMoonPhaseLine(moonPhase, prefix) {
   return `${prefix}: ${moonPhase.icon} ${moonPhase.name} (${moonPhase.illuminationPct}%)`;
 }
 
+function stripMoonContextPrefix(value, pattern) {
+  if (!value) return "";
+  return value.replace(pattern, "").trim();
+}
+
+function formatCombinedMoonContext({ moonSummary = "", moonPhaseSummary = "", moonlightSummary = "" }) {
+  const parts = [
+    stripMoonContextPrefix(moonSummary, /^Moon:\s*/i),
+    stripMoonContextPrefix(moonPhaseSummary, /^Moon(?:\s*phase)?:\s*/i),
+    stripMoonContextPrefix(moonlightSummary, /^Moonlight:\s*/i)
+  ].filter(Boolean);
+  if (!parts.length) return "";
+  return `Moon: ${parts.join(" • ")}`;
+}
+
 function wrapLongitude(lon) {
   return ((lon + 540) % 360) - 180;
 }
@@ -1464,8 +1479,6 @@ function getSkyBadgeDescriptors(event) {
   if (event.notableReason === "multi-body") badgeDescriptors.push({ className: "multi", label: "3 Bodies", priority: 2 });
   if (event.isBestOfWeek) badgeDescriptors.push({ className: "best", label: "Best", priority: 1 });
   if (event.visibilityTier === "binoculars") badgeDescriptors.push({ className: "tier-binoculars", label: "Binoculars", priority: 3 });
-  if (event.moonlightBadge === "dark") badgeDescriptors.push({ className: "dark-sky", label: "Dark Sky", priority: 3 });
-  if (event.moonlightBadge === "bright") badgeDescriptors.push({ className: "bright-moon", label: "Bright Moon", priority: 3 });
   return badgeDescriptors;
 }
 
@@ -1476,7 +1489,10 @@ function createSkyTopPick(event, selectedEventId) {
   const badgeDescriptors = getSkyBadgeDescriptors(event);
   const badgeSpans = getTopSkyBadgeSpans(badgeDescriptors);
   const focusLabel = formatDateTime(new Date((event.focusTs || event.start) * 1000));
-  const moonContextLine = [event.moonPhaseSummary, event.moonlightSummary].filter(Boolean).join(" • ");
+  const moonContextLine = formatCombinedMoonContext({
+    moonPhaseSummary: event.moonPhaseSummary,
+    moonlightSummary: event.moonlightSummary
+  });
   const qualityHint = event.isBestOfWeek ? getSkyQualityHint(event) : "";
   item.innerHTML = `
     <div class="sky-top-head">
@@ -3230,8 +3246,6 @@ function renderPassList() {
     const badgeDescriptors = [];
     if (isBest) badgeDescriptors.push({ className: "best", label: "Best", priority: 1 });
     if (pass.alignmentEvent) badgeDescriptors.push({ className: "alignment", label: "Alignment", priority: 2 });
-    if (pass.moonlightBadge === "dark") badgeDescriptors.push({ className: "dark-sky", label: "Dark Sky", priority: 3 });
-    if (pass.moonlightBadge === "bright") badgeDescriptors.push({ className: "bright-moon", label: "Bright Moon", priority: 3 });
     const badgeSpansCompact = renderBadgeSpans(badgeDescriptors, true);
     const badgeSpansDesktop = renderBadgeSpans(badgeDescriptors, false);
     if (compactMobile) {
@@ -3262,10 +3276,13 @@ function renderPassList() {
           ${badgeSpansDesktop}
         </div>
       `;
+      const moonContextLine = formatCombinedMoonContext({
+        moonSummary: pass.moonSummary,
+        moonPhaseSummary: pass.moonPhaseSummary,
+        moonlightSummary: pass.moonlightSummary
+      });
       const highlights = [
-        pass.moonSummary ? `<div class="pass-meta sky-highlight">${pass.moonSummary}</div>` : "",
-        pass.moonPhaseSummary ? `<div class="pass-meta moon-phase">${pass.moonPhaseSummary}</div>` : "",
-        pass.moonlightSummary ? `<div class="pass-meta moon-phase">${pass.moonlightSummary}</div>` : ""
+        moonContextLine ? `<div class="pass-meta moon-phase">${moonContextLine}</div>` : ""
       ].join("");
       item.innerHTML = `
         <div>
