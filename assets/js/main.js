@@ -65,18 +65,27 @@ function toRegionCode(countryCode, regionName) {
   return regionName;
 }
 
+function normalizeLocalityName(value = "") {
+  return value
+    .replace(/^City of /iu, "")
+    .replace(/^Shire of /iu, "")
+    .trim();
+}
+
 function parseReverseGeocode(data) {
   const address = data?.address || {};
   const countryCode = (address.country_code || "").toUpperCase();
-  const locality = address.city
+  const locality = normalizeLocalityName(
+    address.city
     || address.town
+    || address.suburb
     || address.village
     || address.municipality
-    || address.suburb
     || address.city_district
     || address.hamlet
     || address.county
-    || "";
+    || ""
+  );
   const regionName = address.state || address.region || address.province || address.state_district || address.county || "";
   const regionCode = toRegionCode(countryCode, regionName);
   let label = "";
@@ -104,7 +113,7 @@ async function reverseGeocodeLocation(lat, lon) {
   url.searchParams.set("format", "jsonv2");
   url.searchParams.set("lat", lat.toFixed(5));
   url.searchParams.set("lon", lon.toFixed(5));
-  url.searchParams.set("zoom", "10");
+  url.searchParams.set("zoom", "12");
   url.searchParams.set("addressdetails", "1");
   url.searchParams.set("accept-language", getReverseGeocodeLanguage());
 

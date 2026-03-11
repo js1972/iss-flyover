@@ -293,25 +293,26 @@
       flex-wrap: wrap;
       align-items: center;
       justify-content: flex-end;
-      max-width: min(100%, 420px);
+      max-width: min(100%, 520px);
     }
 
     .location-control {
       display: flex;
-      align-items: stretch;
-      gap: 10px;
+      align-items: center;
+      gap: 12px;
       width: 100%;
     }
 
     .location-control > .primary {
       flex: 0 0 auto;
+      min-width: 180px;
     }
 
     .location-status {
-      flex: 1 1 220px;
+      flex: 1 1 auto;
       min-width: 0;
-      padding: 11px 14px;
-      border-radius: 18px;
+      padding: 8px 12px;
+      border-radius: 16px;
       border: 1px solid rgba(112, 139, 186, 0.24);
       background:
         linear-gradient(145deg, rgba(14, 34, 61, 0.9), rgba(6, 16, 34, 0.94)),
@@ -320,7 +321,7 @@
     }
 
     .location-status__label {
-      font-size: 0.97rem;
+      font-size: 0.92rem;
       font-weight: 600;
       line-height: 1.2;
       color: #edf5ff;
@@ -329,9 +330,9 @@
     }
 
     .location-status__coords {
-      margin-top: 4px;
+      margin-top: 3px;
       font-family: "IBM Plex Mono", monospace;
-      font-size: 0.72rem;
+      font-size: 0.69rem;
       line-height: 1.35;
       letter-spacing: 0.03em;
       color: #a8bbde;
@@ -339,8 +340,8 @@
     }
 
     .location-status__meta {
-      margin-top: 5px;
-      font-size: 0.7rem;
+      margin-top: 4px;
+      font-size: 0.67rem;
       line-height: 1.3;
       letter-spacing: 0.03em;
       color: #7d97c4;
@@ -388,7 +389,7 @@
     }
 
     #locate {
-      min-width: 204px;
+      min-width: 180px;
     }
 
     button.active {
@@ -408,25 +409,39 @@
       }
 
       .location-control {
-        flex-direction: column;
+        align-items: flex-start;
       }
 
       .location-control > .primary {
-        width: fit-content;
+        min-width: 168px;
       }
     }
 
     @media (max-width: 560px) {
+      .location-control {
+        gap: 10px;
+      }
+
       .location-control > .primary {
-        width: 100%;
+        min-width: 154px;
+        padding-left: 14px;
+        padding-right: 14px;
       }
 
       .location-status {
-        padding: 10px 12px;
+        padding: 7px 10px;
       }
 
       .location-status__label {
-        font-size: 0.92rem;
+        font-size: 0.86rem;
+      }
+
+      .location-status__coords {
+        font-size: 0.65rem;
+      }
+
+      .location-status__meta {
+        font-size: 0.63rem;
       }
     }
 
