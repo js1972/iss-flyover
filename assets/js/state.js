@@ -21,7 +21,7 @@ export const state =  {
   alignmentEvents: [],
   skyEvents: [],
   meteorEvents: [],
-  skyGuide: [],
+  skyNightBundles: [],
   tonightTimeline: [],
   tonightSnapshot: null,
   tonightWindow: null,

@@ -755,6 +755,12 @@
       color: #a8bbd7;
     }
 
+    .tonight-sub-line {
+      display: block;
+      margin-top: 4px;
+      color: #c4d4ec;
+    }
+
     .timeline-panel,
     .guide-panel,
     .conditions-panel {

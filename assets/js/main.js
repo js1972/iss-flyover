@@ -328,8 +328,54 @@ function getSkyEventDisplayLabel(event) {
   return event.title;
 }
 
+function getTonightSkyCompanionHighlights(bundle, selectedEvent) {
+  if (!bundle?.highlights?.length || !selectedEvent) return [];
+  return bundle.highlights
+    .filter((event) => event.id !== selectedEvent.id)
+    .sort((left, right) => getEventFocusTs(left) - getEventFocusTs(right))
+    .slice(0, 2);
+}
+
+function formatTonightSkyCompanionLine(events) {
+  if (!events.length) return "";
+  const summary = events
+    .map((event) => `${getSkyEventDisplayLabel(event)} ${formatTime(new Date(getEventFocusTs(event) * 1000))}`)
+    .join(" • ");
+  return `Also tonight: ${summary}`;
+}
+
+function setTonightSubcopy(element, primaryLine, secondaryLine = "") {
+  if (!element) return;
+  element.textContent = "";
+
+  const primary = document.createElement("span");
+  primary.textContent = primaryLine;
+  element.appendChild(primary);
+
+  if (!secondaryLine) return;
+
+  const secondary = document.createElement("span");
+  secondary.className = "tonight-sub-line";
+  secondary.textContent = secondaryLine;
+  element.appendChild(secondary);
+}
+
 function getEventFocusTs(event) {
   return event?.focusTs || event?.start || 0;
+}
+
+function getSkyEventSelectionKey(event) {
+  if (!event) return "";
+  if (event.type === "planet") return event.bodies?.[0] || event.type;
+  if (event.type === "group") return event.bodies?.join("|") || event.type;
+  if (event.type === "guide-target" && event.guideId) return event.guideId;
+  return event.type;
+}
+
+function getOppositeSkyWindow(skyWindow) {
+  if (skyWindow === "evening") return "dawn";
+  if (skyWindow === "dawn") return "evening";
+  return "";
 }
 
 function isPassActive(pass, nowTs) {
@@ -342,6 +388,15 @@ function isSkyEventActive(event, nowTs) {
 
 function formatPreviewMoment(timestampSec) {
   return `${formatDateTime(new Date(timestampSec * 1000))} local`;
+}
+
+function formatPassPreviewBanner(prefix, pass, contextTs) {
+  if (!pass) return "";
+  const startLabel = formatPreviewMoment(pass.start);
+  if (!Number.isFinite(contextTs) || Math.abs(contextTs - pass.start) < 60) {
+    return `${prefix} ${startLabel}`;
+  }
+  return `${prefix} ${startLabel} • sky at ${formatTime(new Date(contextTs * 1000))} local`;
 }
 
 function buildPassShareMessage(pass) {
@@ -719,6 +774,10 @@ function getSkyContextAt(date, lat, lon) {
   return context;
 }
 
+function buildObservingNightLabel(date) {
+  return new Date(date).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+}
+
 function getTonightWindow(lat, lon, now = new Date()) {
   const todayTimes = SunCalc.getTimes(now, lat, lon);
   const yesterday = new Date(now);
@@ -750,6 +809,8 @@ function getTonightWindow(lat, lon, now = new Date()) {
     startTs: Math.floor(start.getTime() / 1000),
     endTs: Math.floor(end.getTime() / 1000),
     phase,
+    observingNightKey: new Date(start).toLocaleDateString("en-CA"),
+    observingNightLabel: buildObservingNightLabel(start),
     sunset: duskTimes.sunset,
     civilDusk: duskTimes.dusk,
     nauticalDusk: duskTimes.nauticalDusk,
@@ -1308,7 +1369,50 @@ function buildMoonPhaseEvents(startTs, endTs, lat, lon) {
   return events;
 }
 
-function buildSkyEvents(lat, lon, alignmentEvents) {
+function getSkyEventNotableReason(event) {
+  if (event.type === "alignment") return "alignment";
+  if (event.type === "lunar-eclipse" || event.type === "solar-eclipse") return "eclipse";
+  if ((event.bodies?.length || 0) >= 3) return "multi-body";
+  if (event.type === "meteor-shower") return "meteor";
+  return "";
+}
+
+function selectSkyNightHighlights(events) {
+  const sorted = [...events]
+    .sort((left, right) => right._score - left._score || getEventFocusTs(left) - getEventFocusTs(right));
+  if (!sorted.length) return [];
+
+  const selected = [];
+  const selectedKeys = new Set();
+  const trySelect = (event) => {
+    if (!event) return false;
+    const selectionKey = getSkyEventSelectionKey(event);
+    if (selectedKeys.has(selectionKey)) return false;
+    selected.push(event);
+    selectedKeys.add(selectionKey);
+    return true;
+  };
+
+  trySelect(sorted[0]);
+  const oppositeWindow = getOppositeSkyWindow(sorted[0]?.skyWindow);
+  if (oppositeWindow) {
+    const oppositeCandidate = sorted.find((event) => event.skyWindow === oppositeWindow && !selectedKeys.has(getSkyEventSelectionKey(event)));
+    trySelect(oppositeCandidate);
+  }
+
+  sorted.forEach((event) => {
+    if (selected.length >= 3) return;
+    trySelect(event);
+  });
+
+  return selected.slice(0, 3);
+}
+
+function flattenSkyNightBundles(bundles) {
+  return bundles.flatMap((bundle) => bundle.highlights);
+}
+
+function buildSkyNightBundles(lat, lon, alignmentEvents) {
   const now = Math.floor(Date.now() / 1000);
   const end = now + FORECAST_DAYS * 24 * 3600;
   const groupingStepSeconds = PLANET_VISUALS.alignmentStepMinutes * 60;
@@ -1441,68 +1545,92 @@ function buildSkyEvents(lat, lon, alignmentEvents) {
     return score;
   }
 
-  const byDay = new Map();
+  const byNight = new Map();
   allEvents.forEach((event) => {
     const focus = event.focusTs || event.start;
-    const dayKey = new Date(focus * 1000).toLocaleDateString("en-CA");
-    const ranked = { ...event, _score: eventScore(event) };
-    if (!byDay.has(dayKey)) byDay.set(dayKey, []);
-    byDay.get(dayKey).push(ranked);
+    const nightWindow = getTonightWindow(lat, lon, new Date(focus * 1000));
+    const ranked = {
+      ...event,
+      _score: eventScore(event),
+      observingNightKey: nightWindow.observingNightKey,
+      observingNightLabel: nightWindow.observingNightLabel
+    };
+    if (!byNight.has(nightWindow.observingNightKey)) {
+      byNight.set(nightWindow.observingNightKey, {
+        observingNightKey: nightWindow.observingNightKey,
+        observingNightLabel: nightWindow.observingNightLabel,
+        window: nightWindow,
+        allCandidates: []
+      });
+    }
+    byNight.get(nightWindow.observingNightKey).allCandidates.push(ranked);
   });
 
-  const dayEntries = Array.from(byDay.entries())
-    .sort((left, right) => new Date(left[0]) - new Date(right[0]))
+  const bundles = Array.from(byNight.values())
+    .sort((left, right) => left.window.startTs - right.window.startTs)
     .slice(0, FORECAST_DAYS)
-    .map(([dayKey, events]) => {
-      const typeChosen = new Set();
-      const chosen = events
-        .sort((left, right) => right._score - left._score || (left.focusTs || left.start) - (right.focusTs || right.start))
-        .filter((event) => {
-          const typeKey = event.type === "planet" ? event.bodies?.[0] || event.type : event.type;
-          if (typeChosen.has(typeKey)) return false;
-          typeChosen.add(typeKey);
-          return true;
-        })
-        .slice(0, 3);
-      const top = chosen[0];
-      const dayScore = chosen.reduce((sum, event, index) => sum + event._score * (index === 0 ? 1 : 0.35), 0);
+    .map((bundle) => {
+      const highlights = selectSkyNightHighlights(bundle.allCandidates);
+      const nightScore = highlights.reduce((sum, event, index) => sum + event._score * (index === 0 ? 1 : 0.35), 0);
       return {
-        dayKey,
-        dayLabel: new Date(`${dayKey}T12:00:00`).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }),
-        events: chosen,
-        dayScore,
-        top
+        ...bundle,
+        highlights,
+        topHighlight: highlights[0] || null,
+        nightScore
       };
     })
-    .filter((entry) => entry.events.length);
+    .filter((bundle) => bundle.highlights.length);
 
-  let bestDayIdx = -1;
-  dayEntries.forEach((entry, index) => {
-    if (bestDayIdx < 0 || entry.dayScore > dayEntries[bestDayIdx].dayScore) {
-      bestDayIdx = index;
+  let bestBundleIdx = -1;
+  bundles.forEach((bundle, index) => {
+    if (bestBundleIdx < 0 || bundle.nightScore > bundles[bestBundleIdx].nightScore) {
+      bestBundleIdx = index;
     }
   });
 
-  return dayEntries.flatMap((entry, dayIndex) => entry.events.map((event, eventIndex) => {
-    const { _score, ...clean } = event;
-    let notableReason = "";
-    if (clean.type === "alignment") notableReason = "alignment";
-    else if (clean.type === "lunar-eclipse" || clean.type === "solar-eclipse") notableReason = "eclipse";
-    else if ((clean.bodies?.length || 0) >= 3) notableReason = "multi-body";
-    else if (clean.type === "meteor-shower") notableReason = "meteor";
-    return {
-      ...clean,
-      rankScore: _score,
-      dayKey: entry.dayKey,
-      dayLabel: entry.dayLabel,
-      isTopOfDay: eventIndex === 0,
-      isBestNight: dayIndex === bestDayIdx,
-      isBestOfWeek: dayIndex === bestDayIdx && eventIndex === 0,
-      isNotable: Boolean(notableReason),
-      notableReason,
-      emphasis: dayIndex === bestDayIdx && eventIndex === 0
+  return bundles.map((bundle, bundleIndex) => {
+    const isBestNight = bundleIndex === bestBundleIdx;
+    const mapEvent = (event, eventIndex) => {
+      const { _score, ...clean } = event;
+      const notableReason = getSkyEventNotableReason(clean);
+      return {
+        ...clean,
+        rankScore: _score,
+        isTopOfNight: eventIndex === 0,
+        isBestNight,
+        isBestOfWeek: isBestNight && eventIndex === 0,
+        isNotable: Boolean(notableReason),
+        notableReason,
+        emphasis: isBestNight && eventIndex === 0
+      };
     };
-  }));
+
+    const allCandidates = bundle.allCandidates.map((event) => {
+      const { _score, ...clean } = event;
+      const notableReason = getSkyEventNotableReason(clean);
+      return {
+        ...clean,
+        rankScore: _score,
+        isNotable: Boolean(notableReason),
+        notableReason
+      };
+    });
+    const highlights = bundle.highlights.map(mapEvent);
+    return {
+      observingNightKey: bundle.observingNightKey,
+      observingNightLabel: bundle.observingNightLabel,
+      window: bundle.window,
+      allCandidates,
+      highlights,
+      topHighlight: highlights[0] || null,
+      nightScore: bundle.nightScore,
+      isBestNight
+    };
+  });
+}
+
+function buildSkyEvents(lat, lon, alignmentEvents) {
+  return flattenSkyNightBundles(buildSkyNightBundles(lat, lon, alignmentEvents));
 }
 
 function getSkyBadgeDescriptors(event) {
@@ -1613,7 +1741,7 @@ function renderSkyEventsList() {
     return;
   }
 
-  if (!state.skyEvents.length) {
+  if (!state.skyNightBundles.length) {
     skyEventsList.innerHTML = `
       <div class="sky-event-item">
         <div>
@@ -1627,42 +1755,25 @@ function renderSkyEventsList() {
   }
 
   const selectedEventId = state.preview.active && state.preview.mode === "event" ? state.preview.skyEvent?.id : null;
-  const groups = new Map();
-  state.skyEvents.forEach((event) => {
-    if (!groups.has(event.dayKey)) {
-      groups.set(event.dayKey, {
-        dayKey: event.dayKey,
-        dayLabel: event.dayLabel,
-        events: [],
-        isBestNight: event.isBestNight
-      });
-    }
-    const group = groups.get(event.dayKey);
-    group.events.push(event);
-    group.isBestNight = group.isBestNight || event.isBestNight;
-  });
-
-  Array.from(groups.values()).forEach((group) => {
-    const topEvent = group.events.find((event) => event.isTopOfDay) || group.events[0];
+  state.skyNightBundles.forEach((bundle) => {
+    const topEvent = bundle.topHighlight || bundle.highlights[0];
+    if (!topEvent) return;
     const weather = getWeatherAt(topEvent.focusTs || topEvent.start);
     const weatherLabel = weatherQualityLabel(weather);
     const moonPct = Number.isFinite(topEvent.moonPhase?.illuminationPct) ? `${topEvent.moonPhase.illuminationPct}% moon` : "Moon unknown";
-    const extraCount = Math.max(0, group.events.length - 1);
+    const extraCount = Math.max(0, bundle.highlights.length - 1);
     const hasSecondaryItems = extraCount > 0;
-    const expanded = hasSecondaryItems && (
-      state.ui.expandedSkyDayKeys.has(group.dayKey) ||
-      group.events.some((event) => !event.isTopOfDay && event.id === selectedEventId)
-    );
+    const expanded = hasSecondaryItems && state.ui.expandedSkyDayKeys.has(bundle.observingNightKey);
     const wrapper = document.createElement("div");
-    wrapper.className = `sky-day-group${group.isBestNight ? " best-night" : ""}`;
+    wrapper.className = `sky-day-group${bundle.isBestNight ? " best-night" : ""}`;
     wrapper.innerHTML = `
       <div class="sky-day-header">
         <div class="sky-day-heading">
-          <div class="sky-day-label">${group.dayLabel}</div>
-          <div class="sky-day-meta">${group.events.length} highlight${group.events.length === 1 ? "" : "s"} • ${moonPct} • ${weatherLabel}</div>
+          <div class="sky-day-label">${bundle.observingNightLabel}</div>
+          <div class="sky-day-meta">${bundle.highlights.length} highlight${bundle.highlights.length === 1 ? "" : "s"} • ${moonPct} • ${weatherLabel}</div>
         </div>
         <div class="sky-day-badges">
-          ${group.isBestNight ? `<span class="badge best">Best Night</span>` : ""}
+          ${bundle.isBestNight ? `<span class="badge best">Best Night</span>` : ""}
         </div>
       </div>
     `;
@@ -1679,10 +1790,10 @@ function renderSkyEventsList() {
         <span class="sky-day-toggle-icon">${expanded ? "−" : "+"}</span>
       `;
       toggle.addEventListener("click", () => {
-        if (state.ui.expandedSkyDayKeys.has(group.dayKey)) {
-          state.ui.expandedSkyDayKeys.delete(group.dayKey);
+        if (state.ui.expandedSkyDayKeys.has(bundle.observingNightKey)) {
+          state.ui.expandedSkyDayKeys.delete(bundle.observingNightKey);
         } else {
-          state.ui.expandedSkyDayKeys.add(group.dayKey);
+          state.ui.expandedSkyDayKeys.add(bundle.observingNightKey);
         }
         renderSkyEventsList();
       });
@@ -1691,8 +1802,8 @@ function renderSkyEventsList() {
       if (expanded) {
         const list = document.createElement("div");
         list.className = "sky-day-secondary";
-        group.events
-          .filter((event) => !event.isTopOfDay)
+        bundle.highlights
+          .filter((event) => !event.isTopOfNight)
           .forEach((event) => {
             list.appendChild(createSkySecondaryRow(event, selectedEventId));
           });
@@ -1799,10 +1910,6 @@ function buildGuideCandidatesForWindow(lat, lon, tonightWindow) {
     selected.push(candidate);
   });
   return selected;
-}
-
-function buildSkyGuide(lat, lon, tonightWindow) {
-  return buildGuideCandidatesForWindow(lat, lon, tonightWindow).slice(0, 6);
 }
 
 function buildGuideEvents(lat, lon, startTs, endTs) {
@@ -1938,7 +2045,7 @@ function buildTonightSnapshot(referenceDate = new Date()) {
   if (!state.user) {
     return {
       issTonight: { pass: null, nextPass: null, status: "none" },
-      skyTonight: { event: null, nextEvent: null, status: "none" },
+      skyTonight: { event: null, nextEvent: null, status: "none", bundle: null, companionHighlights: [] },
       moonTonight: null,
       weatherTonight: { summary: null, clearestWindow: null, error: null },
       scheduleEntries: [],
@@ -1956,6 +2063,8 @@ function buildTonightSnapshot(referenceDate = new Date()) {
   const tonightPass = tonightPassSelection.pass;
   const nextPass = state.goodPasses.find((pass) => pass.start > tonightEndTs) || state.goodPasses[0] || null;
   const tonightEvent = tonightEventSelection.event;
+  const tonightSkyBundle = getSkyNightBundle(windowInfo.observingNightKey);
+  const companionHighlights = getTonightSkyCompanionHighlights(tonightSkyBundle, tonightEvent);
   const nextEvent = state.skyEvents.find((event) => getEventFocusTs(event) > tonightEndTs) || state.skyEvents[0] || null;
   const hasActiveSelection = tonightPassSelection.status === "active" || tonightEventSelection.status === "active";
   const moonFocusTs = hasActiveSelection
@@ -1967,7 +2076,7 @@ function buildTonightSnapshot(referenceDate = new Date()) {
 
   const snapshot = {
     issTonight: { pass: tonightPass, nextPass, status: tonightPassSelection.status },
-    skyTonight: { event: tonightEvent, nextEvent, status: tonightEventSelection.status },
+    skyTonight: { event: tonightEvent, nextEvent, status: tonightEventSelection.status, bundle: tonightSkyBundle, companionHighlights },
     moonTonight: { context: moonContext, focusTs: moonFocusTs },
     weatherTonight: { summary: weatherSummary, clearestWindow, error: state.weather.error },
     scheduleEntries: [],
@@ -2086,6 +2195,7 @@ function enrichPassesWithSkyContext(passes) {
   state.passSkyHighlights = {};
   if (!state.user || !window.Astronomy || !window.Astronomy.Observer) {
     state.alignmentEvents = [];
+    state.skyNightBundles = [];
     state.skyEvents = [];
     return passes;
   }
@@ -2093,7 +2203,8 @@ function enrichPassesWithSkyContext(passes) {
   const now = Math.floor(Date.now() / 1000);
   const end = now + FORECAST_DAYS * 24 * 3600;
   state.alignmentEvents = computeAlignmentEvents(now, end, state.user.lat, state.user.lon);
-  state.skyEvents = buildSkyEvents(state.user.lat, state.user.lon, state.alignmentEvents);
+  state.skyNightBundles = buildSkyNightBundles(state.user.lat, state.user.lon, state.alignmentEvents);
+  state.skyEvents = flattenSkyNightBundles(state.skyNightBundles);
 
   return passes.map((pass) => {
     if (!pass.visible) {
@@ -2448,7 +2559,7 @@ function updateTonightHighlights() {
     tonightIss.textContent = "Set your location";
     tonightIssMeta.textContent = "Need location to find tonight's visible ISS pass.";
     tonightSky.textContent = "Set your location";
-    tonightSkyMeta.textContent = "Need location to evaluate visible planets and alignments.";
+    setTonightSubcopy(tonightSkyMeta, "Need location to evaluate visible planets and alignments.");
     tonightMoon.textContent = "Moon phase pending";
     tonightMoonMeta.textContent = "Moonlight quality needs your observing location.";
     tonightWeather.textContent = "Weather pending";
@@ -2465,6 +2576,8 @@ function updateTonightHighlights() {
   const nextSkyEvent = snapshot.skyTonight.nextEvent;
   const tonightPassStatus = snapshot.issTonight.status;
   const tonightEventStatus = snapshot.skyTonight.status;
+  const companionHighlights = snapshot.skyTonight.companionHighlights || [];
+  const companionLine = formatTonightSkyCompanionLine(companionHighlights);
   state.tonight.pass = tonightPass;
   state.tonight.skyEvent = tonightEvent;
   state.tonightWindow = snapshot.window;
@@ -2492,15 +2605,26 @@ function updateTonightHighlights() {
     const eventLabel = getSkyEventDisplayLabel(tonightEvent);
     tonightSky.textContent = eventLabel;
     if (tonightEventStatus === "active") {
-      tonightSkyMeta.textContent = `Happening now • Started ${formatTime(new Date(tonightEvent.start * 1000))} • ${tonightEvent.details}`;
+      setTonightSubcopy(
+        tonightSkyMeta,
+        `Happening now • Started ${formatTime(new Date(tonightEvent.start * 1000))} • ${tonightEvent.details}`,
+        companionLine
+      );
     } else {
-      tonightSkyMeta.textContent = `${getSkyEventWindowLabel(tonightEvent)} • ${formatTonightMoment(tonightEvent.focusTs || tonightEvent.start)} • ${tonightEvent.details}`;
+      setTonightSubcopy(
+        tonightSkyMeta,
+        `${getSkyEventWindowLabel(tonightEvent)} • ${formatTonightMoment(tonightEvent.focusTs || tonightEvent.start)} • ${tonightEvent.details}`,
+        companionLine
+      );
     }
   } else {
     tonightSky.textContent = "No standout sky event tonight";
-    tonightSkyMeta.textContent = nextSkyEvent
-      ? `Next highlight ${formatDateTime(new Date((nextSkyEvent.focusTs || nextSkyEvent.start) * 1000))}`
-      : "No standout naked-eye grouping detected in the next week.";
+    setTonightSubcopy(
+      tonightSkyMeta,
+      nextSkyEvent
+        ? `Next highlight ${formatDateTime(new Date((nextSkyEvent.focusTs || nextSkyEvent.start) * 1000))}`
+        : "No standout naked-eye grouping detected in the next week."
+    );
   }
 
   const context = snapshot.moonTonight?.context;
@@ -3414,18 +3538,21 @@ function resolveSkyViewState(nowTs = Math.floor(Date.now() / 1000)) {
     contextDate: nowDate,
     skyPass: null,
     skyEvent: null,
+    observingNightKey: state.user ? getTonightWindow(state.user.lat, state.user.lon, nowDate).observingNightKey : "",
     bannerText: "",
     showExit: false
   };
   if (!state.user) return emptyState;
 
   if (state.preview.active && state.preview.mode === "pass" && state.preview.pass) {
+    const contextTs = state.preview.pass.peakPoint?.timestamp || state.preview.pass.start;
     return {
       mode: "manual-pass",
-      contextDate: new Date((state.preview.pass.peakPoint?.timestamp || state.preview.pass.start) * 1000),
+      contextDate: new Date(contextTs * 1000),
       skyPass: state.preview.pass,
       skyEvent: null,
-      bannerText: `Previewing pass ${formatDateTime(new Date(state.preview.pass.start * 1000))}`,
+      observingNightKey: getTonightWindow(state.user.lat, state.user.lon, new Date(state.preview.pass.start * 1000)).observingNightKey,
+      bannerText: formatPassPreviewBanner("Previewing pass", state.preview.pass, contextTs),
       showExit: true
     };
   }
@@ -3437,6 +3564,7 @@ function resolveSkyViewState(nowTs = Math.floor(Date.now() / 1000)) {
       contextDate: new Date(previewTs * 1000),
       skyPass: null,
       skyEvent: state.preview.skyEvent,
+      observingNightKey: state.preview.skyEvent.observingNightKey || getTonightWindow(state.user.lat, state.user.lon, new Date(previewTs * 1000)).observingNightKey,
       bannerText: `Previewing sky ${formatDateTime(new Date(previewTs * 1000))}`,
       showExit: true
     };
@@ -3450,6 +3578,7 @@ function resolveSkyViewState(nowTs = Math.floor(Date.now() / 1000)) {
       contextDate: nowDate,
       skyPass: activePass,
       skyEvent: null,
+      observingNightKey: snapshot.window?.observingNightKey || emptyState.observingNightKey,
       bannerText: "",
       showExit: false
     };
@@ -3462,6 +3591,7 @@ function resolveSkyViewState(nowTs = Math.floor(Date.now() / 1000)) {
       contextDate: nowDate,
       skyPass: null,
       skyEvent: activeEvent,
+      observingNightKey: activeEvent.observingNightKey || snapshot.window?.observingNightKey || emptyState.observingNightKey,
       bannerText: "",
       showExit: false
     };
@@ -3469,12 +3599,14 @@ function resolveSkyViewState(nowTs = Math.floor(Date.now() / 1000)) {
 
   const upcomingPass = snapshot.issTonight?.status === "upcoming" ? snapshot.issTonight.pass : null;
   if (upcomingPass) {
+    const contextTs = upcomingPass.peakPoint?.timestamp || upcomingPass.start;
     return {
       mode: "auto-pass",
-      contextDate: new Date((upcomingPass.peakPoint?.timestamp || upcomingPass.start) * 1000),
+      contextDate: new Date(contextTs * 1000),
       skyPass: upcomingPass,
       skyEvent: null,
-      bannerText: `Tonight preview: ISS pass ${formatPreviewMoment(upcomingPass.start)}`,
+      observingNightKey: snapshot.window?.observingNightKey || emptyState.observingNightKey,
+      bannerText: formatPassPreviewBanner("Tonight preview: ISS pass", upcomingPass, contextTs),
       showExit: false
     };
   }
@@ -3487,6 +3619,7 @@ function resolveSkyViewState(nowTs = Math.floor(Date.now() / 1000)) {
       contextDate: new Date(focusTs * 1000),
       skyPass: null,
       skyEvent: upcomingEvent,
+      observingNightKey: upcomingEvent.observingNightKey || snapshot.window?.observingNightKey || emptyState.observingNightKey,
       bannerText: `Tonight preview: ${getSkyEventDisplayLabel(upcomingEvent)} ${formatPreviewMoment(focusTs)}`,
       showExit: false
     };
@@ -3507,36 +3640,124 @@ function updatePreviewBanner(viewState) {
   previewBanner.hidden = !viewState.bannerText;
 }
 
-function buildPreviewGuideItem(event) {
-  if (!event?.guideKind || !Number.isFinite(event.raHours) || !Number.isFinite(event.decDeg)) return null;
-  return {
-    id: event.guideId || event.id,
-    kind: event.guideKind,
-    title: event.title,
-    raHours: event.raHours,
-    decDeg: event.decDeg,
-    tier: event.visibilityTier || "naked-eye",
-    isSelectedPreview: true
-  };
+function getSkyNightBundle(observingNightKey) {
+  if (!observingNightKey) return null;
+  return state.skyNightBundles.find((bundle) => bundle.observingNightKey === observingNightKey) || null;
 }
 
-function buildDrawableSkyGuideItems(previewGuideItem = null) {
-  const items = [];
-  const seen = new Set();
-  const tryPush = (item) => {
-    if (!item || item.kind === "constellation") return;
-    const key = item.id || `${item.kind}:${item.title}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    items.push(item);
-  };
+function getSkyNightBundleForViewState(viewState) {
+  const bundleFromState = getSkyNightBundle(viewState.observingNightKey);
+  if (bundleFromState) return bundleFromState;
+  if (!state.user) return null;
+  const fallbackWindow = getTonightWindow(state.user.lat, state.user.lon, viewState.contextDate);
+  return getSkyNightBundle(fallbackWindow.observingNightKey);
+}
 
-  tryPush(previewGuideItem);
-  state.skyGuide.forEach((item) => {
-    if (items.length >= 4) return;
-    tryPush(item);
+function getSkyHighlightRoleWeight(role) {
+  if (role === "selected") return 3;
+  if (role === "primary") return 2;
+  if (role === "secondary") return 1;
+  return 0;
+}
+
+function buildVisibleSkyHighlightOverlay(viewState, contextDate, skyContext, observer) {
+  const bundle = getSkyNightBundleForViewState(viewState);
+  if (!bundle || !observer) {
+    return {
+      bundle: null,
+      bodyRoles: new Map(),
+      guideItems: [],
+      forcedConstellationId: ""
+    };
+  }
+
+  const selectedEventId = viewState.mode === "manual-event" ? viewState.skyEvent?.id || "" : "";
+  const visibleEntries = bundle.highlights
+    .map((event) => {
+      const tokens = [];
+      let forcedConstellationId = "";
+
+      if (event.guideKind === "constellation") {
+        const preferredId = event.guideId || event.id;
+        const visibleConstellations = getVisibleConstellationGuides(
+          contextDate,
+          state.user.lat,
+          state.user.lon,
+          skyContext,
+          preferredId
+        );
+        if (visibleConstellations.some((guide) => guide.id === preferredId)) {
+          forcedConstellationId = preferredId;
+        }
+      } else if (Number.isFinite(event.raHours) && Number.isFinite(event.decDeg)) {
+        const observation = getEquatorialObservation({ raHours: event.raHours, decDeg: event.decDeg }, contextDate, observer);
+        if (observation && observation.elevation >= 10) {
+          tokens.push({
+            type: "guide",
+            id: event.guideId || event.id,
+            kind: event.guideKind || event.type,
+            title: event.title,
+            raHours: event.raHours,
+            decDeg: event.decDeg,
+            tier: event.visibilityTier || "naked-eye"
+          });
+        }
+      }
+
+      (event.bodies || []).forEach((body) => {
+        if (body === "Moon") {
+          if (skyContext.moon) tokens.push({ type: "body", body });
+          return;
+        }
+        const visibleTarget = skyContext.visiblePlanets.find((target) => target.body === body);
+        if (visibleTarget) tokens.push({ type: "body", body: visibleTarget.body });
+      });
+
+      return { event, tokens, forcedConstellationId };
+    })
+    .filter((entry) => entry.tokens.length || entry.forcedConstellationId);
+
+  const primaryEventId = selectedEventId
+    ? ""
+    : visibleEntries
+        .map((entry) => entry.event)
+        .sort((left, right) => (right.rankScore || 0) - (left.rankScore || 0) || getEventFocusTs(left) - getEventFocusTs(right))[0]?.id || "";
+
+  const bodyRoles = new Map();
+  const guideItemsById = new Map();
+  let forcedConstellationId = "";
+
+  visibleEntries.forEach(({ event, tokens, forcedConstellationId: entryConstellationId }) => {
+    const role = selectedEventId
+      ? (event.id === selectedEventId ? "selected" : "secondary")
+      : (event.id === primaryEventId ? "primary" : "secondary");
+
+    if (entryConstellationId && (!forcedConstellationId || getSkyHighlightRoleWeight(role) > 1)) {
+      forcedConstellationId = entryConstellationId;
+    }
+
+    tokens.forEach((token) => {
+      if (token.type === "guide") {
+        const existing = guideItemsById.get(token.id);
+        if (!existing || getSkyHighlightRoleWeight(role) > getSkyHighlightRoleWeight(existing.role)) {
+          guideItemsById.set(token.id, { ...token, role, eventId: event.id });
+        }
+        return;
+      }
+
+      const existing = bodyRoles.get(token.body);
+      if (!existing || getSkyHighlightRoleWeight(role) > getSkyHighlightRoleWeight(existing.role)) {
+        bodyRoles.set(token.body, { role, eventId: event.id });
+      }
+    });
   });
-  return items.slice(0, 4);
+
+  return {
+    bundle,
+    bodyRoles,
+    guideItems: Array.from(guideItemsById.values()),
+    forcedConstellationId
+  };
 }
 
 function getBestPass(passes) {
@@ -3565,6 +3786,9 @@ function setPreviewPass(pass) {
 
 function setSkyEventPreview(event) {
   if (!event) return;
+  if (event.observingNightKey && !event.isTopOfNight) {
+    state.ui.expandedSkyDayKeys.add(event.observingNightKey);
+  }
   state.preview.active = true;
   state.preview.mode = "event";
   state.preview.pass = null;
@@ -3662,20 +3886,21 @@ function updateSkyCanvas() {
     const observer = window.Astronomy?.Observer
       ? new window.Astronomy.Observer(state.user.lat, state.user.lon, 0)
       : null;
-    const previewGuideItem = buildPreviewGuideItem(highlightedEvent);
-    const forcedConstellationId = previewGuideItem?.kind === "constellation" ? previewGuideItem.id : "";
+    const highlightOverlay = observer
+      ? buildVisibleSkyHighlightOverlay(viewState, contextDate, skyContext, observer)
+      : { bodyRoles: new Map(), guideItems: [], forcedConstellationId: "" };
     const constellationGuides = getVisibleConstellationGuides(
       contextDate,
       state.user.lat,
       state.user.lon,
       skyContext,
-      forcedConstellationId
+      highlightOverlay.forcedConstellationId
     );
-    const drawableSkyGuideItems = observer
-      ? buildDrawableSkyGuideItems(previewGuideItem)
-      : [];
+    const drawableGuideItems = highlightOverlay.guideItems
+      .slice()
+      .sort((left, right) => getSkyHighlightRoleWeight(left.role) - getSkyHighlightRoleWeight(right.role));
 
-    if (skyContext.darkEnough && (constellationGuides.length || skyContext.visiblePlanets.length || skyContext.moon || drawableSkyGuideItems.length)) {
+    if (skyContext.darkEnough && (constellationGuides.length || highlightOverlay.bodyRoles.size || skyContext.moon || drawableGuideItems.length)) {
       const labelBoxes = [];
       const safePadding = 12;
       const hasOverlap = (candidate) => labelBoxes.some((box) => (
@@ -3729,36 +3954,45 @@ function updateSkyCanvas() {
         labelBoxes.push(choice);
         return choice;
       };
-      const highlightedBodies = highlightedEvent?.bodies ? new Set(highlightedEvent.bodies) : null;
       const pendingConstellationLabels = [];
-      const drawTarget = (target, size) => {
+      const drawTarget = (target, size, role = "context") => {
         const point = toXY(target.azimuth, target.elevation);
-        const isHighlighted = highlightedBodies ? highlightedBodies.has(target.body) : false;
-        const dotSize = isHighlighted ? size + 1.25 : size;
+        const isSelected = role === "selected";
+        const isPrimary = role === "primary";
+        const isSecondary = role === "secondary";
+        const dotSize = isSelected ? size + 1.25 : isPrimary ? size + 0.55 : size;
         ctx.fillStyle = target.color;
-        ctx.strokeStyle = "rgba(7, 14, 28, 0.92)";
-        ctx.lineWidth = 1.4;
+        ctx.strokeStyle = isSelected
+          ? "rgba(180, 112, 255, 0.95)"
+          : isSecondary
+          ? "rgba(54, 69, 95, 0.85)"
+          : "rgba(7, 14, 28, 0.92)";
+        ctx.lineWidth = isSelected ? 1.9 : 1.4;
         ctx.beginPath();
         ctx.arc(point.x, point.y, dotSize, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
 
-        if (target.bright || target.body === "Moon" || isHighlighted) {
-          ctx.strokeStyle = `${target.color}88`;
-          ctx.lineWidth = isHighlighted ? 1.4 : 1;
+        if (target.bright || target.body === "Moon" || isPrimary || isSelected) {
+          ctx.strokeStyle = isSelected ? "rgba(180, 112, 255, 0.5)" : `${target.color}88`;
+          ctx.lineWidth = isSelected ? 1.4 : 1;
           ctx.beginPath();
-          ctx.arc(point.x, point.y, dotSize + (isHighlighted ? 4.2 : 2.8), 0, Math.PI * 2);
+          ctx.arc(point.x, point.y, dotSize + (isSelected ? 4.2 : 2.8), 0, Math.PI * 2);
           ctx.stroke();
         }
 
         const label = `${target.body} ${Math.round(target.elevation)}°`;
         const box = placeLabel(label, point);
-        ctx.fillStyle = "rgba(4, 10, 20, 0.72)";
-        ctx.strokeStyle = "rgba(102, 132, 173, 0.35)";
+        ctx.fillStyle = isSelected ? "rgba(12, 8, 26, 0.82)" : "rgba(4, 10, 20, 0.72)";
+        ctx.strokeStyle = isSelected
+          ? "rgba(180, 112, 255, 0.45)"
+          : isSecondary
+          ? "rgba(86, 104, 136, 0.22)"
+          : "rgba(102, 132, 173, 0.35)";
         ctx.lineWidth = 1;
         ctx.fillRect(box.x - 2, box.y - 1, box.width + 4, box.height + 2);
         ctx.strokeRect(box.x - 2, box.y - 1, box.width + 4, box.height + 2);
-        ctx.fillStyle = target.color;
+        ctx.fillStyle = isSelected ? "#edd7ff" : isSecondary ? "rgba(194, 208, 224, 0.82)" : target.color;
         ctx.fillText(label, box.x + 3, box.y + 10.5);
       };
 
@@ -3808,34 +4042,50 @@ function updateSkyCanvas() {
       }
 
       ctx.font = "11px IBM Plex Mono";
-      skyContext.visiblePlanets.forEach((target) => drawTarget(target, 3.1));
+      skyContext.visiblePlanets
+        .filter((target) => highlightOverlay.bodyRoles.has(target.body))
+        .sort((left, right) => getSkyHighlightRoleWeight(highlightOverlay.bodyRoles.get(left.body)?.role) - getSkyHighlightRoleWeight(highlightOverlay.bodyRoles.get(right.body)?.role))
+        .forEach((target) => drawTarget(target, 3.1, highlightOverlay.bodyRoles.get(target.body)?.role || "primary"));
       if (skyContext.moon) {
-        drawTarget(skyContext.moon, 3.6);
+        drawTarget(skyContext.moon, 3.6, highlightOverlay.bodyRoles.get("Moon")?.role || "context");
       }
 
-      drawableSkyGuideItems.forEach((item) => {
+      drawableGuideItems.forEach((item) => {
         if (!Number.isFinite(item.raHours) || !Number.isFinite(item.decDeg)) return;
         const obs = getEquatorialObservation({ raHours: item.raHours, decDeg: item.decDeg }, contextDate, observer);
         if (!obs || obs.elevation < 10) return;
         const point = toXY(obs.azimuth, obs.elevation);
-        const isSelectedGuide = Boolean(item.isSelectedPreview);
+        const isSelectedGuide = item.role === "selected";
+        const isSecondaryGuide = item.role === "secondary";
         const guideStroke = isSelectedGuide
           ? "rgba(180, 112, 255, 0.98)"
+          : isSecondaryGuide
+          ? item.tier === "binoculars"
+            ? "rgba(214, 172, 118, 0.7)"
+            : "rgba(132, 194, 214, 0.68)"
           : item.tier === "binoculars"
           ? "rgba(255, 196, 130, 0.92)"
           : "rgba(165, 240, 255, 0.92)";
         const guideBorder = isSelectedGuide
           ? "rgba(180, 112, 255, 0.45)"
+          : isSecondaryGuide
+          ? item.tier === "binoculars"
+            ? "rgba(214, 172, 118, 0.25)"
+            : "rgba(132, 194, 214, 0.22)"
           : item.tier === "binoculars"
           ? "rgba(255, 196, 130, 0.4)"
           : "rgba(126, 217, 255, 0.35)";
         const guideLabelColor = isSelectedGuide
           ? "#edd7ff"
+          : isSecondaryGuide
+          ? item.tier === "binoculars"
+            ? "rgba(223, 197, 160, 0.84)"
+            : "rgba(188, 220, 232, 0.82)"
           : item.tier === "binoculars"
           ? "#ffd9aa"
           : "#b8f9ff";
         ctx.strokeStyle = guideStroke;
-        ctx.lineWidth = isSelectedGuide ? 1.8 : 1.4;
+        ctx.lineWidth = isSelectedGuide ? 1.8 : isSecondaryGuide ? 1.15 : 1.4;
         ctx.beginPath();
         ctx.moveTo(point.x - 4, point.y);
         ctx.lineTo(point.x + 4, point.y);
@@ -4038,18 +4288,18 @@ async function refreshAll(options = {}) {
         const end = now + FORECAST_DAYS * 24 * 3600;
         state.meteorEvents = buildMeteorEvents(now, end, state.user.lat, state.user.lon);
         if (initialBoot) setBootStage("sky");
-        state.skyEvents = buildSkyEvents(state.user.lat, state.user.lon, state.alignmentEvents);
+        state.skyNightBundles = buildSkyNightBundles(state.user.lat, state.user.lon, state.alignmentEvents);
+        state.skyEvents = flattenSkyNightBundles(state.skyNightBundles);
         state.tonightWindow = getTonightWindow(state.user.lat, state.user.lon, new Date());
-        state.skyGuide = buildSkyGuide(state.user.lat, state.user.lon, state.tonightWindow);
       } else {
         if (initialBoot) setBootStage("sky");
         state.weather.hourly = [];
         state.weather.error = null;
         state.meteorEvents = [];
+        state.skyNightBundles = [];
         state.skyEvents = [];
         state.tonightWindow = null;
         state.tonightTimeline = [];
-        state.skyGuide = [];
       }
       if (state.preview.active) {
         if (state.preview.mode === "pass") {
