@@ -881,7 +881,7 @@ function getEquatorialObservation(entry, date, observer) {
   }
 }
 
-function getVisibleConstellationGuides(date, lat, lon, skyContext = null) {
+function getVisibleConstellationGuides(date, lat, lon, skyContext = null, preferredConstellationId = "") {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return [];
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [];
 
@@ -891,7 +891,7 @@ function getVisibleConstellationGuides(date, lat, lon, skyContext = null) {
   const observer = new window.Astronomy.Observer(lat, lon, 0);
   const month = date.getMonth() + 1;
 
-  return CONSTELLATIONS
+  const guides = CONSTELLATIONS
     .map((constellation) => {
       if (!Array.isArray(constellation.guideStars) || !Array.isArray(constellation.segments)) return null;
 
@@ -947,8 +947,18 @@ function getVisibleConstellationGuides(date, lat, lon, skyContext = null) {
       || right.visibleSegments.length - left.visibleSegments.length
       || right.visibleStars.length - left.visibleStars.length
       || left.name.localeCompare(right.name)
-    ))
-    .slice(0, 2);
+    ));
+
+  if (!preferredConstellationId) {
+    return guides.slice(0, 2);
+  }
+
+  const preferred = guides.find((guide) => guide.id === preferredConstellationId);
+  if (!preferred) {
+    return guides.slice(0, 2);
+  }
+
+  return [preferred, ...guides.filter((guide) => guide.id !== preferredConstellationId)].slice(0, 2);
 }
 
 function isCatalogDateInRange(monthDay, year) {
@@ -1806,6 +1816,7 @@ function buildGuideEvents(lat, lon, startTs, endTs) {
     candidates.forEach((item) => {
       events.push({
         id: `guide-${item.id}-${window.startTs}`,
+        guideId: item.id,
         type: "guide-target",
         focusTs: item.when,
         start: item.when - 1800,
@@ -1817,6 +1828,8 @@ function buildGuideEvents(lat, lon, startTs, endTs) {
         title: item.title,
         meta: formatDateTime(new Date(item.when * 1000)),
         details: item.detail.replace(/^Best\s+/i, ""),
+        raHours: item.raHours,
+        decDeg: item.decDeg,
         moonPhase: getSkyContextAt(new Date(item.when * 1000), lat, lon).moonPhase || null,
         moonPhaseSummary: formatMoonPhaseLine(getSkyContextAt(new Date(item.when * 1000), lat, lon).moonPhase, "Moon"),
         moonlightSummary: `Moonlight: ${moonlightQualityLabel(getSkyContextAt(new Date(item.when * 1000), lat, lon).moonlightQuality)}`,
@@ -3494,6 +3507,38 @@ function updatePreviewBanner(viewState) {
   previewBanner.hidden = !viewState.bannerText;
 }
 
+function buildPreviewGuideItem(event) {
+  if (!event?.guideKind || !Number.isFinite(event.raHours) || !Number.isFinite(event.decDeg)) return null;
+  return {
+    id: event.guideId || event.id,
+    kind: event.guideKind,
+    title: event.title,
+    raHours: event.raHours,
+    decDeg: event.decDeg,
+    tier: event.visibilityTier || "naked-eye",
+    isSelectedPreview: true
+  };
+}
+
+function buildDrawableSkyGuideItems(previewGuideItem = null) {
+  const items = [];
+  const seen = new Set();
+  const tryPush = (item) => {
+    if (!item || item.kind === "constellation") return;
+    const key = item.id || `${item.kind}:${item.title}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    items.push(item);
+  };
+
+  tryPush(previewGuideItem);
+  state.skyGuide.forEach((item) => {
+    if (items.length >= 4) return;
+    tryPush(item);
+  });
+  return items.slice(0, 4);
+}
+
 function getBestPass(passes) {
   if (!passes.length) return null;
   return passes.reduce((best, pass) => {
@@ -3617,9 +3662,17 @@ function updateSkyCanvas() {
     const observer = window.Astronomy?.Observer
       ? new window.Astronomy.Observer(state.user.lat, state.user.lon, 0)
       : null;
-    const constellationGuides = getVisibleConstellationGuides(contextDate, state.user.lat, state.user.lon, skyContext);
+    const previewGuideItem = buildPreviewGuideItem(highlightedEvent);
+    const forcedConstellationId = previewGuideItem?.kind === "constellation" ? previewGuideItem.id : "";
+    const constellationGuides = getVisibleConstellationGuides(
+      contextDate,
+      state.user.lat,
+      state.user.lon,
+      skyContext,
+      forcedConstellationId
+    );
     const drawableSkyGuideItems = observer
-      ? state.skyGuide.filter((item) => item.kind !== "constellation").slice(0, 4)
+      ? buildDrawableSkyGuideItems(previewGuideItem)
       : [];
 
     if (skyContext.darkEnough && (constellationGuides.length || skyContext.visiblePlanets.length || skyContext.moon || drawableSkyGuideItems.length)) {
@@ -3765,8 +3818,24 @@ function updateSkyCanvas() {
         const obs = getEquatorialObservation({ raHours: item.raHours, decDeg: item.decDeg }, contextDate, observer);
         if (!obs || obs.elevation < 10) return;
         const point = toXY(obs.azimuth, obs.elevation);
-        ctx.strokeStyle = item.tier === "binoculars" ? "rgba(255, 196, 130, 0.92)" : "rgba(165, 240, 255, 0.92)";
-        ctx.lineWidth = 1.4;
+        const isSelectedGuide = Boolean(item.isSelectedPreview);
+        const guideStroke = isSelectedGuide
+          ? "rgba(180, 112, 255, 0.98)"
+          : item.tier === "binoculars"
+          ? "rgba(255, 196, 130, 0.92)"
+          : "rgba(165, 240, 255, 0.92)";
+        const guideBorder = isSelectedGuide
+          ? "rgba(180, 112, 255, 0.45)"
+          : item.tier === "binoculars"
+          ? "rgba(255, 196, 130, 0.4)"
+          : "rgba(126, 217, 255, 0.35)";
+        const guideLabelColor = isSelectedGuide
+          ? "#edd7ff"
+          : item.tier === "binoculars"
+          ? "#ffd9aa"
+          : "#b8f9ff";
+        ctx.strokeStyle = guideStroke;
+        ctx.lineWidth = isSelectedGuide ? 1.8 : 1.4;
         ctx.beginPath();
         ctx.moveTo(point.x - 4, point.y);
         ctx.lineTo(point.x + 4, point.y);
@@ -3778,9 +3847,9 @@ function updateSkyCanvas() {
         const box = placeLabel(label, point);
         ctx.fillStyle = "rgba(6, 12, 22, 0.7)";
         ctx.fillRect(box.x - 2, box.y - 1, box.width + 4, box.height + 2);
-        ctx.strokeStyle = item.tier === "binoculars" ? "rgba(255, 196, 130, 0.4)" : "rgba(126, 217, 255, 0.35)";
+        ctx.strokeStyle = guideBorder;
         ctx.strokeRect(box.x - 2, box.y - 1, box.width + 4, box.height + 2);
-        ctx.fillStyle = item.tier === "binoculars" ? "#ffd9aa" : "#b8f9ff";
+        ctx.fillStyle = guideLabelColor;
         ctx.fillText(label, box.x + 3, box.y + 10.5);
       });
 
