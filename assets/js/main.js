@@ -3484,6 +3484,11 @@ function resolveSkyViewState(nowTs = Math.floor(Date.now() / 1000)) {
 
 function updatePreviewBanner(viewState) {
   if (!previewBanner || !previewText || !previewExitButton) return;
+  if (!skyViewEl.classList.contains("active")) {
+    previewExitButton.hidden = true;
+    previewBanner.hidden = true;
+    return;
+  }
   previewText.textContent = viewState.bannerText || "";
   previewExitButton.hidden = !viewState.showExit;
   previewBanner.hidden = !viewState.bannerText;
@@ -4238,6 +4243,9 @@ function setActiveView(view) {
   }
   if (isSky) {
     updateSkyCanvas();
+  } else if (previewBanner) {
+    previewExitButton.hidden = true;
+    previewBanner.hidden = true;
   }
 }
 
