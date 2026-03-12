@@ -1,7 +1,7 @@
 
 import { state } from "./state.js";
 import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js";
-import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, tonightGridEl, passList, skyEventsList, actionStatusEl, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, previewBanner, previewText, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, conditionsList } from "./dom.js";
+import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, tonightGridEl, passList, skyEventsList, actionStatusEl, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, previewBanner, previewText, previewExitButton, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, conditionsList } from "./dom.js";
 import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js";
 import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js";
 
@@ -318,6 +318,30 @@ function getSkyEventWindowLabel(event) {
   if (event.skyWindow === "dawn") return "Morning peak";
   if (event.skyWindow === "evening") return "Evening peak";
   return "Viewing peak";
+}
+
+function getSkyEventDisplayLabel(event) {
+  if (!event) return "";
+  if (event.type === "group" && event.bodies?.length) {
+    return event.bodies.join(" + ");
+  }
+  return event.title;
+}
+
+function getEventFocusTs(event) {
+  return event?.focusTs || event?.start || 0;
+}
+
+function isPassActive(pass, nowTs) {
+  return Boolean(pass) && pass.start <= nowTs && pass.end >= nowTs;
+}
+
+function isSkyEventActive(event, nowTs) {
+  return Boolean(event) && event.start <= nowTs && event.end >= nowTs;
+}
+
+function formatPreviewMoment(timestampSec) {
+  return `${formatDateTime(new Date(timestampSec * 1000))} local`;
 }
 
 function buildPassShareMessage(pass) {
@@ -707,11 +731,15 @@ function getTonightWindow(lat, lon, now = new Date()) {
   let start = todayTimes.sunset;
   let end = tomorrowTimes.sunrise;
   let phase = "upcoming";
+  let duskTimes = todayTimes;
+  let dawnTimes = tomorrowTimes;
 
   if (now < todayTimes.sunrise) {
     start = yesterdayTimes.sunset;
     end = todayTimes.sunrise;
     phase = "pre-dawn";
+    duskTimes = yesterdayTimes;
+    dawnTimes = todayTimes;
   } else if (now >= todayTimes.sunset) {
     start = todayTimes.sunset;
     end = tomorrowTimes.sunrise;
@@ -722,14 +750,14 @@ function getTonightWindow(lat, lon, now = new Date()) {
     startTs: Math.floor(start.getTime() / 1000),
     endTs: Math.floor(end.getTime() / 1000),
     phase,
-    sunset: todayTimes.sunset,
-    civilDusk: todayTimes.dusk,
-    nauticalDusk: todayTimes.nauticalDusk,
-    astronomicalDusk: todayTimes.night,
-    civilDawn: tomorrowTimes.dawn,
-    nauticalDawn: tomorrowTimes.nauticalDawn,
-    astronomicalDawn: tomorrowTimes.nightEnd,
-    sunrise: tomorrowTimes.sunrise
+    sunset: duskTimes.sunset,
+    civilDusk: duskTimes.dusk,
+    nauticalDusk: duskTimes.nauticalDusk,
+    astronomicalDusk: duskTimes.night,
+    civilDawn: dawnTimes.dawn,
+    nauticalDawn: dawnTimes.nauticalDawn,
+    astronomicalDawn: dawnTimes.nightEnd,
+    sunrise: dawnTimes.sunrise
   };
 }
 
@@ -1803,16 +1831,53 @@ function buildGuideEvents(lat, lon, startTs, endTs) {
   return events;
 }
 
-function buildTonightScheduleEntries(lat, lon, tonightWindow, snapshot) {
+function selectTonightPass(passes, tonightWindow, nowTs) {
+  const tonightPasses = passes.filter((pass) => pass.start >= tonightWindow.startTs && pass.start <= tonightWindow.endTs);
+  const activePass = tonightPasses.find((pass) => isPassActive(pass, nowTs)) || null;
+  if (activePass) {
+    return { pass: activePass, status: "active" };
+  }
+
+  const upcomingPass = tonightPasses.find((pass) => pass.end >= nowTs) || null;
+  if (upcomingPass) {
+    return { pass: upcomingPass, status: "upcoming" };
+  }
+
+  return { pass: null, status: "none" };
+}
+
+function selectTonightSkyEvent(events, tonightWindow, nowTs) {
+  const tonightEvents = events.filter((event) => {
+    const focusTs = getEventFocusTs(event);
+    return focusTs >= tonightWindow.startTs && focusTs <= tonightWindow.endTs && (event.end || focusTs) >= tonightWindow.startTs;
+  });
+
+  const activeEvent = tonightEvents
+    .filter((event) => isSkyEventActive(event, nowTs))
+    .sort((left, right) => (right.rankScore || 0) - (left.rankScore || 0) || (left.end || getEventFocusTs(left)) - (right.end || getEventFocusTs(right)))[0] || null;
+  if (activeEvent) {
+    return { event: activeEvent, status: "active" };
+  }
+
+  const upcomingEvent = tonightEvents
+    .filter((event) => (event.end || getEventFocusTs(event)) >= nowTs)
+    .sort((left, right) => (right.rankScore || 0) - (left.rankScore || 0) || getEventFocusTs(left) - getEventFocusTs(right))[0] || null;
+  if (upcomingEvent) {
+    return { event: upcomingEvent, status: "upcoming" };
+  }
+
+  return { event: null, status: "none" };
+}
+
+function buildTonightScheduleEntries(lat, lon, tonightWindow, snapshot, nowTs = Math.floor(Date.now() / 1000)) {
   const entries = [];
-  const timelineStartTs = Math.max(Math.floor(Date.now() / 1000), tonightWindow.startTs);
+  const timelineStartTs = Math.max(nowTs, tonightWindow.startTs);
   const pushEntry = (timestamp, label, sub, tone = "default") => {
     if (!timestamp) return;
     if (timestamp < timelineStartTs || timestamp > tonightWindow.endTs) return;
     entries.push({ timestamp, label, sub, tone });
   };
 
-  const nowTs = Math.floor(Date.now() / 1000);
   const maybePush = (date, label, sub, tone) => {
     if (!(date instanceof Date)) return;
     const ts = Math.floor(date.getTime() / 1000);
@@ -1823,17 +1888,24 @@ function buildTonightScheduleEntries(lat, lon, tonightWindow, snapshot) {
   maybePush(tonightWindow.civilDusk, "Civil dusk", "Bright planets begin to pop", "twilight");
   maybePush(tonightWindow.astronomicalDusk, "Astronomical dark", "Deep-sky viewing improves", "dark");
 
-  const timesToday = SunCalc.getTimes(new Date(), lat, lon);
   const moonTimes = SunCalc.getMoonTimes(new Date(), lat, lon, true);
   if (moonTimes?.rise instanceof Date) maybePush(moonTimes.rise, "Moonrise", "Moonlight increases", "moon");
   if (moonTimes?.set instanceof Date) maybePush(moonTimes.set, "Moonset", "Skies darken", "moon");
 
   if (snapshot.issTonight?.pass) {
-    pushEntry(snapshot.issTonight.pass.start, "ISS pass begins", `Max ${snapshot.issTonight.pass.maxEl.toFixed(0)}° • ${snapshot.issTonight.pass.duration} min`, "iss");
+    if (snapshot.issTonight.status === "active") {
+      pushEntry(nowTs, "ISS pass in progress", `Started ${formatTime(new Date(snapshot.issTonight.pass.start * 1000))} • Max ${snapshot.issTonight.pass.maxEl.toFixed(0)}° • ${snapshot.issTonight.pass.duration} min`, "iss");
+    } else {
+      pushEntry(snapshot.issTonight.pass.start, "ISS pass begins", `Max ${snapshot.issTonight.pass.maxEl.toFixed(0)}° • ${snapshot.issTonight.pass.duration} min`, "iss");
+    }
   }
   if (snapshot.skyTonight?.event) {
     const focusTs = snapshot.skyTonight.event.focusTs || snapshot.skyTonight.event.start;
-    pushEntry(focusTs, snapshot.skyTonight.event.title, `${getSkyEventWindowLabel(snapshot.skyTonight.event)} • ${snapshot.skyTonight.event.details}`, "event");
+    if (snapshot.skyTonight.status === "active") {
+      pushEntry(nowTs, `${getSkyEventDisplayLabel(snapshot.skyTonight.event)} now`, `Started ${formatTime(new Date(snapshot.skyTonight.event.start * 1000))} • ${snapshot.skyTonight.event.details}`, "event");
+    } else {
+      pushEntry(focusTs, snapshot.skyTonight.event.title, `${getSkyEventWindowLabel(snapshot.skyTonight.event)} • ${snapshot.skyTonight.event.details}`, "event");
+    }
   }
 
   const clearWindow = findClearestWindow(timelineStartTs, tonightWindow.endTs);
@@ -1849,11 +1921,11 @@ function buildTonightScheduleEntries(lat, lon, tonightWindow, snapshot) {
     .slice(0, 9);
 }
 
-function buildTonightSnapshot() {
+function buildTonightSnapshot(referenceDate = new Date()) {
   if (!state.user) {
     return {
-      issTonight: { pass: null, nextPass: null },
-      skyTonight: { event: null, nextEvent: null },
+      issTonight: { pass: null, nextPass: null, status: "none" },
+      skyTonight: { event: null, nextEvent: null, status: "none" },
       moonTonight: null,
       weatherTonight: { summary: null, clearestWindow: null, error: null },
       scheduleEntries: [],
@@ -1861,33 +1933,35 @@ function buildTonightSnapshot() {
     };
   }
 
-  const nowTs = Date.now() / 1000;
-  const windowInfo = getTonightWindow(state.user.lat, state.user.lon, new Date());
+  const nowTs = Math.floor(referenceDate.getTime() / 1000);
+  const windowInfo = getTonightWindow(state.user.lat, state.user.lon, referenceDate);
   const tonightStartTs = Math.max(nowTs, windowInfo.startTs);
   const tonightEndTs = windowInfo.endTs;
-  const eventFocus = (event) => event?.focusTs || event?.start || 0;
+  const tonightPassSelection = selectTonightPass(state.goodPasses, windowInfo, nowTs);
+  const tonightEventSelection = selectTonightSkyEvent(state.skyEvents, windowInfo, nowTs);
 
-  const tonightPass = state.goodPasses.find((pass) => pass.start >= tonightStartTs && pass.start <= tonightEndTs) || null;
+  const tonightPass = tonightPassSelection.pass;
   const nextPass = state.goodPasses.find((pass) => pass.start > tonightEndTs) || state.goodPasses[0] || null;
-  const tonightEvent = state.skyEvents
-    .filter((event) => eventFocus(event) >= tonightStartTs && eventFocus(event) <= tonightEndTs)
-    .sort((left, right) => (right.rankScore || 0) - (left.rankScore || 0) || eventFocus(left) - eventFocus(right))[0] || null;
-  const nextEvent = state.skyEvents.find((event) => eventFocus(event) > tonightEndTs) || state.skyEvents[0] || null;
-  const moonFocusTs = tonightPass?.peakPoint?.timestamp || tonightEvent?.focusTs || tonightStartTs;
+  const tonightEvent = tonightEventSelection.event;
+  const nextEvent = state.skyEvents.find((event) => getEventFocusTs(event) > tonightEndTs) || state.skyEvents[0] || null;
+  const hasActiveSelection = tonightPassSelection.status === "active" || tonightEventSelection.status === "active";
+  const moonFocusTs = hasActiveSelection
+    ? nowTs
+    : tonightPass?.peakPoint?.timestamp || getEventFocusTs(tonightEvent) || tonightStartTs;
   const moonContext = getSkyContextAt(new Date(moonFocusTs * 1000), state.user.lat, state.user.lon);
   const weatherSummary = summarizeWeatherWindow(tonightStartTs, tonightEndTs);
   const clearestWindow = findClearestWindow(tonightStartTs, tonightEndTs);
 
   const snapshot = {
-    issTonight: { pass: tonightPass, nextPass },
-    skyTonight: { event: tonightEvent, nextEvent },
+    issTonight: { pass: tonightPass, nextPass, status: tonightPassSelection.status },
+    skyTonight: { event: tonightEvent, nextEvent, status: tonightEventSelection.status },
     moonTonight: { context: moonContext, focusTs: moonFocusTs },
     weatherTonight: { summary: weatherSummary, clearestWindow, error: state.weather.error },
     scheduleEntries: [],
     window: windowInfo
   };
 
-  snapshot.scheduleEntries = buildTonightScheduleEntries(state.user.lat, state.user.lon, windowInfo, snapshot);
+  snapshot.scheduleEntries = buildTonightScheduleEntries(state.user.lat, state.user.lon, windowInfo, snapshot, nowTs);
   return snapshot;
 }
 
@@ -2376,6 +2450,8 @@ function updateTonightHighlights() {
   const nextPass = snapshot.issTonight.nextPass;
   const tonightEvent = snapshot.skyTonight.event;
   const nextSkyEvent = snapshot.skyTonight.nextEvent;
+  const tonightPassStatus = snapshot.issTonight.status;
+  const tonightEventStatus = snapshot.skyTonight.status;
   state.tonight.pass = tonightPass;
   state.tonight.skyEvent = tonightEvent;
   state.tonightWindow = snapshot.window;
@@ -2385,8 +2461,13 @@ function updateTonightHighlights() {
   }
 
   if (tonightPass) {
-    tonightIss.textContent = formatTonightMoment(tonightPass.start);
-    tonightIssMeta.textContent = `Max ${tonightPass.maxEl.toFixed(0)}° • Visible ${tonightPass.duration} min`;
+    if (tonightPassStatus === "active") {
+      tonightIss.textContent = "Happening now";
+      tonightIssMeta.textContent = `Started ${formatTime(new Date(tonightPass.start * 1000))} • Max ${tonightPass.maxEl.toFixed(0)}° • Visible ${tonightPass.duration} min`;
+    } else {
+      tonightIss.textContent = formatTonightMoment(tonightPass.start);
+      tonightIssMeta.textContent = `Max ${tonightPass.maxEl.toFixed(0)}° • Visible ${tonightPass.duration} min`;
+    }
   } else {
     tonightIss.textContent = "No ISS pass tonight";
     tonightIssMeta.textContent = nextPass
@@ -2395,11 +2476,13 @@ function updateTonightHighlights() {
   }
 
   if (tonightEvent) {
-    const eventLabel = tonightEvent.type === "group" && tonightEvent.bodies?.length
-      ? tonightEvent.bodies.join(" + ")
-      : tonightEvent.title;
+    const eventLabel = getSkyEventDisplayLabel(tonightEvent);
     tonightSky.textContent = eventLabel;
-    tonightSkyMeta.textContent = `${getSkyEventWindowLabel(tonightEvent)} • ${formatTonightMoment(tonightEvent.focusTs || tonightEvent.start)} • ${tonightEvent.details}`;
+    if (tonightEventStatus === "active") {
+      tonightSkyMeta.textContent = `Happening now • Started ${formatTime(new Date(tonightEvent.start * 1000))} • ${tonightEvent.details}`;
+    } else {
+      tonightSkyMeta.textContent = `${getSkyEventWindowLabel(tonightEvent)} • ${formatTonightMoment(tonightEvent.focusTs || tonightEvent.start)} • ${tonightEvent.details}`;
+    }
   } else {
     tonightSky.textContent = "No standout sky event tonight";
     tonightSkyMeta.textContent = nextSkyEvent
@@ -3311,22 +3394,99 @@ function updateNextVisible() {
   state.nextVisible = upcoming[0] || null;
 }
 
-function getLiveSkyFocusDate() {
-  if (!state.user || !state.tonightSnapshot?.window) return new Date();
-  const now = new Date();
-  const nowContext = getSkyContextAt(now, state.user.lat, state.user.lon);
-  if (nowContext.darkEnough) return now;
+function resolveSkyViewState(nowTs = Math.floor(Date.now() / 1000)) {
+  const nowDate = new Date(nowTs * 1000);
+  const emptyState = {
+    mode: "live-now",
+    contextDate: nowDate,
+    skyPass: null,
+    skyEvent: null,
+    bannerText: "",
+    showExit: false
+  };
+  if (!state.user) return emptyState;
 
-  const focusTs =
-    state.tonightSnapshot.skyTonight?.event?.focusTs ||
-    state.tonightSnapshot.skyTonight?.event?.start ||
-    state.tonightSnapshot.issTonight?.pass?.peakPoint?.timestamp ||
-    state.tonightSnapshot.issTonight?.pass?.start ||
-    (state.tonightSnapshot.window.civilDusk instanceof Date ? Math.floor(state.tonightSnapshot.window.civilDusk.getTime() / 1000) : 0) ||
-    (state.tonightSnapshot.window.astronomicalDusk instanceof Date ? Math.floor(state.tonightSnapshot.window.astronomicalDusk.getTime() / 1000) : 0) ||
-    (state.tonightSnapshot.window.sunset instanceof Date ? Math.floor(state.tonightSnapshot.window.sunset.getTime() / 1000) : 0);
+  if (state.preview.active && state.preview.mode === "pass" && state.preview.pass) {
+    return {
+      mode: "manual-pass",
+      contextDate: new Date((state.preview.pass.peakPoint?.timestamp || state.preview.pass.start) * 1000),
+      skyPass: state.preview.pass,
+      skyEvent: null,
+      bannerText: `Previewing pass ${formatDateTime(new Date(state.preview.pass.start * 1000))}`,
+      showExit: true
+    };
+  }
 
-  return focusTs ? new Date(focusTs * 1000) : now;
+  if (state.preview.active && state.preview.mode === "event" && state.preview.skyEvent) {
+    const previewTs = getEventFocusTs(state.preview.skyEvent);
+    return {
+      mode: "manual-event",
+      contextDate: new Date(previewTs * 1000),
+      skyPass: null,
+      skyEvent: state.preview.skyEvent,
+      bannerText: `Previewing sky ${formatDateTime(new Date(previewTs * 1000))}`,
+      showExit: true
+    };
+  }
+
+  const snapshot = state.tonightSnapshot || buildTonightSnapshot(nowDate);
+  const activePass = snapshot.issTonight?.status === "active" ? snapshot.issTonight.pass : null;
+  if (activePass) {
+    return {
+      mode: "active-pass",
+      contextDate: nowDate,
+      skyPass: activePass,
+      skyEvent: null,
+      bannerText: "",
+      showExit: false
+    };
+  }
+
+  const activeEvent = snapshot.skyTonight?.status === "active" ? snapshot.skyTonight.event : null;
+  if (activeEvent) {
+    return {
+      mode: "active-event",
+      contextDate: nowDate,
+      skyPass: null,
+      skyEvent: activeEvent,
+      bannerText: "",
+      showExit: false
+    };
+  }
+
+  const upcomingPass = snapshot.issTonight?.status === "upcoming" ? snapshot.issTonight.pass : null;
+  if (upcomingPass) {
+    return {
+      mode: "auto-pass",
+      contextDate: new Date((upcomingPass.peakPoint?.timestamp || upcomingPass.start) * 1000),
+      skyPass: upcomingPass,
+      skyEvent: null,
+      bannerText: `Tonight preview: ISS pass ${formatPreviewMoment(upcomingPass.start)}`,
+      showExit: false
+    };
+  }
+
+  const upcomingEvent = snapshot.skyTonight?.status === "upcoming" ? snapshot.skyTonight.event : null;
+  if (upcomingEvent) {
+    const focusTs = getEventFocusTs(upcomingEvent);
+    return {
+      mode: "auto-event",
+      contextDate: new Date(focusTs * 1000),
+      skyPass: null,
+      skyEvent: upcomingEvent,
+      bannerText: `Tonight preview: ${getSkyEventDisplayLabel(upcomingEvent)} ${formatPreviewMoment(focusTs)}`,
+      showExit: false
+    };
+  }
+
+  return emptyState;
+}
+
+function updatePreviewBanner(viewState) {
+  if (!previewBanner || !previewText || !previewExitButton) return;
+  previewText.textContent = viewState.bannerText || "";
+  previewExitButton.hidden = !viewState.showExit;
+  previewBanner.hidden = !viewState.bannerText;
 }
 
 function getBestPass(passes) {
@@ -3349,8 +3509,6 @@ function setPreviewPass(pass) {
   state.preview.skyEvent = null;
   renderPassList();
   renderSkyEventsList();
-  previewText.textContent = `Previewing pass ${formatDateTime(new Date(pass.start * 1000))}`;
-  previewBanner.hidden = false;
   setActiveView("sky");
   updateSkyCanvas();
 }
@@ -3363,9 +3521,6 @@ function setSkyEventPreview(event) {
   state.preview.skyEvent = event;
   renderPassList();
   renderSkyEventsList();
-  const previewTs = event.focusTs || event.start;
-  previewText.textContent = `Previewing sky ${formatDateTime(new Date(previewTs * 1000))}`;
-  previewBanner.hidden = false;
   setActiveView("sky");
   updateSkyCanvas();
 }
@@ -3377,7 +3532,6 @@ function clearPreview() {
   state.preview.skyEvent = null;
   renderPassList();
   renderSkyEventsList();
-  previewBanner.hidden = true;
   updateSkyCanvas();
 }
 
@@ -3447,14 +3601,11 @@ function updateSkyCanvas() {
     ctx.fillText(d.label, Math.sin(angle) * r - 4, -Math.cos(angle) * r + 4);
   });
 
-  const previewMode = state.preview.active ? state.preview.mode : "live";
-  const skyPass = previewMode === "pass" ? state.preview.pass : previewMode === "event" ? null : state.tonight.pass;
-  const previewEvent = previewMode === "event" ? state.preview.skyEvent : null;
-  const contextDate = previewMode === "pass" && state.preview.pass
-    ? new Date((state.preview.pass.peakPoint?.timestamp || state.preview.pass.start) * 1000)
-      : previewMode === "event" && previewEvent
-      ? new Date((previewEvent.focusTs || previewEvent.start) * 1000)
-      : getLiveSkyFocusDate();
+  const viewState = resolveSkyViewState();
+  const skyPass = viewState.skyPass;
+  const highlightedEvent = viewState.skyEvent;
+  const contextDate = viewState.contextDate;
+  updatePreviewBanner(viewState);
 
   if (state.user) {
     const skyContext = getSkyContextAt(contextDate, state.user.lat, state.user.lon);
@@ -3520,7 +3671,7 @@ function updateSkyCanvas() {
         labelBoxes.push(choice);
         return choice;
       };
-      const highlightedBodies = previewEvent?.bodies ? new Set(previewEvent.bodies) : null;
+      const highlightedBodies = highlightedEvent?.bodies ? new Set(highlightedEvent.bodies) : null;
       const pendingConstellationLabels = [];
       const drawTarget = (target, size) => {
         const point = toXY(target.azimuth, target.elevation);
@@ -3699,8 +3850,8 @@ function updateSkyCanvas() {
     }
   }
 
-  if (state.preview.active && state.preview.pass?.peakPoint) {
-    const pt = state.preview.pass.peakPoint;
+  if (viewState.mode === "manual-pass" && skyPass?.peakPoint) {
+    const pt = skyPass.peakPoint;
     const { x, y } = toXY(pt.azimuth, pt.elevation);
     ctx.fillStyle = "rgba(155, 92, 255, 0.95)";
     ctx.beginPath();

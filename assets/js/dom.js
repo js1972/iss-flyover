@@ -20,6 +20,7 @@ export const skyPanelEl = document.getElementById("sky-panel");
 export const conditionsPanelEl = document.getElementById("conditions-panel");
 export const previewBanner = document.getElementById("preview-banner");
 export const previewText = document.getElementById("preview-text");
+export const previewExitButton = document.getElementById("preview-exit");
 export const shareToast = document.getElementById("share-toast");
 export const refreshButton = document.getElementById("refresh");
 export const timelinePanel = document.getElementById("timeline-panel");
