@@ -1763,10 +1763,7 @@ function renderSkyEventsList() {
     const moonPct = Number.isFinite(topEvent.moonPhase?.illuminationPct) ? `${topEvent.moonPhase.illuminationPct}% moon` : "Moon unknown";
     const extraCount = Math.max(0, bundle.highlights.length - 1);
     const hasSecondaryItems = extraCount > 0;
-    const expanded = hasSecondaryItems && (
-      state.ui.expandedSkyDayKeys.has(bundle.observingNightKey)
-      || bundle.highlights.some((event) => !event.isTopOfNight && event.id === selectedEventId)
-    );
+    const expanded = hasSecondaryItems && state.ui.expandedSkyDayKeys.has(bundle.observingNightKey);
     const wrapper = document.createElement("div");
     wrapper.className = `sky-day-group${bundle.isBestNight ? " best-night" : ""}`;
     wrapper.innerHTML = `
@@ -4316,6 +4313,9 @@ async function refreshAll(options = {}) {
           const matchEvent = state.skyEvents.find((event) => event.id === state.preview.skyEvent?.id);
           if (matchEvent) {
             state.preview.skyEvent = matchEvent;
+            if (matchEvent.observingNightKey && !matchEvent.isTopOfNight) {
+              state.ui.expandedSkyDayKeys.add(matchEvent.observingNightKey);
+            }
           } else {
             clearPreview();
           }
