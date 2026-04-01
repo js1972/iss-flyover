@@ -9,21 +9,19 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="ISS Flyover" />
-  <link rel="manifest" href="manifest.webmanifest?v=2" />
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png?v=1" />
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32x32.png?v=1" />
-  <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16x16.png?v=1" />
-  <link rel="shortcut icon" href="assets/icons/favicon.ico?v=1" />
+  <link rel="manifest" href="manifest.webmanifest?v=2026.04.01-robustness.1" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png?v=2026.04.01-robustness.1" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32x32.png?v=2026.04.01-robustness.1" />
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16x16.png?v=2026.04.01-robustness.1" />
+  <link rel="shortcut icon" href="assets/icons/favicon.ico?v=2026.04.01-robustness.1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link
     rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""
+    href="assets/vendor/leaflet/leaflet.css?v=2026.04.01-robustness.1"
   />
-  <link rel="stylesheet" href="assets/css/app.css" />
+  <link rel="stylesheet" href="assets/css/app.css?v=2026.04.01-robustness.1" />
 </head>
 <body>
   <div class="boot-overlay" id="boot-overlay" role="status" aria-live="polite" aria-atomic="true">
@@ -61,7 +59,13 @@
               <span class="visually-hidden">Use my location</span>
             </button>
           </div>
-          <div class="action-status visually-hidden" id="action-status" aria-live="polite">Awaiting first update...</div>
+          <div class="action-status" id="action-status" aria-live="polite" hidden>
+            <div class="action-status__copy">
+              <div class="action-status__label" id="action-status-label">Awaiting first update...</div>
+              <div class="action-status__meta" id="action-status-meta" hidden></div>
+            </div>
+            <button class="tertiary action-status__action" id="action-status-action" type="button" hidden>Retry refresh</button>
+          </div>
         </div>
       </div>
     </header>
@@ -137,6 +141,9 @@
     </div>
 
     <section class="viewer" id="viewer-panel">
+      <div class="viewer-status-stack">
+        <div class="panel-inline-status panel-inline-status--overlay" id="track-status" hidden></div>
+      </div>
       <div id="map" class="view-panel" aria-label="ISS ground track map"></div>
       <div id="globe-view" class="view-panel" aria-label="ISS globe view">
         <div id="globe"></div>
@@ -158,6 +165,7 @@
           </div>
         </div>
         <div class="stat-sub forecast-note" id="forecast-note">Sky highlights show naked-eye planets plus moon phase context. ISS Best remains based on ISS visibility.</div>
+        <div class="panel-inline-status" id="forecast-status" hidden></div>
         <div class="pass-list" id="pass-list">
           <div class="pass-item">
             <div>
@@ -195,6 +203,7 @@
           <h3 class="panel-title">Observing Conditions Tonight</h3>
         </div>
         <div class="stat-sub guide-note">Weather, clearest window, and moonlight conditions for stepping outside.</div>
+        <div class="panel-inline-status" id="conditions-status" hidden></div>
         <div class="conditions-list" id="conditions-list">
           <div class="condition-item">
             <p class="pass-title">Waiting for forecast…</p>
@@ -269,11 +278,11 @@
   </div>
   <div class="toast" id="share-toast"></div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
-  <script src="https://unpkg.com/three@0.155.0/build/three.min.js"></script>
-  <script src="https://unpkg.com/three@0.155.0/examples/js/controls/OrbitControls.js"></script>
-  <script type="module" src="assets/js/main.js"></script>
+  <script src="assets/vendor/leaflet/leaflet.js?v=2026.04.01-robustness.1"></script>
+  <script src="assets/vendor/suncalc/suncalc.js?v=2026.04.01-robustness.1"></script>
+  <script src="assets/vendor/astronomy/astronomy.browser.min.js?v=2026.04.01-robustness.1"></script>
+  <script src="assets/vendor/three/three.min.js?v=2026.04.01-robustness.1"></script>
+  <script src="assets/vendor/three/OrbitControls.js?v=2026.04.01-robustness.1"></script>
+  <script type="module" src="assets/js/main.js?v=2026.04.01-robustness.1"></script>
 </body>
 </html>

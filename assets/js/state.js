@@ -1,3 +1,5 @@
+import { createHealthState } from "./status.js";
+
 export const state =  {
   user: null,
   iss: null,
@@ -60,6 +62,7 @@ export const state =  {
     compactMobile: null,
     narrowMobile: null
   },
+  health: createHealthState(),
   ui: {
     refreshing: false,
     refreshPromise: null,
@@ -72,6 +75,11 @@ export const state =  {
     bootError: null,
     lastSuccessfulRefreshAt: 0,
     lastRefreshLocalDate: "",
-    expandedSkyDayKeys: new Set()
+    expandedSkyDayKeys: new Set(),
+    appVersion: {
+      current: "",
+      latest: "",
+      updateAvailable: false
+    }
   }
 };

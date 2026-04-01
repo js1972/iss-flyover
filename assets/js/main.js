@@ -1,13 +1,27 @@
 
 import { state } from "./state.js";
-import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js";
-import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, tonightGridEl, passList, skyEventsList, actionStatusEl, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, previewBanner, previewText, previewExitButton, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, conditionsList } from "./dom.js";
+import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, ISS_TLE_FALLBACK_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js";
+import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, tonightGridEl, passList, skyEventsList, actionStatusEl, actionStatusLabelEl, actionStatusMetaEl, actionStatusActionEl, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, forecastStatusEl, skyPanelEl, conditionsPanelEl, trackStatusEl, conditionsStatusEl, previewBanner, previewText, previewExitButton, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, conditionsList } from "./dom.js";
 import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js";
 import { fetchJson } from "./network.js";
 import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js";
-import * as satelliteLib from "https://unpkg.com/satellite.js@7.0.0/dist/index.js";
+import { beginSourceAttempt, hasUsableData, markSourceDegraded, markSourceOk, markSourceUnavailable, setHealthBanner } from "./status.js";
+import { APP_VERSION, ASSET_VERSION, DEPLOYED_AT } from "./version.js";
 
 const AUTO_REFRESH_STALE_MS = 15 * 60 * 1000;
+const VERSION_URL = `./version.json?v=${encodeURIComponent(ASSET_VERSION)}`;
+const SATELLITE_VENDOR_URL = `../vendor/satellite/index.js?v=${encodeURIComponent(ASSET_VERSION)}`;
+const LOCATION_STALE_MS = 6 * 60 * 60 * 1000;
+const SATELLITE_TLE_STALE_MS = 6 * 3600 * 1000;
+const TRACK_FALLBACK_LIMIT = 10;
+const UNKNOWN_MOON_PHASE = {
+  phaseValue: 0,
+  illuminationPct: 0,
+  name: "Unavailable",
+  icon: "○"
+};
+let satelliteLib = null;
+let satelliteLibPromise = null;
 const AU_STATE_CODES = {
   "Western Australia": "WA",
   "New South Wales": "NSW",
@@ -37,6 +51,389 @@ const BOOT_STAGE_COPY = {
     meta: "Rendering tonight cards, schedules, and forecast lists."
   }
 };
+
+function getHealthSource(key) {
+  return state.health.sources[key];
+}
+
+function hasSunCalcRuntime() {
+  return Boolean(window.SunCalc?.getPosition && window.SunCalc?.getMoonPosition && window.SunCalc?.getMoonIllumination && window.SunCalc?.getTimes && window.SunCalc?.getMoonTimes);
+}
+
+function hasAstronomyRuntime() {
+  return Boolean(window.Astronomy?.Observer);
+}
+
+function hasLeafletRuntime() {
+  return Boolean(window.L?.map && window.L?.marker && window.L?.polyline);
+}
+
+function hasThreeRuntime() {
+  return Boolean(window.THREE?.WebGLRenderer);
+}
+
+function hasForecastRuntime() {
+  return hasSunCalcRuntime();
+}
+
+function getStatusTimestampLabel(timestamp) {
+  return timestamp ? `${formatTime(new Date(timestamp))} local` : "";
+}
+
+function formatStatusAge(timestamp) {
+  if (!timestamp) return "not yet loaded";
+  const deltaMinutes = Math.max(0, Math.round((Date.now() - timestamp) / 60000));
+  if (deltaMinutes < 1) return "just now";
+  if (deltaMinutes < 60) return `${deltaMinutes} min ago`;
+  const hours = Math.round(deltaMinutes / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
+function describeLocationAccuracy(source = "") {
+  if (/Device location/i.test(source)) return "Precise device location";
+  if (/approximate/i.test(source) || /IP location/i.test(source)) return "Approximate location";
+  if (/Manual coordinates/i.test(source)) return "Manual location";
+  if (/Saved location/i.test(source)) return "Saved location";
+  return source || "Location source";
+}
+
+function getSavedLocationAge() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return 0;
+    const data = JSON.parse(raw);
+    return Number.isFinite(data?.savedAt) ? data.savedAt : 0;
+  } catch (error) {
+    return 0;
+  }
+}
+
+function getCurrentLocationAccuracy() {
+  if (!state.user) return "";
+  if (/Device location/i.test(state.user.source)) return "precise";
+  if (/approximate/i.test(state.user.source) || /IP location/i.test(state.user.source)) return "approximate";
+  if (/Manual coordinates/i.test(state.user.source)) return "manual";
+  return "saved";
+}
+
+function buildSourceReason(source, fallbackReason = "") {
+  if (source.reason) return source.reason;
+  return fallbackReason;
+}
+
+function setInlineStatus(element, { level = "info", message = "", meta = "", hidden = false } = {}) {
+  if (!element) return;
+  element.hidden = hidden || (!message && !meta);
+  if (element.hidden) {
+    element.textContent = "";
+    element.removeAttribute("data-level");
+    return;
+  }
+  element.dataset.level = level;
+  element.innerHTML = `
+    <span class="panel-inline-status__message">${message}</span>
+    ${meta ? `<span class="panel-inline-status__meta">${meta}</span>` : ""}
+  `;
+}
+
+function resolveBannerState() {
+  const forecast = getHealthSource("forecast");
+  const track = getHealthSource("track");
+  const weather = getHealthSource("weather");
+  const location = getHealthSource("location");
+  const appVersion = getHealthSource("appVersion");
+
+  if (state.ui.appVersion.updateAvailable) {
+    return {
+      level: "warning",
+      message: "A newer app version is available.",
+      meta: "Reload to avoid stale cached logic or outdated data handling.",
+      action: { key: "reload-app", label: "Reload app" },
+      hidden: false
+    };
+  }
+
+  if (forecast.status === "unavailable") {
+    const staleMeta = forecast.lastSuccessAt
+      ? `Showing the last successful forecast from ${getStatusTimestampLabel(forecast.lastSuccessAt)}.`
+      : "No reliable ISS forecast is currently available.";
+    return {
+      level: "danger",
+      message: "ISS forecast unavailable.",
+      meta: `${buildSourceReason(forecast, "Live orbit calculations failed.")} ${staleMeta}`.trim(),
+      action: { key: "retry-refresh", label: "Retry refresh" },
+      hidden: false
+    };
+  }
+
+  if (forecast.status === "degraded") {
+    return {
+      level: "warning",
+      message: "ISS forecast is degraded.",
+      meta: buildSourceReason(forecast, "Using the last successful forecast while live refresh is unavailable."),
+      action: { key: "retry-refresh", label: "Retry refresh" },
+      hidden: false
+    };
+  }
+
+  if (track.status === "degraded" || track.status === "unavailable") {
+    const isLimitedTrack = track.accuracy === "positions-fallback";
+    return {
+      level: track.status === "unavailable" ? "danger" : "warning",
+      message: track.status === "unavailable"
+        ? "Orbit track unavailable."
+        : isLimitedTrack
+        ? "Orbit track is limited."
+        : "Orbit track is using a fallback source.",
+      meta: buildSourceReason(track, isLimitedTrack
+        ? "Track rendering is using limited fallback data."
+        : "Track rendering is using an alternate live source."),
+      action: { key: "retry-refresh", label: "Retry refresh" },
+      hidden: false
+    };
+  }
+
+  if (location.status === "degraded") {
+    return {
+      level: "warning",
+      message: describeLocationAccuracy(state.user?.source),
+      meta: buildSourceReason(location, "Location accuracy is reduced, so local pass timing may shift."),
+      action: { key: "request-precise-location", label: "Use precise location" },
+      hidden: false
+    };
+  }
+
+  if (weather.status === "unavailable") {
+    return {
+      level: "info",
+      message: "ISS forecast is current.",
+      meta: "Weather details are temporarily unavailable, but pass timing is still valid.",
+      action: { key: "retry-refresh", label: "Retry refresh" },
+      hidden: false
+    };
+  }
+
+  return {
+    level: "info",
+    message: "Live sky data is current.",
+    meta: state.ui.lastSuccessfulRefreshAt
+      ? `Updated ${getStatusTimestampLabel(state.ui.lastSuccessfulRefreshAt)} using ${describeLocationAccuracy(state.user?.source || "saved location").toLowerCase()}.`
+      : "Awaiting first successful refresh.",
+    action: null,
+    hidden: !state.ui.hasCompletedInitialLoad && !state.ui.refreshing
+  };
+}
+
+function syncHealthBanner() {
+  const banner = resolveBannerState();
+  setHealthBanner(state.health, banner);
+  if (!actionStatusEl || !actionStatusLabelEl || !actionStatusMetaEl || !actionStatusActionEl) return;
+  actionStatusEl.hidden = banner.hidden;
+  actionStatusEl.dataset.level = banner.level;
+  actionStatusLabelEl.textContent = banner.message;
+  actionStatusMetaEl.textContent = banner.meta || "";
+  actionStatusMetaEl.hidden = !banner.meta;
+  if (banner.action) {
+    actionStatusActionEl.hidden = false;
+    actionStatusActionEl.textContent = banner.action.label;
+    actionStatusActionEl.dataset.action = banner.action.key;
+  } else {
+    actionStatusActionEl.hidden = true;
+    actionStatusActionEl.textContent = "";
+    delete actionStatusActionEl.dataset.action;
+  }
+}
+
+function syncPanelStatuses() {
+  const forecast = getHealthSource("forecast");
+  const track = getHealthSource("track");
+  const weather = getHealthSource("weather");
+  const location = getHealthSource("location");
+  const reverseGeocode = getHealthSource("reverseGeocode");
+
+  let forecastMessage = "";
+  let forecastMeta = "";
+  let forecastLevel = "info";
+  if (forecast.status === "unavailable") {
+    forecastLevel = "danger";
+    forecastMessage = "Forecast unavailable";
+    forecastMeta = buildSourceReason(forecast, "Could not calculate visible ISS passes.");
+  } else if (forecast.status === "degraded") {
+    forecastLevel = "warning";
+    forecastMessage = forecast.accuracy === "stale" ? "Forecast using stale data" : "Forecast degraded";
+    forecastMeta = buildSourceReason(forecast, "Showing the last successful forecast while refresh retries fail.");
+  } else if (forecast.lastSuccessAt) {
+    forecastMessage = `Forecast current • ${getStatusTimestampLabel(forecast.lastSuccessAt)}`;
+    forecastMeta = `Location ${describeLocationAccuracy(state.user?.source || "saved location").toLowerCase()}.`;
+  }
+  setInlineStatus(forecastStatusEl, {
+    level: forecastLevel,
+    message: forecastMessage,
+    meta: forecastMeta,
+    hidden: !forecastMessage
+  });
+
+  let trackMessage = "";
+  let trackMeta = "";
+  let trackLevel = "info";
+  if (track.status === "unavailable") {
+    trackLevel = "danger";
+    trackMessage = "Track unavailable";
+    trackMeta = buildSourceReason(track, "Could not render the ISS ground track.");
+  } else if (track.status === "degraded") {
+    trackLevel = "warning";
+    trackMessage = track.accuracy === "positions-fallback" ? "Track limited" : "Track fallback active";
+    trackMeta = buildSourceReason(
+      track,
+      track.accuracy === "positions-fallback"
+        ? "Showing positions API fallback instead of full propagated TLE orbit."
+        : "Showing a live fallback TLE source."
+    );
+  } else if (track.lastSuccessAt) {
+    trackMessage = "Track source: live TLE";
+    trackMeta = `Updated ${getStatusTimestampLabel(track.lastSuccessAt)} • ${state.trackData.length} points`;
+  }
+  setInlineStatus(trackStatusEl, {
+    level: trackLevel,
+    message: trackMessage,
+    meta: trackMeta,
+    hidden: !trackMessage
+  });
+
+  let weatherMessage = "";
+  let weatherMeta = "";
+  let weatherLevel = "info";
+  if (weather.status === "unavailable") {
+    weatherLevel = "warning";
+    weatherMessage = "Weather unavailable";
+    weatherMeta = buildSourceReason(weather, "ISS timing remains valid, but observing conditions may be outdated.");
+  } else if (weather.status === "degraded") {
+    weatherLevel = "warning";
+    weatherMessage = "Weather using stale data";
+    weatherMeta = buildSourceReason(weather, "Showing the last successful weather forecast.");
+  } else if (weather.lastSuccessAt) {
+    weatherMessage = `Weather current • ${getStatusTimestampLabel(weather.lastSuccessAt)}`;
+    weatherMeta = state.weather.hourly.length ? "Observing conditions are aligned to your local night window." : "";
+  }
+  setInlineStatus(conditionsStatusEl, {
+    level: weatherLevel,
+    message: weatherMessage,
+    meta: weatherMeta,
+    hidden: !weatherMessage
+  });
+
+  if (locationMetaEl) {
+    const currentAccuracy = describeLocationAccuracy(state.user?.source || "saved location");
+    const savedAt = getSavedLocationAge();
+    if (!state.user) {
+      locationMetaEl.hidden = false;
+      locationMetaEl.dataset.level = "info";
+      locationMetaEl.textContent = "Update if you've moved since the last visit.";
+    } else if (location.status === "degraded") {
+      locationMetaEl.hidden = false;
+      locationMetaEl.dataset.level = "warning";
+      locationMetaEl.textContent = buildSourceReason(location, `${currentAccuracy}. Local predictions may shift until a precise location is granted.`);
+    } else {
+      locationMetaEl.hidden = false;
+      locationMetaEl.dataset.level = reverseGeocode.status === "unavailable" ? "warning" : "info";
+      locationMetaEl.textContent = [
+        currentAccuracy,
+        savedAt ? `saved ${formatStatusAge(savedAt)}` : "",
+        reverseGeocode.status === "unavailable" ? "Place name unavailable" : ""
+      ].filter(Boolean).join(" • ");
+    }
+  }
+
+  syncHealthBanner();
+}
+
+function hasForecastData() {
+  const forecast = getHealthSource("forecast");
+  return forecast.status === "ok" || hasUsableData(forecast);
+}
+
+function isForecastStrictlyUnavailable() {
+  const forecast = getHealthSource("forecast");
+  return forecast.status === "unavailable" && !hasUsableData(forecast);
+}
+
+function getForecastUnavailableMeta() {
+  const forecast = getHealthSource("forecast");
+  if (forecast.lastSuccessAt) {
+    return `Showing the last successful forecast from ${getStatusTimestampLabel(forecast.lastSuccessAt)}.`;
+  }
+  return buildSourceReason(forecast, "Could not calculate visible ISS passes from live orbital data.");
+}
+
+function getTrackUnavailableMeta() {
+  const track = getHealthSource("track");
+  if (track.lastSuccessAt) {
+    return `Showing the last successful track from ${getStatusTimestampLabel(track.lastSuccessAt)}.`;
+  }
+  return buildSourceReason(track, "Could not render the live ISS track.");
+}
+
+async function ensureSatelliteLibrary() {
+  if (satelliteLib) return satelliteLib;
+  if (satelliteLibPromise) return satelliteLibPromise;
+
+  satelliteLibPromise = import(SATELLITE_VENDOR_URL)
+    .then((module) => {
+      if (!module?.twoline2satrec || !module?.propagate) {
+        throw new Error("Orbit calculation library failed to load.");
+      }
+      satelliteLib = module;
+      return module;
+    })
+    .finally(() => {
+      satelliteLibPromise = null;
+    });
+
+  return satelliteLibPromise;
+}
+
+async function refreshAppVersionStatus() {
+  const source = getHealthSource("appVersion");
+  beginSourceAttempt(source);
+  state.ui.appVersion.current = APP_VERSION;
+  try {
+    const payload = await fetchJson(`${VERSION_URL}&t=${Date.now()}`, {
+      timeoutMs: 4000,
+      cache: "no-store",
+      headers: { Accept: "application/json" }
+    });
+    const latest = typeof payload?.version === "string" && payload.version.trim()
+      ? payload.version.trim()
+      : APP_VERSION;
+    state.ui.appVersion.latest = latest;
+    state.ui.appVersion.updateAvailable = latest !== APP_VERSION;
+    if (state.ui.appVersion.updateAvailable) {
+      markSourceDegraded(source, {
+        accuracy: "outdated-shell",
+        lastSuccessAt: Date.now(),
+        reason: `Loaded ${APP_VERSION} (deployed ${DEPLOYED_AT}). A newer deployed shell (${latest}) is available.`
+      });
+    } else {
+      markSourceOk(source, {
+        accuracy: "current-shell",
+        reason: `Loaded ${APP_VERSION} (deployed ${DEPLOYED_AT}).`,
+        lastSuccessAt: Date.now()
+      });
+    }
+    return payload;
+  } catch (error) {
+    state.ui.appVersion.latest = "";
+    state.ui.appVersion.updateAvailable = false;
+    markSourceDegraded(source, {
+      accuracy: "unknown",
+      lastSuccessAt: source.lastSuccessAt,
+      reason: "Could not verify whether a newer app shell is available."
+    });
+    throw error;
+  }
+}
 
 function getCoordsLine(lat, lon) {
   return `${formatCoord(lat)}, ${formatCoord(lon)}`;
@@ -111,6 +508,7 @@ function parseReverseGeocode(data) {
 }
 
 async function reverseGeocodeLocation(lat, lon) {
+  beginSourceAttempt(getHealthSource("reverseGeocode"));
   const url = new URL(REVERSE_GEOCODE_URL);
   url.searchParams.set("format", "jsonv2");
   url.searchParams.set("lat", lat.toFixed(5));
@@ -123,6 +521,10 @@ async function reverseGeocodeLocation(lat, lon) {
     timeoutMs: 5000,
     cache: "no-store",
     headers: { Accept: "application/json" }
+  });
+  markSourceOk(getHealthSource("reverseGeocode"), {
+    accuracy: "named",
+    usingFallback: false
   });
   return parseReverseGeocode(data);
 }
@@ -203,14 +605,27 @@ function setRefreshingUI(active) {
     conditionsPanelEl.classList.toggle("loading", showSectionVeil);
     conditionsPanelEl.setAttribute("aria-busy", String(active));
   }
-  if (actionStatusEl && active) {
-    actionStatusEl.textContent = "Updating forecasts...";
+  if (active) {
+    setHealthBanner(state.health, {
+      level: "info",
+      message: "Updating forecasts...",
+      meta: "Refreshing orbit, pass, and observing-condition data.",
+      action: null,
+      hidden: false
+    });
+    syncHealthBanner();
   }
 }
 
-function setActionStatus(text) {
-  if (!actionStatusEl) return;
-  actionStatusEl.textContent = text;
+function setActionStatus(text, meta = "") {
+  setHealthBanner(state.health, {
+    level: state.health.banner.level || "info",
+    message: text,
+    meta,
+    action: state.health.banner.action,
+    hidden: false
+  });
+  syncHealthBanner();
 }
 
 function getLocalDateKey(date = new Date()) {
@@ -543,6 +958,7 @@ async function requestApproxLocationFromIp() {
 }
 
 function getMoonPhaseInfo(date) {
+  if (!hasSunCalcRuntime()) return { ...UNKNOWN_MOON_PHASE };
   const illumination = SunCalc.getMoonIllumination(date);
   const phaseValue = ((illumination?.phase ?? 0) + 1) % 1;
   const illuminationPct = Math.round((illumination?.fraction ?? 0) * 100);
@@ -710,6 +1126,22 @@ function getSkyContextAt(date, lat, lon) {
   const cached = state.planetCache.get(cacheKey);
   if (cached) return cached;
 
+  if (!hasSunCalcRuntime()) {
+    const fallbackContext = {
+      darkEnough: false,
+      sunAltitude: 0,
+      visiblePlanets: [],
+      moon: null,
+      moonAboveHorizon: false,
+      observations: [],
+      moonPhase: { ...UNKNOWN_MOON_PHASE },
+      moonlightQuality: "balanced",
+      darkSkyScore: 0
+    };
+    state.planetCache.set(cacheKey, fallbackContext);
+    return fallbackContext;
+  }
+
   const sunAltitude = SunCalc.getPosition(date, lat, lon).altitude * 180 / Math.PI;
   const darkEnough = sunAltitude < PLANET_VISUALS.maxSunAltitudeDeg;
   const moonPhase = getMoonPhaseInfo(date);
@@ -784,6 +1216,24 @@ function buildObservingNightLabel(date) {
 }
 
 function getTonightWindow(lat, lon, now = new Date()) {
+  if (!hasSunCalcRuntime()) {
+    const ts = Math.floor(now.getTime() / 1000);
+    return {
+      startTs: ts,
+      endTs: ts,
+      phase: "unavailable",
+      observingNightKey: now.toLocaleDateString("en-CA"),
+      observingNightLabel: buildObservingNightLabel(now),
+      sunset: null,
+      civilDusk: null,
+      nauticalDusk: null,
+      astronomicalDusk: null,
+      civilDawn: null,
+      nauticalDawn: null,
+      astronomicalDawn: null,
+      sunrise: null
+    };
+  }
   const todayTimes = SunCalc.getTimes(now, lat, lon);
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
@@ -1257,7 +1707,7 @@ function lunarEclipseKindLabel(kind) {
 }
 
 function buildLunarEclipseEvents(startTs, endTs, lat, lon) {
-  if (!window.Astronomy?.SearchLunarEclipse || !window.Astronomy?.NextLunarEclipse) return [];
+  if (!window.Astronomy?.SearchLunarEclipse || !window.Astronomy?.NextLunarEclipse || !hasSunCalcRuntime()) return [];
 
   const events = [];
   let eclipse;
@@ -1732,6 +2182,19 @@ function renderSkyEventsList() {
     return;
   }
 
+  if (!hasForecastRuntime() && !state.skyNightBundles.length) {
+    skyEventsList.innerHTML = `
+      <div class="sky-event-item">
+        <div>
+          <p class="pass-title">Sky engine unavailable</p>
+          <div class="pass-meta">Reload the app to restore local night-sky calculations.</div>
+        </div>
+        <span class="badge low">Alert</span>
+      </div>
+    `;
+    return;
+  }
+
   if (!window.Astronomy || !window.Astronomy.Observer) {
     skyEventsList.innerHTML = `
       <div class="sky-event-item">
@@ -2012,9 +2475,11 @@ function buildTonightScheduleEntries(lat, lon, tonightWindow, snapshot, nowTs = 
   maybePush(tonightWindow.civilDusk, "Civil dusk", "Bright planets begin to pop", "twilight");
   maybePush(tonightWindow.astronomicalDusk, "Astronomical dark", "Deep-sky viewing improves", "dark");
 
-  const moonTimes = SunCalc.getMoonTimes(new Date(), lat, lon, true);
-  if (moonTimes?.rise instanceof Date) maybePush(moonTimes.rise, "Moonrise", "Moonlight increases", "moon");
-  if (moonTimes?.set instanceof Date) maybePush(moonTimes.set, "Moonset", "Skies darken", "moon");
+  if (hasSunCalcRuntime()) {
+    const moonTimes = SunCalc.getMoonTimes(new Date(), lat, lon, true);
+    if (moonTimes?.rise instanceof Date) maybePush(moonTimes.rise, "Moonrise", "Moonlight increases", "moon");
+    if (moonTimes?.set instanceof Date) maybePush(moonTimes.set, "Moonset", "Skies darken", "moon");
+  }
 
   if (snapshot.issTonight?.pass) {
     if (snapshot.issTonight.status === "active") {
@@ -2052,6 +2517,24 @@ function buildTonightSnapshot(referenceDate = new Date()) {
       skyTonight: { event: null, nextEvent: null, status: "none", bundle: null, companionHighlights: [] },
       moonTonight: null,
       weatherTonight: { summary: null, clearestWindow: null, error: null },
+      scheduleEntries: [],
+      window: null
+    };
+  }
+
+  if (!hasForecastRuntime()) {
+    if (state.tonightSnapshot) {
+      return state.tonightSnapshot;
+    }
+    return {
+      issTonight: { pass: null, nextPass: null, status: "none" },
+      skyTonight: { event: null, nextEvent: null, status: "none", bundle: null, companionHighlights: [] },
+      moonTonight: null,
+      weatherTonight: {
+        summary: null,
+        clearestWindow: null,
+        error: "Observation runtime unavailable"
+      },
       scheduleEntries: [],
       window: null
     };
@@ -2104,6 +2587,17 @@ function renderTimeline() {
     `;
     return;
   }
+  if (!state.tonightSnapshot?.window && !hasForecastRuntime()) {
+    timelineList.innerHTML = `
+      <div class="timeline-item">
+        <div class="timeline-dot"></div>
+        <div class="timeline-time">--:--</div>
+        <div class="timeline-label">Timeline unavailable</div>
+        <div class="timeline-sub">Reload the app to restore moonlight and night-window calculations.</div>
+      </div>
+    `;
+    return;
+  }
   const scheduleEntries = state.tonightSnapshot?.scheduleEntries || [];
   if (!scheduleEntries.length) {
     timelineList.innerHTML = `
@@ -2139,6 +2633,7 @@ function renderConditionsList() {
   }
 
   const items = [];
+  const weatherSource = getHealthSource("weather");
   if (state.tonightWindow) {
     const summary = summarizeWeatherWindow(Math.max(Math.floor(Date.now() / 1000), state.tonightWindow.startTs), state.tonightWindow.endTs);
     if (summary) {
@@ -2162,7 +2657,7 @@ function renderConditionsList() {
     }
   }
 
-  if (state.tonightWindow) {
+  if (state.tonightWindow && hasForecastRuntime()) {
     const moonContext = getSkyContextAt(new Date(Math.max(Math.floor(Date.now() / 1000), state.tonightWindow.startTs) * 1000), state.user.lat, state.user.lon);
     items.push({
       title: "Moonlight tonight",
@@ -2173,11 +2668,21 @@ function renderConditionsList() {
     });
   }
 
+  if (weatherSource.status === "unavailable" && !state.weather.hourly.length) {
+    items.unshift({
+      title: "Weather unavailable",
+      meta: buildSourceReason(weatherSource, "Could not load observing weather."),
+      note: "Pass timing remains valid, but cloud and wind guidance may be incomplete.",
+      badge: "weather-risk",
+      badgeLabel: "Advisory"
+    });
+  }
+
   if (!items.length) {
     items.push({
-      title: "Conditions unavailable",
-      meta: "Weather or moonlight forecast is not available yet",
-      note: "Try refreshing once location has been set.",
+      title: hasForecastRuntime() ? "Conditions unavailable" : "Observation runtime unavailable",
+      meta: hasForecastRuntime() ? "Weather or moonlight forecast is not available yet" : "Moonlight calculations are temporarily unavailable.",
+      note: hasForecastRuntime() ? "Try refreshing once location has been set." : "Reload the app to restore local sky calculations.",
       badge: "",
       badgeLabel: ""
     });
@@ -2384,6 +2889,11 @@ async function ensureUserLocationLabel({ persist = true } = {}) {
     setStatus();
   } catch (error) {
     console.warn("Reverse geocoding unavailable", error);
+    markSourceUnavailable(getHealthSource("reverseGeocode"), {
+      reason: "Place name unavailable. Coordinates are still valid.",
+      lastSuccessAt: getHealthSource("reverseGeocode").lastSuccessAt
+    });
+    syncPanelStatuses();
   }
 }
 
@@ -2411,8 +2921,27 @@ function loadStoredLocation() {
       regionCode: typeof data.regionCode === "string" ? data.regionCode : "",
       geocodedAt: Number.isFinite(data.geocodedAt) ? data.geocodedAt : 0
     };
+    const savedAt = Number.isFinite(data.savedAt) ? data.savedAt : 0;
+    const locationSource = getHealthSource("location");
+    const accuracy = getCurrentLocationAccuracy();
+    if (accuracy === "precise" && savedAt && Date.now() - savedAt <= LOCATION_STALE_MS) {
+      markSourceOk(locationSource, {
+        accuracy,
+        lastSuccessAt: savedAt
+      });
+    } else {
+      markSourceDegraded(locationSource, {
+        accuracy,
+        usingFallback: accuracy !== "precise",
+        lastSuccessAt: savedAt,
+        reason: accuracy === "precise"
+          ? "Stored device location may be stale. Refresh if you have moved."
+          : `${describeLocationAccuracy(state.user.source)} is active. Local predictions may shift until a precise device location is granted.`
+      });
+    }
     updateUserMarker();
     setStatus();
+    syncPanelStatuses();
     if (!state.user.label) {
       void ensureUserLocationLabel();
     }
@@ -2505,12 +3034,15 @@ function setStatus() {
   if (state.nextVisible) {
     nextPass.textContent = formatDateTime(new Date(state.nextVisible.start * 1000));
     nextPassMeta.textContent = `Max elevation ${state.nextVisible.maxEl.toFixed(0)}° • Visible ${state.nextVisible.duration} min`;
+  } else if (isForecastStrictlyUnavailable()) {
+    nextPass.textContent = "Forecast unavailable";
+    nextPassMeta.textContent = getForecastUnavailableMeta();
   } else {
     nextPass.textContent = "No visible pass found";
     nextPassMeta.textContent = state.user ? `No good passes in the next ${FORECAST_DAYS} days` : "Need location to predict";
   }
 
-  if (state.user) {
+  if (state.user && hasForecastRuntime()) {
     const nowContext = getSkyContextAt(new Date(), state.user.lat, state.user.lon);
     const sunAlt = nowContext.sunAltitude;
     const label = sunAlt < -6 ? "Night" : sunAlt < 0 ? "Civil Twilight" : "Daylight";
@@ -2533,10 +3065,16 @@ function setStatus() {
     }
   } else {
     visibility.textContent = "Night check pending";
-    visibilityMeta.textContent = "Sun altitude unavailable";
-    moonPhase.textContent = "Calculating…";
-    moonPhaseMeta.textContent = "Need location to evaluate sky darkness";
+    visibilityMeta.textContent = !state.user
+      ? "Sun altitude unavailable"
+      : "Observation runtime unavailable";
+    moonPhase.textContent = !state.user ? "Calculating…" : "Unavailable";
+    moonPhaseMeta.textContent = !state.user
+      ? "Need location to evaluate sky darkness"
+      : "Moon phase data unavailable";
   }
+
+  syncPanelStatuses();
 }
 
 function updateTonightHighlights() {
@@ -2573,6 +3111,24 @@ function updateTonightHighlights() {
     return;
   }
 
+  if (!hasForecastRuntime() && !hasForecastData()) {
+    state.tonight.pass = null;
+    state.tonight.skyEvent = null;
+    state.tonightWindow = null;
+    state.tonightTimeline = [];
+    tonightIss.textContent = "Forecast unavailable";
+    tonightIssMeta.textContent = "Observation runtime unavailable. Reload the app to restore local pass calculations.";
+    tonightSky.textContent = "Sky engine limited";
+    setTonightSubcopy(tonightSkyMeta, "Planet and alignment calculations are unavailable until the app runtime reloads.");
+    tonightMoon.textContent = "Moon phase unavailable";
+    tonightMoonMeta.textContent = "Moonlight quality cannot be calculated right now.";
+    tonightWeather.textContent = state.weather.error ? "Weather unavailable" : "Weather pending";
+    tonightWeatherMeta.textContent = state.weather.error ? "Could not load observing weather." : "Forecast is still loading.";
+    if (shareTonightIssBtn) shareTonightIssBtn.disabled = true;
+    if (shareTonightSkyBtn) shareTonightSkyBtn.disabled = true;
+    return;
+  }
+
   const snapshot = state.tonightSnapshot;
   const tonightPass = snapshot.issTonight.pass;
   const nextPass = snapshot.issTonight.nextPass;
@@ -2599,10 +3155,15 @@ function updateTonightHighlights() {
       tonightIssMeta.textContent = `Max ${tonightPass.maxEl.toFixed(0)}° • Visible ${tonightPass.duration} min`;
     }
   } else {
-    tonightIss.textContent = "No ISS pass tonight";
-    tonightIssMeta.textContent = nextPass
-      ? `Next good pass ${formatDateTime(new Date(nextPass.start * 1000))}`
-      : `No high-quality night pass in the next ${FORECAST_DAYS} days.`;
+    if (isForecastStrictlyUnavailable()) {
+      tonightIss.textContent = "Forecast unavailable";
+      tonightIssMeta.textContent = getForecastUnavailableMeta();
+    } else {
+      tonightIss.textContent = "No ISS pass tonight";
+      tonightIssMeta.textContent = nextPass
+        ? `Next good pass ${formatDateTime(new Date(nextPass.start * 1000))}`
+        : `No high-quality night pass in the next ${FORECAST_DAYS} days.`;
+    }
   }
 
   if (tonightEvent) {
@@ -2632,7 +3193,7 @@ function updateTonightHighlights() {
   }
 
   const context = snapshot.moonTonight?.context;
-  if (context?.moonPhase) {
+  if (context?.moonPhase && hasForecastRuntime()) {
     const quality = moonlightQualityLabel(context.moonlightQuality);
     tonightMoon.textContent = `${context.moonPhase.icon} ${context.moonPhase.name} • ${context.moonPhase.illuminationPct}%`;
     if (context.sunAltitude >= PLANET_VISUALS.maxSunAltitudeDeg) {
@@ -2655,9 +3216,9 @@ function updateTonightHighlights() {
       ? ` • Clearest ${formatTime(new Date(clearestWindow.timestamp * 1000))}`
       : "";
     tonightWeatherMeta.textContent = `Cloud ${Math.round(weatherSummary.cloudCover)}% • Wind ${Math.round(weatherSummary.windSpeed)} km/h${clearSnippet}`;
-  } else if (snapshot.weatherTonight.error) {
+  } else if (snapshot.weatherTonight.error || getHealthSource("weather").status === "unavailable") {
     tonightWeather.textContent = "Weather unavailable";
-    tonightWeatherMeta.textContent = "Could not load observing weather.";
+    tonightWeatherMeta.textContent = buildSourceReason(getHealthSource("weather"), "Could not load observing weather.");
   } else {
     tonightWeather.textContent = "Weather pending";
     tonightWeatherMeta.textContent = "Forecast is still loading.";
@@ -2686,6 +3247,15 @@ function showMapMessage(message) {
 }
 
 function initMap() {
+  if (!hasLeafletRuntime()) {
+    const existing = mapEl.querySelector(".map-status");
+    if (existing) existing.remove();
+    const note = document.createElement("div");
+    note.className = "map-status";
+    note.textContent = "Map runtime unavailable. Reload the app to restore map view.";
+    mapEl.appendChild(note);
+    return;
+  }
   const bounds = L.latLngBounds([[-85, -180], [85, 180]]);
   const initialZoom = computeNoWrapFitZoom(mapEl.clientWidth || window.innerWidth);
   state.mapFitZoom = initialZoom;
@@ -2824,17 +3394,18 @@ function updateUserMarker() {
 }
 
 function updateTrackLine() {
-  if (!state.map || !state.trackOutline || !state.trackLine || !state.trackGlow) return;
   const source = state.trackData.length ? state.trackData : state.trail;
-  const segments = buildTrackSegments(source);
-  if (segments.length) {
-    state.trackOutline.setLatLngs(segments);
-    state.trackGlow.setLatLngs(segments);
-    state.trackLine.setLatLngs(segments);
-  } else {
-    state.trackOutline.setLatLngs([]);
-    state.trackGlow.setLatLngs([]);
-    state.trackLine.setLatLngs([]);
+  if (state.map && state.trackOutline && state.trackLine && state.trackGlow) {
+    const segments = buildTrackSegments(source);
+    if (segments.length) {
+      state.trackOutline.setLatLngs(segments);
+      state.trackGlow.setLatLngs(segments);
+      state.trackLine.setLatLngs(segments);
+    } else {
+      state.trackOutline.setLatLngs([]);
+      state.trackGlow.setLatLngs([]);
+      state.trackLine.setLatLngs([]);
+    }
   }
   updateGlobeTrack();
 }
@@ -3180,18 +3751,42 @@ function updateGlobeTrack() {
 }
 
 async function fetchISSNow() {
-  const data = await fetchJson(ISS_NOW_URL, { timeoutMs: 7000 });
-  const sample = { ...data, localTime: Date.now() };
-  state.issSamples.prev = state.issSamples.next || sample;
-  state.issSamples.next = sample;
-  state.iss = sample;
-  state.trail.push({ latitude: sample.latitude, longitude: sample.longitude });
-  if (state.trail.length > 240) {
-    state.trail.splice(0, state.trail.length - 240);
+  const source = getHealthSource("issNow");
+  beginSourceAttempt(source);
+  try {
+    const data = await fetchJson(ISS_NOW_URL, { timeoutMs: 7000 });
+    const sample = { ...data, localTime: Date.now() };
+    state.issSamples.prev = state.issSamples.next || sample;
+    state.issSamples.next = sample;
+    state.iss = sample;
+    state.trail.push({ latitude: sample.latitude, longitude: sample.longitude });
+    if (state.trail.length > 240) {
+      state.trail.splice(0, state.trail.length - 240);
+    }
+    markSourceOk(source, {
+      accuracy: "live",
+      usingFallback: false,
+      lastSuccessAt: sample.localTime
+    });
+    updateISSMarker();
+    updateTrackLine();
+    setStatus();
+    return sample;
+  } catch (error) {
+    if (state.issSamples.next?.localTime || source.lastSuccessAt) {
+      markSourceDegraded(source, {
+        accuracy: "stale",
+        lastSuccessAt: state.issSamples.next?.localTime || source.lastSuccessAt,
+        reason: "Live ISS position refresh failed. Showing the last successful telemetry sample."
+      });
+    } else {
+      markSourceUnavailable(source, {
+        reason: "Live ISS telemetry unavailable."
+      });
+    }
+    syncPanelStatuses();
+    throw error;
   }
-  updateISSMarker();
-  updateTrackLine();
-  setStatus();
 }
 
 function buildTimestamps(hours, stepSeconds, maxPoints = 360) {
@@ -3211,27 +3806,106 @@ function buildTimestamps(hours, stepSeconds, maxPoints = 360) {
 }
 
 async function ensureTLE() {
+  const source = getHealthSource("tle");
   const now = Date.now();
-  if (state.tle && now - state.tleUpdated < 6 * 3600 * 1000) {
-    return state.tle;
+  if (state.tle && now - state.tleUpdated < SATELLITE_TLE_STALE_MS) {
+    if (source.status === "idle") {
+      markSourceOk(source, {
+        accuracy: "live-tle",
+        lastSuccessAt: state.tleUpdated
+      });
+    }
+    return {
+      data: state.tle,
+      degraded: false,
+      usingFallback: false,
+      reason: ""
+    };
   }
   if (state.tlePromise) {
     return state.tlePromise;
   }
 
+  beginSourceAttempt(source, now);
   state.tlePromise = (async () => {
-    const data = await fetchJson(ISS_TLE_URL, { timeoutMs: 6000 });
-    if (!data.line1 || !data.line2) {
-      throw new Error("TLE parsing unavailable");
+    const runtime = await ensureSatelliteLibrary().catch(() => {
+      throw new Error("Orbit calculation library unavailable. Reload the app.");
+    });
+    try {
+      const data = await fetchJson(ISS_TLE_URL, { timeoutMs: 6000 });
+      if (!data.line1 || !data.line2) {
+        throw new Error("TLE parsing unavailable");
+      }
+      const satrec = runtime.twoline2satrec(data.line1, data.line2);
+      state.tle = { ...data, satrec, source: "wheretheiss" };
+      state.tleUpdated = Date.now();
+      markSourceOk(source, {
+        accuracy: "live-tle",
+        lastSuccessAt: state.tleUpdated
+      });
+      return {
+        data: state.tle,
+        degraded: false,
+        usingFallback: false,
+        reason: ""
+      };
+    } catch (primaryError) {
+      console.warn("Primary TLE source failed, trying CelesTrak fallback.", primaryError);
+      const fallbackRows = await fetchJson(ISS_TLE_FALLBACK_URL, {
+        timeoutMs: 6000,
+        cache: "no-store"
+      });
+      const fallbackEntry = Array.isArray(fallbackRows) ? fallbackRows[0] : null;
+      if (!fallbackEntry) {
+        throw primaryError;
+      }
+      const satrec = runtime.json2satrec(fallbackEntry);
+      state.tle = {
+        line1: "",
+        line2: "",
+        satrec,
+        source: "celestrak",
+        json: fallbackEntry
+      };
+      state.tleUpdated = Date.now();
+      markSourceDegraded(source, {
+        accuracy: "celestrak-fallback",
+        usingFallback: true,
+        lastSuccessAt: state.tleUpdated,
+        reason: "Primary TLE source failed. Using CelesTrak fallback data."
+      });
+      return {
+        data: state.tle,
+        degraded: true,
+        usingFallback: true,
+        reason: "Primary TLE source failed. Using CelesTrak fallback data."
+      };
     }
-    const satrec = satelliteLib.twoline2satrec(data.line1, data.line2);
-    state.tle = { ...data, satrec };
-    state.tleUpdated = Date.now();
-    return state.tle;
   })();
 
   try {
     return await state.tlePromise;
+  } catch (error) {
+    if (state.tle) {
+      const reason = `TLE refresh failed. Using cached TLE from ${getStatusTimestampLabel(state.tleUpdated)}.`;
+      markSourceDegraded(source, {
+        accuracy: "stale-tle",
+        usingFallback: true,
+        lastSuccessAt: state.tleUpdated,
+        reason
+      });
+      return {
+        data: state.tle,
+        degraded: true,
+        usingFallback: true,
+        reason
+      };
+    }
+    markSourceUnavailable(source, {
+      reason: error.message || "TLE unavailable.",
+      lastSuccessAt: source.lastSuccessAt
+    });
+    throw error;
   } finally {
     state.tlePromise = null;
   }
@@ -3259,30 +3933,50 @@ function buildTrackFromTLE(satrec, timestamps) {
 }
 
 async function fetchISSTrack(hours = 6, stepSeconds = 60) {
+  const source = getHealthSource("track");
+  beginSourceAttempt(source);
   const timestamps = buildTimestamps(hours, stepSeconds, 360);
   if (!timestamps.length) {
-    state.trackData = [];
-    updateTrackLine();
-    return [];
+    return {
+      data: [],
+      degraded: false,
+      usingFallback: false,
+      accuracy: "",
+      reason: ""
+    };
   }
 
   try {
     const tle = await ensureTLE();
-    const track = buildTrackFromTLE(tle.satrec, timestamps);
-    state.trackData = track;
-    updateTrackLine();
-    return track;
+    const track = buildTrackFromTLE(tle.data.satrec, timestamps);
+    if (!track.length) {
+      throw new Error("Track propagation returned no positions.");
+    }
+    return {
+      data: track,
+      degraded: tle.degraded,
+      usingFallback: tle.usingFallback,
+      accuracy: tle.degraded ? "cached-tle" : "live-tle",
+      reason: tle.reason
+    };
   } catch (error) {
     console.warn("TLE track failed, falling back to positions API.", error);
   }
 
-  const limitedTimestamps = timestamps.slice(0, 10);
+  const limitedTimestamps = timestamps.slice(0, TRACK_FALLBACK_LIMIT);
   const data = await fetchJson(`${ISS_POS_URL}${limitedTimestamps.join(",")}`, {
     timeoutMs: 6000
   });
-  state.trackData = data;
-  updateTrackLine();
-  return data;
+  if (!data.length) {
+    throw new Error("Track fallback returned no positions.");
+  }
+  return {
+    data,
+    degraded: true,
+    usingFallback: true,
+    accuracy: "positions-fallback",
+    reason: `Using positions API fallback with ${data.length} samples instead of full propagated orbit.`
+  };
 }
 
 function refreshISSNowInBackground() {
@@ -3293,18 +3987,28 @@ function refreshISSNowInBackground() {
 }
 
 async function fetchISSForecast(days = FORECAST_DAYS, stepSeconds = 120) {
-  try {
-    const tle = await ensureTLE();
-    const timestamps = buildTimestamps(days * 24, stepSeconds, 6000);
-    return buildTrackFromTLE(tle.satrec, timestamps);
-  } catch (error) {
-    console.warn("Forecast generation failed.", error);
-    return [];
+  const source = getHealthSource("forecast");
+  beginSourceAttempt(source);
+  if (!hasForecastRuntime()) {
+    throw new Error("Observation runtime unavailable. Reload the app.");
   }
+  const tle = await ensureTLE();
+  const timestamps = buildTimestamps(days * 24, stepSeconds, 6000);
+  const samples = buildTrackFromTLE(tle.data.satrec, timestamps);
+  if (!samples.length) {
+    throw new Error("Forecast generation returned no positions.");
+  }
+  return {
+    samples,
+    degraded: tle.degraded,
+    usingFallback: tle.usingFallback,
+    accuracy: tle.degraded ? "cached-tle" : "live-tle",
+    reason: tle.reason
+  };
 }
 
 function getPassVisibilityFlags(peakTimestampSec, maxElevationDeg, durationMin) {
-  if (!state.user || !Number.isFinite(peakTimestampSec)) {
+  if (!state.user || !Number.isFinite(peakTimestampSec) || !hasSunCalcRuntime()) {
     return { night: false, visible: false };
   }
 
@@ -3326,7 +4030,7 @@ async function refinePasses(passes, stepSeconds = 10) {
       for (let t = pass.start; t <= pass.end; t += stepSeconds) {
         stamps.push(t);
       }
-      const track = buildTrackFromTLE(tle.satrec, stamps);
+      const track = buildTrackFromTLE(tle.data.satrec, stamps);
       const observer = ecefFromLatLon(state.user.lat, state.user.lon, 0);
       const points = track.map((p) => {
         const sat = ecefFromLatLon(p.latitude, p.longitude, p.altitude || 0);
@@ -3465,6 +4169,18 @@ function renderPassList() {
           <div class="pass-meta">Enable geolocation to calculate visible passes</div>
         </div>
         <span class="badge daylight">Standby</span>
+      </div>
+    `;
+    return;
+  }
+  if (isForecastStrictlyUnavailable()) {
+    passList.innerHTML = `
+      <div class="pass-item">
+        <div>
+          <p class="pass-title">Forecast unavailable</p>
+          <div class="pass-meta">${getForecastUnavailableMeta()}</div>
+        </div>
+        <span class="badge low">Alert</span>
       </div>
     `;
     return;
@@ -4291,38 +5007,171 @@ async function refreshAll(options = {}) {
       setBootStage("iss");
     }
     setRefreshingUI(true);
+    state.ui.appVersion.current = APP_VERSION;
     try {
       state.planetCache.clear();
-      state.passSkyHighlights = {};
-      state.alignmentEvents = [];
+      const previousTrackData = [...state.trackData];
+      const previousPasses = [...state.passes];
+      const previousGoodPasses = [...state.goodPasses];
+      const previousPassSkyHighlights = { ...state.passSkyHighlights };
+      const previousAlignmentEvents = [...state.alignmentEvents];
+      const previousSkyNightBundles = [...state.skyNightBundles];
+      const previousSkyEvents = [...state.skyEvents];
+      const previousTonightWindow = state.tonightWindow;
+      const previousTonightTimeline = [...state.tonightTimeline];
+      const previousWeatherHourly = [...state.weather.hourly];
+      const previousWeatherFetchedAt = state.weather.fetchedAt;
+      const previousWeatherError = state.weather.error;
+      const versionPromise = refreshAppVersionStatus();
       void refreshISSNowInBackground();
       const hoursRaw = Number(document.getElementById("track-hours")?.value ?? 6);
       const hours = Number.isFinite(hoursRaw) ? hoursRaw : 6;
-      const [, forecast] = await Promise.all([
+      const forecastWork = hasForecastRuntime()
+        ? fetchISSForecast(FORECAST_DAYS, 120)
+        : Promise.reject(new Error("Observation runtime unavailable. Reload the app."));
+      const [trackSettled, forecastSettled] = await Promise.allSettled([
         fetchISSTrack(hours, 60),
-        fetchISSForecast(FORECAST_DAYS, 120)
+        forecastWork
       ]);
-      state.passes = computePasses(forecast);
-      state.passes = await refinePasses(state.passes, 10);
-      state.passes = enrichPassesWithSkyContext(state.passes);
-      state.passes = normalizePassVisibility(state.passes);
-      state.goodPasses = state.passes.filter((pass) => pass.visible);
+
+      let refreshedForecastNow = false;
+      let refreshedTrackNow = false;
+      const trackSource = getHealthSource("track");
+      const forecastSource = getHealthSource("forecast");
+
+      if (trackSettled.status === "fulfilled") {
+        const trackResult = trackSettled.value;
+        state.trackData = trackResult.data;
+        updateTrackLine();
+        if (trackResult.degraded) {
+          markSourceDegraded(trackSource, {
+            accuracy: trackResult.accuracy,
+            usingFallback: trackResult.usingFallback,
+            lastSuccessAt: Date.now(),
+            reason: trackResult.reason || "Track rendering is using fallback orbit data."
+          });
+        } else {
+          markSourceOk(trackSource, {
+            accuracy: trackResult.accuracy || "live-tle",
+            usingFallback: false,
+            lastSuccessAt: Date.now()
+          });
+        }
+        refreshedTrackNow = true;
+      } else if (previousTrackData.length) {
+        state.trackData = previousTrackData;
+        updateTrackLine();
+        markSourceDegraded(trackSource, {
+          accuracy: "stale",
+          lastSuccessAt: trackSource.lastSuccessAt,
+          reason: `Track refresh failed. Showing the last successful track from ${getStatusTimestampLabel(trackSource.lastSuccessAt)}.`
+        });
+      } else {
+        state.trackData = [];
+        updateTrackLine();
+        markSourceUnavailable(trackSource, {
+          reason: trackSettled.reason?.message || "Track unavailable.",
+          lastSuccessAt: trackSource.lastSuccessAt
+        });
+      }
+
+      if (forecastSettled.status === "fulfilled") {
+        const forecastResult = forecastSettled.value;
+        state.passSkyHighlights = {};
+        state.alignmentEvents = [];
+        state.skyNightBundles = [];
+        state.skyEvents = [];
+        state.passes = computePasses(forecastResult.samples);
+        state.passes = await refinePasses(state.passes, 10);
+        state.passes = enrichPassesWithSkyContext(state.passes);
+        state.passes = normalizePassVisibility(state.passes);
+        state.goodPasses = state.passes.filter((pass) => pass.visible);
+        if (forecastResult.degraded) {
+          markSourceDegraded(forecastSource, {
+            accuracy: forecastResult.accuracy,
+            usingFallback: forecastResult.usingFallback,
+            lastSuccessAt: Date.now(),
+            reason: forecastResult.reason || "Forecast calculations are using cached TLE data."
+          });
+        } else {
+          markSourceOk(forecastSource, {
+            accuracy: forecastResult.accuracy || "live-tle",
+            usingFallback: false,
+            lastSuccessAt: Date.now()
+          });
+        }
+        refreshedForecastNow = true;
+      } else if (previousPasses.length) {
+        state.passes = previousPasses;
+        state.goodPasses = previousGoodPasses;
+        state.passSkyHighlights = previousPassSkyHighlights;
+        state.alignmentEvents = previousAlignmentEvents;
+        state.skyNightBundles = previousSkyNightBundles;
+        state.skyEvents = previousSkyEvents;
+        state.tonightWindow = previousTonightWindow;
+        state.tonightTimeline = previousTonightTimeline;
+        const lastForecastSuccess = forecastSource.lastSuccessAt || state.ui.lastSuccessfulRefreshAt;
+        markSourceDegraded(forecastSource, {
+          accuracy: "stale",
+          lastSuccessAt: lastForecastSuccess,
+          reason: `Forecast refresh failed. Showing the last successful forecast from ${getStatusTimestampLabel(lastForecastSuccess)}.`
+        });
+      } else {
+        state.passes = [];
+        state.goodPasses = [];
+        state.passSkyHighlights = {};
+        state.alignmentEvents = [];
+        state.skyNightBundles = [];
+        state.skyEvents = [];
+        state.tonightWindow = null;
+        state.tonightTimeline = [];
+        markSourceUnavailable(forecastSource, {
+          reason: forecastSettled.reason?.message || "Forecast unavailable.",
+          lastSuccessAt: forecastSource.lastSuccessAt
+        });
+      }
+
       if (state.user) {
         if (initialBoot) setBootStage("weather");
         try {
           await fetchWeatherForecast(state.user.lat, state.user.lon);
+          markSourceOk(getHealthSource("weather"), {
+            accuracy: "live",
+            usingFallback: false,
+            lastSuccessAt: state.weather.fetchedAt || Date.now()
+          });
         } catch (error) {
           console.warn("Weather forecast failed.", error);
-          state.weather.hourly = [];
-          state.weather.error = error.message || "Weather unavailable";
+          if (previousWeatherHourly.length) {
+            state.weather.hourly = previousWeatherHourly;
+            state.weather.fetchedAt = previousWeatherFetchedAt;
+            state.weather.error = error.message || previousWeatherError || "Weather unavailable";
+            markSourceDegraded(getHealthSource("weather"), {
+              accuracy: "stale",
+              lastSuccessAt: previousWeatherFetchedAt || getHealthSource("weather").lastSuccessAt,
+              reason: `Weather refresh failed. Showing the last successful weather from ${getStatusTimestampLabel(previousWeatherFetchedAt || getHealthSource("weather").lastSuccessAt)}.`
+            });
+          } else {
+            state.weather.hourly = [];
+            state.weather.error = error.message || "Weather unavailable";
+            markSourceUnavailable(getHealthSource("weather"), {
+              reason: state.weather.error,
+              lastSuccessAt: getHealthSource("weather").lastSuccessAt
+            });
+          }
         }
         const now = Math.floor(Date.now() / 1000);
         const end = now + FORECAST_DAYS * 24 * 3600;
-        state.meteorEvents = buildMeteorEvents(now, end, state.user.lat, state.user.lon);
-        if (initialBoot) setBootStage("sky");
-        state.skyNightBundles = buildSkyNightBundles(state.user.lat, state.user.lon, state.alignmentEvents);
-        state.skyEvents = flattenSkyNightBundles(state.skyNightBundles);
-        state.tonightWindow = getTonightWindow(state.user.lat, state.user.lon, new Date());
+        if (hasForecastRuntime()) {
+          state.meteorEvents = buildMeteorEvents(now, end, state.user.lat, state.user.lon);
+          if (initialBoot) setBootStage("sky");
+          state.tonightWindow = getTonightWindow(state.user.lat, state.user.lon, new Date());
+        } else {
+          state.meteorEvents = [];
+          state.skyNightBundles = previousSkyNightBundles;
+          state.skyEvents = previousSkyEvents;
+          state.tonightWindow = previousTonightWindow;
+        }
       } else {
         if (initialBoot) setBootStage("sky");
         state.weather.hourly = [];
@@ -4332,7 +5181,14 @@ async function refreshAll(options = {}) {
         state.skyEvents = [];
         state.tonightWindow = null;
         state.tonightTimeline = [];
+        getHealthSource("weather").status = "idle";
+        getHealthSource("weather").reason = "";
       }
+
+      await versionPromise.catch((error) => {
+        console.warn("App version check failed.", error);
+      });
+
       if (state.preview.active) {
         if (state.preview.mode === "pass") {
           const match = state.goodPasses.find((pass) => pass.start === state.preview.pass?.start && pass.end === state.preview.pass?.end);
@@ -4362,13 +5218,32 @@ async function refreshAll(options = {}) {
       renderConditionsList();
       updateForecastNoteCopy();
       updateSkyCanvas();
-      state.ui.lastRefreshStatus = "success";
-      state.ui.lastSuccessfulRefreshAt = Date.now();
-      state.ui.lastRefreshLocalDate = getLocalDateKey(state.ui.lastSuccessfulRefreshAt);
-      setActionStatus(`Updated ${formatTime(new Date())} local`);
+      const criticalFailure = [
+        getHealthSource("forecast"),
+        getHealthSource("track")
+      ].some((source) => source.status === "unavailable" && !hasUsableData(source));
+      const degradedState = [
+        getHealthSource("forecast"),
+        getHealthSource("track"),
+        getHealthSource("weather"),
+        getHealthSource("location")
+      ].some((source) => source.status === "degraded" || source.status === "unavailable");
+      state.ui.lastRefreshStatus = criticalFailure ? "error" : degradedState ? "degraded" : "success";
+      if (refreshedTrackNow && (refreshedForecastNow || !state.user)) {
+        state.ui.lastSuccessfulRefreshAt = Date.now();
+        state.ui.lastRefreshLocalDate = getLocalDateKey(state.ui.lastSuccessfulRefreshAt);
+      }
+      state.ui.bootError = criticalFailure ? buildSourceReason(getHealthSource("forecast"), "Startup calculations failed.") : null;
+      syncPanelStatuses();
       if (interactive) {
-        triggerHaptic("success");
-        showToast("Forecast recalculated.");
+        triggerHaptic(criticalFailure ? "error" : degradedState ? "error" : "success");
+        showToast(
+          criticalFailure
+            ? "Refresh failed. Forecast data is unavailable."
+            : degradedState
+            ? "Refresh completed with warnings."
+            : "Forecast recalculated."
+        );
       }
     } catch (error) {
       console.error(error);
@@ -4379,7 +5254,7 @@ async function refreshAll(options = {}) {
       renderSkyEventsList();
       renderTimeline();
       renderConditionsList();
-      setActionStatus("Update failed. Try again.");
+      syncPanelStatuses();
       if (interactive || initialBoot) {
         triggerHaptic("error");
         showToast(initialBoot ? "Initial sky calculations failed. Showing available data." : "Recalculation failed. Please try again.", 3400);
@@ -4426,11 +5301,26 @@ async function setUserLocation(lat, lon, source, persist = true) {
     regionCode: "",
     geocodedAt: 0
   };
+  const locationSource = getHealthSource("location");
+  const accuracy = getCurrentLocationAccuracy();
+  if (accuracy === "precise") {
+    markSourceOk(locationSource, {
+      accuracy,
+      usingFallback: false
+    });
+  } else {
+    markSourceDegraded(locationSource, {
+      accuracy,
+      usingFallback: true,
+      reason: `${describeLocationAccuracy(source)} is active. Local predictions may shift until a precise device location is granted.`
+    });
+  }
   if (persist) {
     saveUserLocation(state.user);
   }
   updateUserMarker();
   setStatus();
+  syncPanelStatuses();
   void ensureUserLocationLabel({ persist });
   await refreshAll();
 }
@@ -4447,6 +5337,7 @@ locateButton.addEventListener("click", async (event) => {
   triggerHaptic("start");
 
   let geoError = null;
+  beginSourceAttempt(getHealthSource("location"));
   try {
     if (navigator.geolocation && window.isSecureContext) {
       try {
@@ -4479,6 +5370,19 @@ locateButton.addEventListener("click", async (event) => {
     const baseError = geoError
       ? geolocationErrorMessage(geoError)
       : "Location services are unavailable.";
+    if (state.user) {
+      markSourceDegraded(getHealthSource("location"), {
+        accuracy: getCurrentLocationAccuracy(),
+        usingFallback: true,
+        lastSuccessAt: getSavedLocationAge() || getHealthSource("location").lastSuccessAt,
+        reason: `${baseError} Keeping your saved location.`
+      });
+    } else {
+      markSourceUnavailable(getHealthSource("location"), {
+        reason: `${baseError} Enter coordinates manually.`,
+        lastSuccessAt: getHealthSource("location").lastSuccessAt
+      });
+    }
     triggerHaptic("error");
     showToast(`${baseError} ${fallbackHint}`, 4200);
   } finally {
@@ -4486,6 +5390,7 @@ locateButton.addEventListener("click", async (event) => {
     delete button.dataset.busy;
     button.classList.remove("loading");
     renderLocationStatus();
+    syncPanelStatuses();
   }
 });
 
@@ -4509,6 +5414,23 @@ document.getElementById("apply-coords").addEventListener("click", () => {
 });
 
 document.getElementById("refresh").addEventListener("click", () => refreshAll({ interactive: true }));
+
+if (actionStatusActionEl) {
+  actionStatusActionEl.addEventListener("click", () => {
+    const action = actionStatusActionEl.dataset.action;
+    if (action === "retry-refresh") {
+      void refreshAll({ interactive: true });
+      return;
+    }
+    if (action === "reload-app") {
+      window.location.reload();
+      return;
+    }
+    if (action === "request-precise-location") {
+      locateButton?.click();
+    }
+  });
+}
 
 if (timelineToggle) {
   timelineToggle.addEventListener("click", () => {
@@ -4636,6 +5558,8 @@ initMapResizing();
 initGlobe();
 initSky();
 handleLayoutChange(true);
+state.ui.appVersion.current = APP_VERSION;
+state.ui.appVersion.latest = APP_VERSION;
 setBootStage(state.ui.bootStage);
 setBooting(true);
 setTimelineExpanded(false);
