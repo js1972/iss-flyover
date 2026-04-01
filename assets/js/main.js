@@ -22,6 +22,7 @@ const UNKNOWN_MOON_PHASE = {
 };
 let satelliteLib = null;
 let satelliteLibPromise = null;
+let globeRendering = false;
 const AU_STATE_CODES = {
   "Western Australia": "WA",
   "New South Wales": "NSW",
@@ -291,9 +292,6 @@ function syncPanelStatuses() {
         ? "Showing positions API fallback instead of full propagated TLE orbit."
         : "Showing a live fallback TLE source."
     );
-  } else if (track.lastSuccessAt) {
-    trackMessage = "Track source: live TLE";
-    trackMeta = `Updated ${getStatusTimestampLabel(track.lastSuccessAt)} • ${state.trackData.length} points`;
   }
   setInlineStatus(trackStatusEl, {
     level: trackLevel,
@@ -3420,12 +3418,17 @@ function latLonToVector3(lat, lon, radius = 1) {
   );
 }
 
-function renderGlobe() {
-  if (!state.globe.ready) return;
-  if (state.globe.controls) {
-    state.globe.controls.update();
+function renderGlobe(skipControlsUpdate = false) {
+  if (!state.globe.ready || globeRendering) return;
+  globeRendering = true;
+  try {
+    if (state.globe.controls && !skipControlsUpdate) {
+      state.globe.controls.update();
+    }
+    state.globe.renderer.render(state.globe.scene, state.globe.camera);
+  } finally {
+    globeRendering = false;
   }
-  state.globe.renderer.render(state.globe.scene, state.globe.camera);
 }
 
 function createFallbackControls(camera, domElement) {
@@ -3672,7 +3675,7 @@ function initGlobe() {
   };
 
   if (hasControls) {
-    controls.addEventListener("change", renderGlobe);
+    controls.addEventListener("change", () => renderGlobe(true));
   }
   window.addEventListener("resize", resizeGlobe);
   resizeGlobe();

@@ -1036,20 +1036,8 @@
       overscroll-behavior: contain;
     }
 
-    .viewer-status-stack {
-      position: absolute;
-      top: 18px;
-      left: 18px;
-      right: 18px;
-      z-index: 650;
-      pointer-events: none;
-    }
-
-    .panel-inline-status--overlay {
-      width: min(420px, calc(100% - 12px));
-      margin: 0;
-      backdrop-filter: blur(12px) saturate(1.04);
-      background: rgba(6, 10, 18, 0.72);
+    .viewer-track-status {
+      margin-top: 12px;
     }
 
     .view-panel {
