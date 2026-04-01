@@ -3,7 +3,9 @@ import { state } from "./state.js";
 import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js";
 import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, tonightGridEl, passList, skyEventsList, actionStatusEl, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, previewBanner, previewText, previewExitButton, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, conditionsList } from "./dom.js";
 import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js";
+import { fetchJson } from "./network.js";
 import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js";
+import * as satelliteLib from "https://unpkg.com/satellite.js@7.0.0/dist/index.js";
 
 const AUTO_REFRESH_STALE_MS = 15 * 60 * 1000;
 const AU_STATE_CODES = {
@@ -117,14 +119,12 @@ async function reverseGeocodeLocation(lat, lon) {
   url.searchParams.set("addressdetails", "1");
   url.searchParams.set("accept-language", getReverseGeocodeLanguage());
 
-  const response = await fetch(url.toString(), {
+  const data = await fetchJson(url.toString(), {
+    timeoutMs: 5000,
     cache: "no-store",
     headers: { Accept: "application/json" }
   });
-  if (!response.ok) {
-    throw new Error(`Reverse geocode failed (${response.status})`);
-  }
-  return parseReverseGeocode(await response.json());
+  return parseReverseGeocode(data);
 }
 
 function pickVisibleBadges(descriptors) {
@@ -485,9 +485,8 @@ function getCurrentPositionOnce(options) {
 
 async function requestDeviceLocationWithRetry() {
   const attempts = [
-    { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
-    { enableHighAccuracy: false, timeout: 18000, maximumAge: 120000 },
-    { enableHighAccuracy: false, timeout: 22000, maximumAge: 600000 }
+    { enableHighAccuracy: true, timeout: 7000, maximumAge: 0 },
+    { enableHighAccuracy: false, timeout: 9000, maximumAge: 300000 }
   ];
 
   let lastError = null;
@@ -507,25 +506,31 @@ async function requestDeviceLocationWithRetry() {
 async function requestApproxLocationFromIp() {
   const providers = [
     {
-      url: "https://ipapi.co/json/",
+      url: "https://ipinfo.io/json",
+      label: "IP location",
+      parse: (data) => {
+        const [lat, lon] = String(data?.loc || "").split(",").map(Number);
+        return { lat, lon };
+      }
+    },
+    {
+      url: "https://api.ip.sb/geoip",
       label: "IP location",
       parse: (data) => ({ lat: Number(data?.latitude), lon: Number(data?.longitude) })
     },
     {
-      url: "https://ipwho.is/",
+      url: "https://ipwhois.app/json/",
       label: "IP location",
-      parse: (data) => {
-        if (data?.success === false) return null;
-        return { lat: Number(data?.latitude), lon: Number(data?.longitude) };
-      }
+      parse: (data) => (data?.success === false ? null : { lat: Number(data?.latitude), lon: Number(data?.longitude) })
     }
   ];
 
   for (const provider of providers) {
     try {
-      const response = await fetch(provider.url, { cache: "no-store" });
-      if (!response.ok) continue;
-      const data = await response.json();
+      const data = await fetchJson(provider.url, {
+        timeoutMs: 3000,
+        cache: "no-store"
+      });
       const point = provider.parse(data);
       if (Number.isFinite(point?.lat) && Number.isFinite(point?.lon)) {
         return { ...point, source: provider.label };
@@ -830,11 +835,10 @@ async function fetchWeatherForecast(lat, lon) {
     forecast_days: String(FORECAST_DAYS),
     timezone: "auto"
   });
-  const response = await fetch(`${WEATHER_URL}?${params.toString()}`, { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(`Weather API failed (${response.status})`);
-  }
-  const data = await response.json();
+  const data = await fetchJson(`${WEATHER_URL}?${params.toString()}`, {
+    timeoutMs: 6000,
+    cache: "no-store"
+  });
   const times = data?.hourly?.time || [];
   const cloudCover = data?.hourly?.cloud_cover || [];
   const cloudLow = data?.hourly?.cloud_cover_low || [];
@@ -3176,11 +3180,7 @@ function updateGlobeTrack() {
 }
 
 async function fetchISSNow() {
-  const response = await fetch(ISS_NOW_URL);
-  if (!response.ok) {
-    throw new Error("ISS API failed");
-  }
-  const data = await response.json();
+  const data = await fetchJson(ISS_NOW_URL, { timeoutMs: 7000 });
   const sample = { ...data, localTime: Date.now() };
   state.issSamples.prev = state.issSamples.next || sample;
   state.issSamples.next = sample;
@@ -3215,30 +3215,38 @@ async function ensureTLE() {
   if (state.tle && now - state.tleUpdated < 6 * 3600 * 1000) {
     return state.tle;
   }
-  const response = await fetch(ISS_TLE_URL);
-  if (!response.ok) {
-    throw new Error("TLE API failed");
+  if (state.tlePromise) {
+    return state.tlePromise;
   }
-  const data = await response.json();
-  if (!window.satellite || !data.line1 || !data.line2) {
-    throw new Error("TLE parsing unavailable");
+
+  state.tlePromise = (async () => {
+    const data = await fetchJson(ISS_TLE_URL, { timeoutMs: 6000 });
+    if (!data.line1 || !data.line2) {
+      throw new Error("TLE parsing unavailable");
+    }
+    const satrec = satelliteLib.twoline2satrec(data.line1, data.line2);
+    state.tle = { ...data, satrec };
+    state.tleUpdated = Date.now();
+    return state.tle;
+  })();
+
+  try {
+    return await state.tlePromise;
+  } finally {
+    state.tlePromise = null;
   }
-  const satrec = window.satellite.twoline2satrec(data.line1, data.line2);
-  state.tle = { ...data, satrec };
-  state.tleUpdated = now;
-  return state.tle;
 }
 
 function buildTrackFromTLE(satrec, timestamps) {
   const track = [];
   timestamps.forEach((ts) => {
     const date = new Date(ts * 1000);
-    const pv = window.satellite.propagate(satrec, date);
+    const pv = satelliteLib.propagate(satrec, date);
     if (!pv.position) return;
-    const gmst = window.satellite.gstime(date);
-    const geodetic = window.satellite.eciToGeodetic(pv.position, gmst);
-    const latitude = window.satellite.degreesLat(geodetic.latitude);
-    const longitude = window.satellite.degreesLong(geodetic.longitude);
+    const gmst = satelliteLib.gstime(date);
+    const geodetic = satelliteLib.eciToGeodetic(pv.position, gmst);
+    const latitude = satelliteLib.degreesLat(geodetic.latitude);
+    const longitude = satelliteLib.degreesLong(geodetic.longitude);
     const altitude = geodetic.height;
     let velocity;
     if (pv.velocity) {
@@ -3258,31 +3266,33 @@ async function fetchISSTrack(hours = 6, stepSeconds = 60) {
     return [];
   }
 
-  if (window.satellite) {
-    try {
-      const tle = await ensureTLE();
-      const track = buildTrackFromTLE(tle.satrec, timestamps);
-      state.trackData = track;
-      updateTrackLine();
-      return track;
-    } catch (error) {
-      console.warn("TLE track failed, falling back to positions API.", error);
-    }
+  try {
+    const tle = await ensureTLE();
+    const track = buildTrackFromTLE(tle.satrec, timestamps);
+    state.trackData = track;
+    updateTrackLine();
+    return track;
+  } catch (error) {
+    console.warn("TLE track failed, falling back to positions API.", error);
   }
 
   const limitedTimestamps = timestamps.slice(0, 10);
-  const response = await fetch(`${ISS_POS_URL}${limitedTimestamps.join(",")}`);
-  if (!response.ok) {
-    throw new Error("ISS track API failed");
-  }
-  const data = await response.json();
+  const data = await fetchJson(`${ISS_POS_URL}${limitedTimestamps.join(",")}`, {
+    timeoutMs: 6000
+  });
   state.trackData = data;
   updateTrackLine();
   return data;
 }
 
+function refreshISSNowInBackground() {
+  return fetchISSNow().catch((error) => {
+    console.warn("Live ISS position refresh failed.", error);
+    return null;
+  });
+}
+
 async function fetchISSForecast(days = FORECAST_DAYS, stepSeconds = 120) {
-  if (!window.satellite) return [];
   try {
     const tle = await ensureTLE();
     const timestamps = buildTimestamps(days * 24, stepSeconds, 6000);
@@ -3293,8 +3303,21 @@ async function fetchISSForecast(days = FORECAST_DAYS, stepSeconds = 120) {
   }
 }
 
+function getPassVisibilityFlags(peakTimestampSec, maxElevationDeg, durationMin) {
+  if (!state.user || !Number.isFinite(peakTimestampSec)) {
+    return { night: false, visible: false };
+  }
+
+  const sunAlt = SunCalc.getPosition(new Date(peakTimestampSec * 1000), state.user.lat, state.user.lon).altitude * 180 / Math.PI;
+  const night = Number.isFinite(sunAlt) && sunAlt < -6;
+  return {
+    night,
+    visible: night && maxElevationDeg > 20 && durationMin >= 2
+  };
+}
+
 async function refinePasses(passes, stepSeconds = 10) {
-  if (!window.satellite || !state.user || !passes.length) return passes;
+  if (!state.user || !passes.length) return passes;
   try {
     const tle = await ensureTLE();
     const refined = [];
@@ -3319,9 +3342,8 @@ async function refinePasses(passes, stepSeconds = 10) {
       const first = above[0];
       const last = above[above.length - 1];
       const peak = above.reduce((a, b) => (b.elevation > a.elevation ? b : a), above[0]);
-      const sunAlt = SunCalc.getPosition(new Date(peak.timestamp * 1000), state.user.lat, state.user.lon).altitude * 180 / Math.PI;
-      const night = sunAlt < -6;
       const durationMin = Math.max(1, Math.round((last.timestamp - first.timestamp) / 60));
+      const visibility = getPassVisibilityFlags(peak.timestamp, peak.elevation, durationMin);
 
       refined.push({
         ...pass,
@@ -3330,8 +3352,7 @@ async function refinePasses(passes, stepSeconds = 10) {
         duration: durationMin,
         maxEl: peak.elevation,
         peakPoint: peak,
-        night,
-        visible: night && peak.elevation > 20 && durationMin >= 2,
+        ...visibility,
         points
       });
     }
@@ -3410,18 +3431,26 @@ function computePasses(samples) {
 
   return passes.map((pass) => {
     const peak = pass.points.reduce((a, b) => (b.elevation > a.elevation ? b : a), pass.points[0]);
-    const sunAlt = SunCalc.getPosition(new Date(peak.timestamp * 1000), state.user.lat, state.user.lon).altitude * 180 / Math.PI;
-    const night = sunAlt < -6;
     const durationMin = Math.max(1, Math.round((pass.end - pass.start) / 60));
+    const visibility = getPassVisibilityFlags(peak.timestamp, peak.elevation, durationMin);
     return {
       start: pass.start,
       end: pass.end,
       duration: durationMin,
       maxEl: peak.elevation,
       peakPoint: peak,
-      night,
-      visible: night && peak.elevation > 20 && durationMin >= 2,
+      ...visibility,
       points: pass.points
+    };
+  });
+}
+
+function normalizePassVisibility(passes) {
+  return passes.map((pass) => {
+    const peakTimestampSec = pass.peakPoint?.timestamp || Math.round((pass.start + pass.end) / 2);
+    return {
+      ...pass,
+      ...getPassVisibilityFlags(peakTimestampSec, pass.maxEl, pass.duration)
     };
   });
 }
@@ -4266,14 +4295,17 @@ async function refreshAll(options = {}) {
       state.planetCache.clear();
       state.passSkyHighlights = {};
       state.alignmentEvents = [];
-      await fetchISSNow();
+      void refreshISSNowInBackground();
       const hoursRaw = Number(document.getElementById("track-hours")?.value ?? 6);
       const hours = Number.isFinite(hoursRaw) ? hoursRaw : 6;
-      await fetchISSTrack(hours, 60);
-      const forecast = await fetchISSForecast(FORECAST_DAYS, 120);
+      const [, forecast] = await Promise.all([
+        fetchISSTrack(hours, 60),
+        fetchISSForecast(FORECAST_DAYS, 120)
+      ]);
       state.passes = computePasses(forecast);
       state.passes = await refinePasses(state.passes, 10);
       state.passes = enrichPassesWithSkyContext(state.passes);
+      state.passes = normalizePassVisibility(state.passes);
       state.goodPasses = state.passes.filter((pass) => pass.visible);
       if (state.user) {
         if (initialBoot) setBootStage("weather");
@@ -4614,4 +4646,6 @@ registerGestureBlocker(skyCanvas, () => skyViewEl.classList.contains("active"));
 loadStoredLocation();
 refreshAll();
 animateISS();
-setInterval(fetchISSNow, 6000);
+setInterval(() => {
+  void refreshISSNowInBackground();
+}, 6000);

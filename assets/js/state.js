@@ -3,6 +3,7 @@ export const state =  {
   iss: null,
   issSamples: { prev: null, next: null },
   tle: null,
+  tlePromise: null,
   tleUpdated: 0,
   map: null,
   mapTileLayer: null,
