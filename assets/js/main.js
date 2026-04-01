@@ -556,8 +556,8 @@ function updateForecastNoteCopy() {
   const note = document.getElementById("forecast-note");
   if (!note) return;
   note.textContent = isCompactMobileLayout()
-    ? "Tap a pass to preview it in User View. BEST remains ISS-first."
-    : "Tap any pass to preview it. BEST is ranked by elevation then duration (sky context only breaks ties).";
+    ? "Showing one best ISS pass per night, biased toward strong earlier-evening viewing."
+    : "Showing one best ISS pass per observing night, balancing visibility with a clear preference for earlier-evening passes.";
 }
 
 function showToast(message, duration = 2200) {
@@ -4201,12 +4201,13 @@ function renderPassList() {
     return;
   }
 
-  const bestPass = getBestPass(state.goodPasses);
+  const displayPasses = getDisplayPasses(state.goodPasses);
+  const bestPass = getBestPass(displayPasses);
   const previewKey = state.preview.active && state.preview.mode === "pass" && state.preview.pass
     ? passKey(state.preview.pass)
     : null;
   const compactMobile = isCompactMobileLayout();
-  state.goodPasses.slice(0, 14).forEach((pass) => {
+  displayPasses.forEach((pass) => {
     const isBest = bestPass && pass.start === bestPass.start && pass.end === bestPass.end;
     const isPreview = previewKey && passKey(pass) === previewKey;
     const item = document.createElement("div");
@@ -4511,13 +4512,88 @@ function buildVisibleSkyHighlightOverlay(viewState, contextDate, skyContext, obs
 function getBestPass(passes) {
   if (!passes.length) return null;
   return passes.reduce((best, pass) => {
-    const skyScore = (entry) => (entry.topTargets?.length || 0) + (entry.alignmentEvent ? 1 : 0) + (entry.moonSummary ? 0.5 : 0);
-    if (pass.maxEl > best.maxEl) return pass;
-    if (pass.maxEl === best.maxEl && pass.duration > best.duration) return pass;
-    if (pass.maxEl === best.maxEl && pass.duration === best.duration && skyScore(pass) > skyScore(best)) return pass;
-    if (pass.maxEl === best.maxEl && pass.duration === best.duration && skyScore(pass) === skyScore(best) && pass.start < best.start) return pass;
+    const passScore = getPassRankScore(pass);
+    const bestScore = getPassRankScore(best);
+    if (passScore > bestScore) return pass;
+    if (passScore === bestScore && pass.start < best.start) return pass;
     return best;
   }, passes[0]);
+}
+
+function getPassFocusTimestamp(pass) {
+  return pass.peakPoint?.timestamp || Math.round((pass.start + pass.end) / 2);
+}
+
+function getPassSkyScore(pass) {
+  return (pass.topTargets?.length || 0) * 6 + (pass.alignmentEvent ? 8 : 0) + (pass.moonSummary ? 2 : 0);
+}
+
+function getPassObservingNight(pass) {
+  const focusTs = getPassFocusTimestamp(pass);
+  if (!state.user) {
+    const focusDate = new Date(focusTs * 1000);
+    return {
+      startTs: pass.start,
+      endTs: pass.end,
+      observingNightKey: focusDate.toLocaleDateString("en-CA"),
+      observingNightLabel: buildObservingNightLabel(focusDate)
+    };
+  }
+  return getTonightWindow(state.user.lat, state.user.lon, new Date(focusTs * 1000));
+}
+
+function getPassTimePreferenceScore(pass, observingNight = getPassObservingNight(pass)) {
+  const focusTs = getPassFocusTimestamp(pass);
+  const nightSpan = Math.max(1, observingNight.endTs - observingNight.startTs);
+  const progress = Math.max(0, Math.min(1, (focusTs - observingNight.startTs) / nightSpan));
+  const localTime = new Date(focusTs * 1000);
+  const localHour = localTime.getHours() + localTime.getMinutes() / 60;
+
+  let score = 54 - progress * 84;
+  if (localHour >= 1 && localHour < 3) score -= 12;
+  else if (localHour >= 3) score -= 24;
+  return score;
+}
+
+function getPassRankScore(pass) {
+  const observingNight = getPassObservingNight(pass);
+  return pass.maxEl * 1.3
+    + pass.duration * 0.9
+    + getPassSkyScore(pass)
+    + getPassTimePreferenceScore(pass, observingNight);
+}
+
+function getDisplayPasses(passes) {
+  if (!passes.length) return [];
+
+  const byNight = new Map();
+  passes.forEach((pass) => {
+    const observingNight = getPassObservingNight(pass);
+    const displayPass = {
+      ...pass,
+      observingNightKey: observingNight.observingNightKey,
+      observingNightLabel: observingNight.observingNightLabel
+    };
+    const existing = byNight.get(observingNight.observingNightKey);
+    if (!existing) {
+      byNight.set(observingNight.observingNightKey, {
+        observingNight,
+        pass: displayPass
+      });
+      return;
+    }
+
+    const candidateScore = getPassRankScore(displayPass);
+    const currentScore = getPassRankScore(existing.pass);
+    if (candidateScore > currentScore || (candidateScore === currentScore && displayPass.start < existing.pass.start)) {
+      existing.pass = displayPass;
+    }
+  });
+
+  return Array.from(byNight.values())
+    .sort((left, right) => left.observingNight.startTs - right.observingNight.startTs)
+    .map((entry) => entry.pass)
+    .slice(0, FORECAST_DAYS);
 }
 
 function setPreviewPass(pass) {
