@@ -11,8 +11,11 @@ import { APP_VERSION, ASSET_VERSION, DEPLOYED_AT } from "./version.js";
 const AUTO_REFRESH_STALE_MS = 15 * 60 * 1000;
 const VERSION_URL = `./version.json?v=${encodeURIComponent(ASSET_VERSION)}`;
 const SATELLITE_VENDOR_URL = `../vendor/satellite/index.js?v=${encodeURIComponent(ASSET_VERSION)}`;
-const LOCATION_STALE_MS = 6 * 60 * 60 * 1000;
+const LOCATION_STALE_MS = 90 * 24 * 60 * 60 * 1000;
 const SATELLITE_TLE_STALE_MS = 6 * 3600 * 1000;
+const SATELLITE_TLE_FETCH_TIMEOUT_MS = 10000;
+const SATELLITE_TLE_RETRY_DELAY_MS = 700;
+const TLE_FALLBACK_REASON = "Primary TLE source failed. Using CelesTrak fallback data.";
 const TRACK_FALLBACK_LIMIT = 10;
 const UNKNOWN_MOON_PHASE = {
   phaseValue: 0,
@@ -3808,22 +3811,60 @@ function buildTimestamps(hours, stepSeconds, maxPoints = 360) {
   return stamps;
 }
 
-async function ensureTLE() {
+function isCachedFallbackTLE() {
+  return state.tle?.source === "celestrak";
+}
+
+function getCachedTLEResult(source) {
+  const usingFallback = isCachedFallbackTLE();
+  if (usingFallback) {
+    markSourceDegraded(source, {
+      accuracy: "celestrak-fallback",
+      usingFallback: true,
+      lastSuccessAt: state.tleUpdated,
+      reason: TLE_FALLBACK_REASON
+    });
+  } else {
+    markSourceOk(source, {
+      accuracy: "live-tle",
+      lastSuccessAt: state.tleUpdated
+    });
+  }
+  return {
+    data: state.tle,
+    degraded: usingFallback,
+    usingFallback,
+    reason: usingFallback ? TLE_FALLBACK_REASON : ""
+  };
+}
+
+async function fetchPrimaryTLE(runtime) {
+  let lastError = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const data = await fetchJson(ISS_TLE_URL, {
+        timeoutMs: SATELLITE_TLE_FETCH_TIMEOUT_MS,
+        cache: "no-store"
+      });
+      if (!data.line1 || !data.line2) {
+        throw new Error("TLE parsing unavailable");
+      }
+      const satrec = runtime.twoline2satrec(data.line1, data.line2);
+      return { ...data, satrec, source: "wheretheiss" };
+    } catch (error) {
+      lastError = error;
+      if (error?.name !== "AbortError" || attempt > 0) break;
+      await sleep(SATELLITE_TLE_RETRY_DELAY_MS);
+    }
+  }
+  throw lastError || new Error("TLE unavailable.");
+}
+
+async function ensureTLE({ forcePrimaryRefresh = false } = {}) {
   const source = getHealthSource("tle");
   const now = Date.now();
-  if (state.tle && now - state.tleUpdated < SATELLITE_TLE_STALE_MS) {
-    if (source.status === "idle") {
-      markSourceOk(source, {
-        accuracy: "live-tle",
-        lastSuccessAt: state.tleUpdated
-      });
-    }
-    return {
-      data: state.tle,
-      degraded: false,
-      usingFallback: false,
-      reason: ""
-    };
+  if (state.tle && now - state.tleUpdated < SATELLITE_TLE_STALE_MS && !(forcePrimaryRefresh && isCachedFallbackTLE())) {
+    return getCachedTLEResult(source);
   }
   if (state.tlePromise) {
     return state.tlePromise;
@@ -3835,12 +3876,7 @@ async function ensureTLE() {
       throw new Error("Orbit calculation library unavailable. Reload the app.");
     });
     try {
-      const data = await fetchJson(ISS_TLE_URL, { timeoutMs: 6000 });
-      if (!data.line1 || !data.line2) {
-        throw new Error("TLE parsing unavailable");
-      }
-      const satrec = runtime.twoline2satrec(data.line1, data.line2);
-      state.tle = { ...data, satrec, source: "wheretheiss" };
+      state.tle = await fetchPrimaryTLE(runtime);
       state.tleUpdated = Date.now();
       markSourceOk(source, {
         accuracy: "live-tle",
@@ -3875,13 +3911,13 @@ async function ensureTLE() {
         accuracy: "celestrak-fallback",
         usingFallback: true,
         lastSuccessAt: state.tleUpdated,
-        reason: "Primary TLE source failed. Using CelesTrak fallback data."
+        reason: TLE_FALLBACK_REASON
       });
       return {
         data: state.tle,
         degraded: true,
         usingFallback: true,
-        reason: "Primary TLE source failed. Using CelesTrak fallback data."
+        reason: TLE_FALLBACK_REASON
       };
     }
   })();
@@ -3935,7 +3971,7 @@ function buildTrackFromTLE(satrec, timestamps) {
   return track;
 }
 
-async function fetchISSTrack(hours = 6, stepSeconds = 60) {
+async function fetchISSTrack(hours = 6, stepSeconds = 60, options = {}) {
   const source = getHealthSource("track");
   beginSourceAttempt(source);
   const timestamps = buildTimestamps(hours, stepSeconds, 360);
@@ -3950,7 +3986,7 @@ async function fetchISSTrack(hours = 6, stepSeconds = 60) {
   }
 
   try {
-    const tle = await ensureTLE();
+    const tle = await ensureTLE({ forcePrimaryRefresh: Boolean(options.forcePrimaryTleRefresh) });
     const track = buildTrackFromTLE(tle.data.satrec, timestamps);
     if (!track.length) {
       throw new Error("Track propagation returned no positions.");
@@ -3989,13 +4025,13 @@ function refreshISSNowInBackground() {
   });
 }
 
-async function fetchISSForecast(days = FORECAST_DAYS, stepSeconds = 120) {
+async function fetchISSForecast(days = FORECAST_DAYS, stepSeconds = 120, options = {}) {
   const source = getHealthSource("forecast");
   beginSourceAttempt(source);
   if (!hasForecastRuntime()) {
     throw new Error("Observation runtime unavailable. Reload the app.");
   }
-  const tle = await ensureTLE();
+  const tle = await ensureTLE({ forcePrimaryRefresh: Boolean(options.forcePrimaryTleRefresh) });
   const timestamps = buildTimestamps(days * 24, stepSeconds, 6000);
   const samples = buildTrackFromTLE(tle.data.satrec, timestamps);
   if (!samples.length) {
@@ -5075,6 +5111,7 @@ function handleLayoutChange(force = false) {
 
 async function refreshAll(options = {}) {
   const interactive = Boolean(options.interactive);
+  const forcePrimaryTleRefresh = Boolean(options.forcePrimaryTleRefresh);
   const initialBoot = !state.ui.hasCompletedInitialLoad;
   if (state.ui.refreshPromise) return state.ui.refreshPromise;
 
@@ -5106,10 +5143,10 @@ async function refreshAll(options = {}) {
       const hoursRaw = Number(document.getElementById("track-hours")?.value ?? 6);
       const hours = Number.isFinite(hoursRaw) ? hoursRaw : 6;
       const forecastWork = hasForecastRuntime()
-        ? fetchISSForecast(FORECAST_DAYS, 120)
+        ? fetchISSForecast(FORECAST_DAYS, 120, { forcePrimaryTleRefresh })
         : Promise.reject(new Error("Observation runtime unavailable. Reload the app."));
       const [trackSettled, forecastSettled] = await Promise.allSettled([
-        fetchISSTrack(hours, 60),
+        fetchISSTrack(hours, 60, { forcePrimaryTleRefresh }),
         forecastWork
       ]);
 
@@ -5492,13 +5529,13 @@ document.getElementById("apply-coords").addEventListener("click", () => {
   }
 });
 
-document.getElementById("refresh").addEventListener("click", () => refreshAll({ interactive: true }));
+document.getElementById("refresh").addEventListener("click", () => refreshAll({ interactive: true, forcePrimaryTleRefresh: true }));
 
 if (actionStatusActionEl) {
   actionStatusActionEl.addEventListener("click", () => {
     const action = actionStatusActionEl.dataset.action;
     if (action === "retry-refresh") {
-      void refreshAll({ interactive: true });
+      void refreshAll({ interactive: true, forcePrimaryTleRefresh: true });
       return;
     }
     if (action === "reload-app") {
