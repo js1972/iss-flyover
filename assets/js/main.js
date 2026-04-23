@@ -13,9 +13,7 @@ const VERSION_URL = `./version.json?v=${encodeURIComponent(ASSET_VERSION)}`;
 const SATELLITE_VENDOR_URL = `../vendor/satellite/index.js?v=${encodeURIComponent(ASSET_VERSION)}`;
 const LOCATION_STALE_MS = 90 * 24 * 60 * 60 * 1000;
 const SATELLITE_TLE_STALE_MS = 6 * 3600 * 1000;
-const SATELLITE_TLE_FETCH_TIMEOUT_MS = 10000;
-const SATELLITE_TLE_RETRY_DELAY_MS = 700;
-const TLE_FALLBACK_REASON = "Primary TLE source failed. Using CelesTrak fallback data.";
+const SATELLITE_TLE_FETCH_TIMEOUT_MS = 6000;
 const TRACK_FALLBACK_LIMIT = 10;
 const UNKNOWN_MOON_PHASE = {
   phaseValue: 0,
@@ -1308,6 +1306,36 @@ async function fetchWeatherForecast(lat, lon) {
   state.weather.fetchedAt = Date.now();
   state.weather.error = null;
   return state.weather.hourly;
+}
+
+async function refreshWeatherForLocation(user, previousWeatherHourly, previousWeatherFetchedAt, previousWeatherError) {
+  try {
+    await fetchWeatherForecast(user.lat, user.lon);
+    markSourceOk(getHealthSource("weather"), {
+      accuracy: "live",
+      usingFallback: false,
+      lastSuccessAt: state.weather.fetchedAt || Date.now()
+    });
+  } catch (error) {
+    console.warn("Weather forecast failed.", error);
+    if (previousWeatherHourly.length) {
+      state.weather.hourly = previousWeatherHourly;
+      state.weather.fetchedAt = previousWeatherFetchedAt;
+      state.weather.error = error.message || previousWeatherError || "Weather unavailable";
+      markSourceDegraded(getHealthSource("weather"), {
+        accuracy: "stale",
+        lastSuccessAt: previousWeatherFetchedAt || getHealthSource("weather").lastSuccessAt,
+        reason: `Weather refresh failed. Showing the last successful weather from ${getStatusTimestampLabel(previousWeatherFetchedAt || getHealthSource("weather").lastSuccessAt)}.`
+      });
+    } else {
+      state.weather.hourly = [];
+      state.weather.error = error.message || "Weather unavailable";
+      markSourceUnavailable(getHealthSource("weather"), {
+        reason: state.weather.error,
+        lastSuccessAt: getHealthSource("weather").lastSuccessAt
+      });
+    }
+  }
 }
 
 function getWeatherAt(timestampSec) {
@@ -3811,59 +3839,56 @@ function buildTimestamps(hours, stepSeconds, maxPoints = 360) {
   return stamps;
 }
 
-function isCachedFallbackTLE() {
-  return state.tle?.source === "celestrak";
-}
-
 function getCachedTLEResult(source) {
-  const usingFallback = isCachedFallbackTLE();
-  if (usingFallback) {
-    markSourceDegraded(source, {
-      accuracy: "celestrak-fallback",
-      usingFallback: true,
-      lastSuccessAt: state.tleUpdated,
-      reason: TLE_FALLBACK_REASON
-    });
-  } else {
-    markSourceOk(source, {
-      accuracy: "live-tle",
-      lastSuccessAt: state.tleUpdated
-    });
-  }
+  const accuracy = state.tle?.source === "celestrak" ? "celestrak-tle" : "live-tle";
+  markSourceOk(source, {
+    accuracy,
+    lastSuccessAt: state.tleUpdated
+  });
   return {
     data: state.tle,
-    degraded: usingFallback,
-    usingFallback,
-    reason: usingFallback ? TLE_FALLBACK_REASON : ""
+    degraded: false,
+    usingFallback: false,
+    accuracy,
+    reason: ""
   };
 }
 
-async function fetchPrimaryTLE(runtime) {
-  let lastError = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const data = await fetchJson(ISS_TLE_URL, {
-        timeoutMs: SATELLITE_TLE_FETCH_TIMEOUT_MS,
-        cache: "no-store"
-      });
-      if (!data.line1 || !data.line2) {
-        throw new Error("TLE parsing unavailable");
-      }
-      const satrec = runtime.twoline2satrec(data.line1, data.line2);
-      return { ...data, satrec, source: "wheretheiss" };
-    } catch (error) {
-      lastError = error;
-      if (error?.name !== "AbortError" || attempt > 0) break;
-      await sleep(SATELLITE_TLE_RETRY_DELAY_MS);
-    }
+async function fetchWhereTheIssTLE(runtime) {
+  const data = await fetchJson(ISS_TLE_URL, {
+    timeoutMs: SATELLITE_TLE_FETCH_TIMEOUT_MS,
+    cache: "no-store"
+  });
+  if (!data.line1 || !data.line2) {
+    throw new Error("TLE parsing unavailable");
   }
-  throw lastError || new Error("TLE unavailable.");
+  const satrec = runtime.twoline2satrec(data.line1, data.line2);
+  return { ...data, satrec, source: "wheretheiss" };
 }
 
-async function ensureTLE({ forcePrimaryRefresh = false } = {}) {
+async function fetchCelesTrakTLE(runtime) {
+  const rows = await fetchJson(ISS_TLE_FALLBACK_URL, {
+    timeoutMs: SATELLITE_TLE_FETCH_TIMEOUT_MS,
+    cache: "no-store"
+  });
+  const entry = Array.isArray(rows) ? rows[0] : null;
+  if (!entry) {
+    throw new Error("CelesTrak TLE unavailable.");
+  }
+  const satrec = runtime.json2satrec(entry);
+  return {
+    line1: "",
+    line2: "",
+    satrec,
+    source: "celestrak",
+    json: entry
+  };
+}
+
+async function ensureTLE({ forceRefresh = false } = {}) {
   const source = getHealthSource("tle");
   const now = Date.now();
-  if (state.tle && now - state.tleUpdated < SATELLITE_TLE_STALE_MS && !(forcePrimaryRefresh && isCachedFallbackTLE())) {
+  if (state.tle && now - state.tleUpdated < SATELLITE_TLE_STALE_MS && !forceRefresh) {
     return getCachedTLEResult(source);
   }
   if (state.tlePromise) {
@@ -3876,50 +3901,13 @@ async function ensureTLE({ forcePrimaryRefresh = false } = {}) {
       throw new Error("Orbit calculation library unavailable. Reload the app.");
     });
     try {
-      state.tle = await fetchPrimaryTLE(runtime);
-      state.tleUpdated = Date.now();
-      markSourceOk(source, {
-        accuracy: "live-tle",
-        lastSuccessAt: state.tleUpdated
-      });
-      return {
-        data: state.tle,
-        degraded: false,
-        usingFallback: false,
-        reason: ""
-      };
-    } catch (primaryError) {
-      console.warn("Primary TLE source failed, trying CelesTrak fallback.", primaryError);
-      const fallbackRows = await fetchJson(ISS_TLE_FALLBACK_URL, {
-        timeoutMs: 6000,
-        cache: "no-store"
-      });
-      const fallbackEntry = Array.isArray(fallbackRows) ? fallbackRows[0] : null;
-      if (!fallbackEntry) {
-        throw primaryError;
-      }
-      const satrec = runtime.json2satrec(fallbackEntry);
-      state.tle = {
-        line1: "",
-        line2: "",
-        satrec,
-        source: "celestrak",
-        json: fallbackEntry
-      };
-      state.tleUpdated = Date.now();
-      markSourceDegraded(source, {
-        accuracy: "celestrak-fallback",
-        usingFallback: true,
-        lastSuccessAt: state.tleUpdated,
-        reason: TLE_FALLBACK_REASON
-      });
-      return {
-        data: state.tle,
-        degraded: true,
-        usingFallback: true,
-        reason: TLE_FALLBACK_REASON
-      };
+      state.tle = await fetchCelesTrakTLE(runtime);
+    } catch (preferredError) {
+      console.warn("Preferred TLE source failed, trying backup source.", preferredError);
+      state.tle = await fetchWhereTheIssTLE(runtime);
     }
+    state.tleUpdated = Date.now();
+    return getCachedTLEResult(source);
   })();
 
   try {
@@ -3986,7 +3974,7 @@ async function fetchISSTrack(hours = 6, stepSeconds = 60, options = {}) {
   }
 
   try {
-    const tle = await ensureTLE({ forcePrimaryRefresh: Boolean(options.forcePrimaryTleRefresh) });
+    const tle = await ensureTLE({ forceRefresh: Boolean(options.forceTleRefresh) });
     const track = buildTrackFromTLE(tle.data.satrec, timestamps);
     if (!track.length) {
       throw new Error("Track propagation returned no positions.");
@@ -3995,7 +3983,7 @@ async function fetchISSTrack(hours = 6, stepSeconds = 60, options = {}) {
       data: track,
       degraded: tle.degraded,
       usingFallback: tle.usingFallback,
-      accuracy: tle.degraded ? "cached-tle" : "live-tle",
+      accuracy: tle.accuracy || (tle.degraded ? "cached-tle" : "live-tle"),
       reason: tle.reason
     };
   } catch (error) {
@@ -4031,7 +4019,7 @@ async function fetchISSForecast(days = FORECAST_DAYS, stepSeconds = 120, options
   if (!hasForecastRuntime()) {
     throw new Error("Observation runtime unavailable. Reload the app.");
   }
-  const tle = await ensureTLE({ forcePrimaryRefresh: Boolean(options.forcePrimaryTleRefresh) });
+  const tle = await ensureTLE({ forceRefresh: Boolean(options.forceTleRefresh) });
   const timestamps = buildTimestamps(days * 24, stepSeconds, 6000);
   const samples = buildTrackFromTLE(tle.data.satrec, timestamps);
   if (!samples.length) {
@@ -4041,7 +4029,7 @@ async function fetchISSForecast(days = FORECAST_DAYS, stepSeconds = 120, options
     samples,
     degraded: tle.degraded,
     usingFallback: tle.usingFallback,
-    accuracy: tle.degraded ? "cached-tle" : "live-tle",
+    accuracy: tle.accuracy || (tle.degraded ? "cached-tle" : "live-tle"),
     reason: tle.reason
   };
 }
@@ -5111,7 +5099,7 @@ function handleLayoutChange(force = false) {
 
 async function refreshAll(options = {}) {
   const interactive = Boolean(options.interactive);
-  const forcePrimaryTleRefresh = Boolean(options.forcePrimaryTleRefresh);
+  const forceTleRefresh = Boolean(options.forceTleRefresh);
   const initialBoot = !state.ui.hasCompletedInitialLoad;
   if (state.ui.refreshPromise) return state.ui.refreshPromise;
 
@@ -5139,14 +5127,17 @@ async function refreshAll(options = {}) {
       const previousWeatherFetchedAt = state.weather.fetchedAt;
       const previousWeatherError = state.weather.error;
       const versionPromise = refreshAppVersionStatus();
+      const weatherPromise = state.user
+        ? refreshWeatherForLocation({ ...state.user }, previousWeatherHourly, previousWeatherFetchedAt, previousWeatherError)
+        : null;
       void refreshISSNowInBackground();
       const hoursRaw = Number(document.getElementById("track-hours")?.value ?? 6);
       const hours = Number.isFinite(hoursRaw) ? hoursRaw : 6;
       const forecastWork = hasForecastRuntime()
-        ? fetchISSForecast(FORECAST_DAYS, 120, { forcePrimaryTleRefresh })
+        ? fetchISSForecast(FORECAST_DAYS, 120, { forceTleRefresh })
         : Promise.reject(new Error("Observation runtime unavailable. Reload the app."));
       const [trackSettled, forecastSettled] = await Promise.allSettled([
-        fetchISSTrack(hours, 60, { forcePrimaryTleRefresh }),
+        fetchISSTrack(hours, 60, { forceTleRefresh }),
         forecastWork
       ]);
 
@@ -5248,33 +5239,8 @@ async function refreshAll(options = {}) {
       }
 
       if (state.user) {
-        if (initialBoot) setBootStage("weather");
-        try {
-          await fetchWeatherForecast(state.user.lat, state.user.lon);
-          markSourceOk(getHealthSource("weather"), {
-            accuracy: "live",
-            usingFallback: false,
-            lastSuccessAt: state.weather.fetchedAt || Date.now()
-          });
-        } catch (error) {
-          console.warn("Weather forecast failed.", error);
-          if (previousWeatherHourly.length) {
-            state.weather.hourly = previousWeatherHourly;
-            state.weather.fetchedAt = previousWeatherFetchedAt;
-            state.weather.error = error.message || previousWeatherError || "Weather unavailable";
-            markSourceDegraded(getHealthSource("weather"), {
-              accuracy: "stale",
-              lastSuccessAt: previousWeatherFetchedAt || getHealthSource("weather").lastSuccessAt,
-              reason: `Weather refresh failed. Showing the last successful weather from ${getStatusTimestampLabel(previousWeatherFetchedAt || getHealthSource("weather").lastSuccessAt)}.`
-            });
-          } else {
-            state.weather.hourly = [];
-            state.weather.error = error.message || "Weather unavailable";
-            markSourceUnavailable(getHealthSource("weather"), {
-              reason: state.weather.error,
-              lastSuccessAt: getHealthSource("weather").lastSuccessAt
-            });
-          }
+        if (!initialBoot && weatherPromise) {
+          await weatherPromise;
         }
         const now = Math.floor(Date.now() / 1000);
         const end = now + FORECAST_DAYS * 24 * 3600;
@@ -5351,6 +5317,16 @@ async function refreshAll(options = {}) {
       }
       state.ui.bootError = criticalFailure ? buildSourceReason(getHealthSource("forecast"), "Startup calculations failed.") : null;
       syncPanelStatuses();
+      if (initialBoot && weatherPromise) {
+        void weatherPromise.then(() => {
+          updateTonightHighlights();
+          renderPassList();
+          renderSkyEventsList();
+          renderTimeline();
+          renderConditionsList();
+          syncPanelStatuses();
+        });
+      }
       if (interactive) {
         triggerHaptic(criticalFailure ? "error" : degradedState ? "error" : "success");
         showToast(
@@ -5529,13 +5505,13 @@ document.getElementById("apply-coords").addEventListener("click", () => {
   }
 });
 
-document.getElementById("refresh").addEventListener("click", () => refreshAll({ interactive: true, forcePrimaryTleRefresh: true }));
+document.getElementById("refresh").addEventListener("click", () => refreshAll({ interactive: true, forceTleRefresh: true }));
 
 if (actionStatusActionEl) {
   actionStatusActionEl.addEventListener("click", () => {
     const action = actionStatusActionEl.dataset.action;
     if (action === "retry-refresh") {
-      void refreshAll({ interactive: true, forcePrimaryTleRefresh: true });
+      void refreshAll({ interactive: true, forceTleRefresh: true });
       return;
     }
     if (action === "reload-app") {
