@@ -6,7 +6,7 @@ import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatT
 import { fetchJson } from "./network.js";
 import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js";
 import { beginSourceAttempt, hasUsableData, markSourceDegraded, markSourceOk, markSourceUnavailable, setHealthBanner } from "./status.js";
-import { APP_VERSION, ASSET_VERSION, DEPLOYED_AT } from "./version.js";
+import { APP_VERSION, ASSET_VERSION, DEPLOYED_AT } from "./version.js?v=2026.05.23-preview.4";
 
 const AUTO_REFRESH_STALE_MS = 15 * 60 * 1000;
 const VERSION_URL = `./version.json?v=${encodeURIComponent(ASSET_VERSION)}`;
@@ -24,6 +24,7 @@ const UNKNOWN_MOON_PHASE = {
 let satelliteLib = null;
 let satelliteLibPromise = null;
 let globeRendering = false;
+let skyResizeQueued = false;
 const AU_STATE_CODES = {
   "Western Australia": "WA",
   "New South Wales": "NSW",
@@ -813,6 +814,12 @@ function formatPassPreviewBanner(prefix, pass, contextTs) {
   return `${prefix} ${startLabel} • sky at ${formatTime(new Date(contextTs * 1000))} local`;
 }
 
+function formatSkyEventPreviewBanner(event, contextTs) {
+  if (!event) return "";
+  const label = getSkyEventDisplayLabel(event) || event.title || "sky highlight";
+  return `Previewing ${label} • ${formatPreviewMoment(contextTs)}`;
+}
+
 function buildPassShareMessage(pass) {
   const dateLabel = formatDateTime(new Date(pass.start * 1000));
   const details = [
@@ -1131,6 +1138,7 @@ function getSkyContextAt(date, lat, lon) {
       sunAltitude: 0,
       visiblePlanets: [],
       moon: null,
+      moonObservation: null,
       moonAboveHorizon: false,
       observations: [],
       moonPhase: { ...UNKNOWN_MOON_PHASE },
@@ -1157,6 +1165,7 @@ function getSkyContextAt(date, lat, lon) {
       sunAltitude,
       visiblePlanets: [],
       moon: null,
+      moonObservation: null,
       moonAboveHorizon: moonAboveHorizonFallback,
       observations: [],
       moonPhase,
@@ -1185,9 +1194,10 @@ function getSkyContextAt(date, lat, lon) {
     });
 
   const moonObs = getPlanetObservation(PLANET_VISUALS.moon.body, date, observer, sunAltitude);
-  const moonAboveHorizon = Boolean(moonObs && sunAltitude < 0 && moonObs.elevation >= PLANET_VISUALS.moonlightElevationDeg);
-  const moonVisible = moonObs && moonObs.elevation >= PLANET_VISUALS.minElevationDeg && darkEnough
-    ? { ...moonObs, color: PLANET_VISUALS.moon.color }
+  const moonObservation = moonObs ? { ...moonObs, color: PLANET_VISUALS.moon.color } : null;
+  const moonAboveHorizon = Boolean(moonObservation && sunAltitude < 0 && moonObservation.elevation >= PLANET_VISUALS.moonlightElevationDeg);
+  const moonVisible = moonObservation && moonObservation.elevation >= PLANET_VISUALS.minElevationDeg && darkEnough
+    ? moonObservation
     : null;
   const moonlight = getMoonlightQuality({
     illuminationPct: moonPhase.illuminationPct,
@@ -1199,6 +1209,7 @@ function getSkyContextAt(date, lat, lon) {
     sunAltitude,
     visiblePlanets,
     moon: moonVisible,
+    moonObservation,
     moonAboveHorizon,
     observations,
     moonPhase,
@@ -2525,6 +2536,15 @@ function buildTonightScheduleEntries(lat, lon, tonightWindow, snapshot, nowTs = 
       pushEntry(focusTs, snapshot.skyTonight.event.title, `${getSkyEventWindowLabel(snapshot.skyTonight.event)} • ${snapshot.skyTonight.event.details}`, "event");
     }
   }
+  (snapshot.skyTonight?.companionHighlights || []).forEach((event) => {
+    const focusTs = getEventFocusTs(event);
+    pushEntry(
+      focusTs,
+      getSkyEventDisplayLabel(event),
+      `${getSkyEventWindowLabel(event)} • ${event.details}`,
+      "event"
+    );
+  });
 
   const clearWindow = findClearestWindow(timelineStartTs, tonightWindow.endTs);
   if (clearWindow && weatherScore(clearWindow) >= 48) {
@@ -2536,7 +2556,7 @@ function buildTonightScheduleEntries(lat, lon, tonightWindow, snapshot, nowTs = 
 
   return entries
     .sort((left, right) => left.timestamp - right.timestamp)
-    .slice(0, 9);
+    .slice(0, 12);
 }
 
 function buildTonightSnapshot(referenceDate = new Date()) {
@@ -4338,7 +4358,7 @@ function resolveSkyViewState(nowTs = Math.floor(Date.now() / 1000)) {
       skyPass: null,
       skyEvent: state.preview.skyEvent,
       observingNightKey: state.preview.skyEvent.observingNightKey || getTonightWindow(state.user.lat, state.user.lon, new Date(previewTs * 1000)).observingNightKey,
-      bannerText: `Previewing sky ${formatDateTime(new Date(previewTs * 1000))}`,
+      bannerText: formatSkyEventPreviewBanner(state.preview.skyEvent, previewTs),
       showExit: true
     };
   }
@@ -4403,14 +4423,17 @@ function resolveSkyViewState(nowTs = Math.floor(Date.now() / 1000)) {
 
 function updatePreviewBanner(viewState) {
   if (!previewBanner || !previewText || !previewExitButton) return;
+  const viewerPanel = document.getElementById("viewer-panel");
   if (!skyViewEl.classList.contains("active")) {
     previewExitButton.hidden = true;
     previewBanner.hidden = true;
+    if (viewerPanel) viewerPanel.classList.remove("is-previewing");
     return;
   }
   previewText.textContent = viewState.bannerText || "";
   previewExitButton.hidden = !viewState.showExit;
   previewBanner.hidden = !viewState.bannerText;
+  if (viewerPanel) viewerPanel.classList.toggle("is-previewing", Boolean(viewState.showExit && viewState.bannerText));
 }
 
 function getSkyNightBundle(observingNightKey) {
@@ -4440,7 +4463,8 @@ function buildVisibleSkyHighlightOverlay(viewState, contextDate, skyContext, obs
       bundle: null,
       bodyRoles: new Map(),
       guideItems: [],
-      forcedConstellationId: ""
+      forcedConstellationId: "",
+      selectedConstellationId: ""
     };
   }
 
@@ -4449,6 +4473,8 @@ function buildVisibleSkyHighlightOverlay(viewState, contextDate, skyContext, obs
     .map((event) => {
       const tokens = [];
       let forcedConstellationId = "";
+      let selectedConstellationId = "";
+      const isSelectedEvent = selectedEventId && event.id === selectedEventId;
 
       if (event.guideKind === "constellation") {
         const preferredId = event.guideId || event.id;
@@ -4461,6 +4487,7 @@ function buildVisibleSkyHighlightOverlay(viewState, contextDate, skyContext, obs
         );
         if (visibleConstellations.some((guide) => guide.id === preferredId)) {
           forcedConstellationId = preferredId;
+          if (isSelectedEvent) selectedConstellationId = preferredId;
         }
       } else if (Number.isFinite(event.raHours) && Number.isFinite(event.decDeg)) {
         const observation = getEquatorialObservation({ raHours: event.raHours, decDeg: event.decDeg }, contextDate, observer);
@@ -4479,14 +4506,24 @@ function buildVisibleSkyHighlightOverlay(viewState, contextDate, skyContext, obs
 
       (event.bodies || []).forEach((body) => {
         if (body === "Moon") {
-          if (skyContext.moon) tokens.push({ type: "body", body });
+          const selectedMoon = isSelectedEvent && skyContext.moonObservation?.elevation > 0
+            ? skyContext.moonObservation
+            : null;
+          if (skyContext.moon || selectedMoon) tokens.push({ type: "body", body });
           return;
         }
         const visibleTarget = skyContext.visiblePlanets.find((target) => target.body === body);
-        if (visibleTarget) tokens.push({ type: "body", body: visibleTarget.body });
+        if (visibleTarget) {
+          tokens.push({ type: "body", body: visibleTarget.body });
+          return;
+        }
+        const selectedTarget = isSelectedEvent
+          ? skyContext.observations.find((target) => target.body === body && target.elevation > 0)
+          : null;
+        if (selectedTarget) tokens.push({ type: "body", body: selectedTarget.body });
       });
 
-      return { event, tokens, forcedConstellationId };
+      return { event, tokens, forcedConstellationId, selectedConstellationId };
     })
     .filter((entry) => entry.tokens.length || entry.forcedConstellationId);
 
@@ -4499,14 +4536,18 @@ function buildVisibleSkyHighlightOverlay(viewState, contextDate, skyContext, obs
   const bodyRoles = new Map();
   const guideItemsById = new Map();
   let forcedConstellationId = "";
+  let selectedConstellationId = "";
 
-  visibleEntries.forEach(({ event, tokens, forcedConstellationId: entryConstellationId }) => {
+  visibleEntries.forEach(({ event, tokens, forcedConstellationId: entryConstellationId, selectedConstellationId: entrySelectedConstellationId }) => {
     const role = selectedEventId
       ? (event.id === selectedEventId ? "selected" : "secondary")
       : (event.id === primaryEventId ? "primary" : "secondary");
 
     if (entryConstellationId && (!forcedConstellationId || getSkyHighlightRoleWeight(role) > 1)) {
       forcedConstellationId = entryConstellationId;
+    }
+    if (entrySelectedConstellationId && role === "selected") {
+      selectedConstellationId = entrySelectedConstellationId;
     }
 
     tokens.forEach((token) => {
@@ -4529,7 +4570,8 @@ function buildVisibleSkyHighlightOverlay(viewState, contextDate, skyContext, obs
     bundle,
     bodyRoles,
     guideItems: Array.from(guideItemsById.values()),
-    forcedConstellationId
+    forcedConstellationId,
+    selectedConstellationId
   };
 }
 
@@ -4620,16 +4662,34 @@ function getDisplayPasses(passes) {
     .slice(0, FORECAST_DAYS);
 }
 
+function scrollSkyPreviewIntoView() {
+  const target = previewBanner && !previewBanner.hidden
+    ? previewBanner
+    : document.getElementById("viewer-panel");
+  if (!target) return;
+  const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+  window.requestAnimationFrame(() => {
+    target.scrollIntoView({ behavior, block: "start", inline: "nearest" });
+  });
+}
+
+function focusSkyPreview() {
+  setActiveView("sky");
+  updateSkyCanvas();
+  queueSkyResize();
+  scrollSkyPreviewIntoView();
+}
+
 function setPreviewPass(pass) {
   if (!pass) return;
   state.preview.active = true;
   state.preview.mode = "pass";
   state.preview.pass = pass;
   state.preview.skyEvent = null;
+  showToast("Previewing ISS pass in User View.", 1800);
   renderPassList();
   renderSkyEventsList();
-  setActiveView("sky");
-  updateSkyCanvas();
+  focusSkyPreview();
 }
 
 function setSkyEventPreview(event) {
@@ -4641,10 +4701,10 @@ function setSkyEventPreview(event) {
   state.preview.mode = "event";
   state.preview.pass = null;
   state.preview.skyEvent = event;
+  showToast(`Previewing ${getSkyEventDisplayLabel(event)} in User View.`, 1800);
   renderPassList();
   renderSkyEventsList();
-  setActiveView("sky");
-  updateSkyCanvas();
+  focusSkyPreview();
 }
 
 function clearPreview() {
@@ -4657,10 +4717,22 @@ function clearPreview() {
   updateSkyCanvas();
 }
 
-function updateSkyCanvas() {
+function updateSkyCanvas(options = {}) {
+  const allowResize = options.allowResize !== false;
   const ctx = skyCanvas.getContext("2d");
   const width = skyCanvas.clientWidth;
   const height = skyCanvas.clientHeight;
+  if (!ctx || width <= 0 || height <= 0) {
+    if (allowResize) queueSkyResize();
+    return;
+  }
+  const ratio = window.devicePixelRatio || 1;
+  const targetWidth = Math.max(1, Math.round(width * ratio));
+  const targetHeight = Math.max(1, Math.round(height * ratio));
+  if (allowResize && (Math.abs(skyCanvas.width - targetWidth) > 1 || Math.abs(skyCanvas.height - targetHeight) > 1)) {
+    resizeSky();
+    return;
+  }
   ctx.clearRect(0, 0, width, height);
 
   const cx = width / 2;
@@ -4730,25 +4802,27 @@ function updateSkyCanvas() {
   updatePreviewBanner(viewState);
 
   if (state.user) {
-    const skyContext = getSkyContextAt(contextDate, state.user.lat, state.user.lon);
-    const observer = window.Astronomy?.Observer
-      ? new window.Astronomy.Observer(state.user.lat, state.user.lon, 0)
-      : null;
-    const highlightOverlay = observer
-      ? buildVisibleSkyHighlightOverlay(viewState, contextDate, skyContext, observer)
-      : { bodyRoles: new Map(), guideItems: [], forcedConstellationId: "" };
-    const constellationGuides = getVisibleConstellationGuides(
-      contextDate,
-      state.user.lat,
-      state.user.lon,
-      skyContext,
-      highlightOverlay.forcedConstellationId
-    );
-    const drawableGuideItems = highlightOverlay.guideItems
-      .slice()
-      .sort((left, right) => getSkyHighlightRoleWeight(left.role) - getSkyHighlightRoleWeight(right.role));
+    try {
+      const skyContext = getSkyContextAt(contextDate, state.user.lat, state.user.lon);
+      const observer = window.Astronomy?.Observer
+        ? new window.Astronomy.Observer(state.user.lat, state.user.lon, 0)
+        : null;
+      const highlightOverlay = observer
+        ? buildVisibleSkyHighlightOverlay(viewState, contextDate, skyContext, observer)
+        : { bodyRoles: new Map(), guideItems: [], forcedConstellationId: "", selectedConstellationId: "" };
+      const constellationGuides = getVisibleConstellationGuides(
+        contextDate,
+        state.user.lat,
+        state.user.lon,
+        skyContext,
+        highlightOverlay.forcedConstellationId
+      );
+      const drawableGuideItems = highlightOverlay.guideItems
+        .slice()
+        .sort((left, right) => getSkyHighlightRoleWeight(left.role) - getSkyHighlightRoleWeight(right.role));
+      const forcedPreview = viewState.mode === "manual-event" && highlightedEvent;
 
-    if (skyContext.darkEnough && (constellationGuides.length || highlightOverlay.bodyRoles.size || skyContext.moon || drawableGuideItems.length)) {
+      if ((forcedPreview || skyContext.darkEnough) && (constellationGuides.length || highlightOverlay.bodyRoles.size || skyContext.moon || drawableGuideItems.length)) {
       const labelBoxes = [];
       const safePadding = 12;
       const hasOverlap = (candidate) => labelBoxes.some((box) => (
@@ -4846,6 +4920,7 @@ function updateSkyCanvas() {
 
       if (constellationGuides.length) {
         constellationGuides.forEach((guide) => {
+          const isSelectedConstellation = Boolean(highlightOverlay.selectedConstellationId && guide.id === highlightOverlay.selectedConstellationId);
           const pointsById = new Map(
             guide.projectedStars.map((star) => [
               star.id,
@@ -4856,8 +4931,8 @@ function updateSkyCanvas() {
             ])
           );
 
-          ctx.strokeStyle = "rgba(180,220,245,0.18)";
-          ctx.lineWidth = 0.85;
+          ctx.strokeStyle = isSelectedConstellation ? "rgba(180, 112, 255, 0.46)" : "rgba(180,220,245,0.18)";
+          ctx.lineWidth = isSelectedConstellation ? 1.25 : 0.85;
           guide.visibleSegments.forEach(({ from, to }) => {
             const fromPoint = pointsById.get(from.id);
             const toPoint = pointsById.get(to.id);
@@ -4872,9 +4947,11 @@ function updateSkyCanvas() {
             const point = pointsById.get(star.id);
             if (!point) return;
             const emphasized = star.anchor || star.id === guide.labelStarId || star.id === guide.anchorGuideStarId;
-            ctx.fillStyle = emphasized ? "rgba(220,240,255,0.30)" : "rgba(205,230,250,0.20)";
+            ctx.fillStyle = isSelectedConstellation
+              ? emphasized ? "rgba(236, 215, 255, 0.58)" : "rgba(213, 177, 255, 0.38)"
+              : emphasized ? "rgba(220,240,255,0.30)" : "rgba(205,230,250,0.20)";
             ctx.beginPath();
-            ctx.arc(point.x, point.y, emphasized ? 1.8 : 1.2, 0, Math.PI * 2);
+            ctx.arc(point.x, point.y, emphasized ? (isSelectedConstellation ? 2.3 : 1.8) : (isSelectedConstellation ? 1.55 : 1.2), 0, Math.PI * 2);
             ctx.fill();
           });
 
@@ -4883,19 +4960,21 @@ function updateSkyCanvas() {
             pendingConstellationLabels.push({
               label: guide.name,
               point: labelPoint,
-              labelOffsetPx: guide.labelOffsetPx
+              labelOffsetPx: guide.labelOffsetPx,
+              selected: isSelectedConstellation
             });
           }
         });
       }
 
       ctx.font = "11px IBM Plex Mono";
-      skyContext.visiblePlanets
+      skyContext.observations
         .filter((target) => highlightOverlay.bodyRoles.has(target.body))
         .sort((left, right) => getSkyHighlightRoleWeight(highlightOverlay.bodyRoles.get(left.body)?.role) - getSkyHighlightRoleWeight(highlightOverlay.bodyRoles.get(right.body)?.role))
         .forEach((target) => drawTarget(target, 3.1, highlightOverlay.bodyRoles.get(target.body)?.role || "primary"));
-      if (skyContext.moon) {
-        drawTarget(skyContext.moon, 3.6, highlightOverlay.bodyRoles.get("Moon")?.role || "context");
+      const moonTarget = skyContext.moon || (highlightOverlay.bodyRoles.has("Moon") ? skyContext.moonObservation : null);
+      if (moonTarget) {
+        drawTarget(moonTarget, 3.6, highlightOverlay.bodyRoles.get("Moon")?.role || "context");
       }
 
       drawableGuideItems.forEach((item) => {
@@ -4965,9 +5044,13 @@ function updateSkyCanvas() {
             candidatesBuilder: buildConstellationLabelCandidates
           });
           if (!box) return;
+          ctx.fillStyle = label.selected ? "#edd7ff" : "rgba(220,240,255,0.38)";
           ctx.fillText(label.label, box.x, box.y + 9.5);
         });
       }
+      }
+    } catch (error) {
+      console.warn("Sky overlay render failed.", error);
     }
   }
 
@@ -5036,13 +5119,23 @@ function updateSkyCanvas() {
 
 function resizeSky() {
   const rect = skyViewEl.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return;
   const ratio = window.devicePixelRatio || 1;
-  skyCanvas.width = rect.width * ratio;
-  skyCanvas.height = rect.height * ratio;
+  skyCanvas.width = Math.max(1, Math.round(rect.width * ratio));
+  skyCanvas.height = Math.max(1, Math.round(rect.height * ratio));
   const ctx = skyCanvas.getContext("2d");
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(ratio, ratio);
-  updateSkyCanvas();
+  updateSkyCanvas({ allowResize: false });
+}
+
+function queueSkyResize() {
+  if (skyResizeQueued) return;
+  skyResizeQueued = true;
+  window.requestAnimationFrame(() => {
+    skyResizeQueued = false;
+    resizeSky();
+  });
 }
 
 function initSky() {
@@ -5081,6 +5174,10 @@ function initSky() {
   }, { passive: false });
 
   window.addEventListener("resize", resizeSky);
+  if (window.ResizeObserver) {
+    const observer = new ResizeObserver(() => queueSkyResize());
+    observer.observe(skyViewEl);
+  }
   resizeSky();
 }
 
@@ -5610,7 +5707,7 @@ function setActiveView(view) {
     renderGlobe();
   }
   if (isSky) {
-    updateSkyCanvas();
+    queueSkyResize();
   } else if (previewBanner) {
     previewExitButton.hidden = true;
     previewBanner.hidden = true;
@@ -5632,15 +5729,18 @@ window.addEventListener("resize", () => {
 });
 
 window.addEventListener("pageshow", () => {
+  queueSkyResize();
   maybeAutoRefresh();
 });
 
 window.addEventListener("focus", () => {
+  queueSkyResize();
   maybeAutoRefresh();
 });
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
+    queueSkyResize();
     maybeAutoRefresh();
   }
 });

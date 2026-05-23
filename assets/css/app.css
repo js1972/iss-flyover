@@ -602,16 +602,37 @@
       color: #cbd8ef;
     }
 
-    .section-subtitle {
-      margin: 0;
-      color: var(--muted);
-      font-size: 0.85rem;
-      max-width: 760px;
-    }
+	    .section-subtitle {
+	      margin: 0;
+	      color: var(--muted);
+	      font-size: 0.85rem;
+	      max-width: 760px;
+	    }
 
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--border);
+	    .sky-hero {
+	      display: grid;
+	      gap: 16px;
+	      scroll-margin-top: calc(env(safe-area-inset-top, 0px) + 14px);
+	    }
+
+	    .sky-hero__heading {
+	      display: flex;
+	      align-items: flex-end;
+	      justify-content: space-between;
+	      gap: 18px;
+	    }
+
+	    .sky-hero .section-head {
+	      min-width: 0;
+	    }
+
+	    .queue-head {
+	      margin-top: 4px;
+	    }
+
+	    .card {
+	      background: var(--panel);
+	      border: 1px solid var(--border);
       border-radius: 20px;
       padding: 16px 18px;
       box-shadow: var(--shadow);
@@ -804,11 +825,15 @@
       margin-top: 6px;
     }
 
-    .tonight-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 14px;
-    }
+	    .tonight-grid {
+	      display: grid;
+	      grid-template-columns: repeat(4, minmax(0, 1fr));
+	      gap: 12px;
+	    }
+
+	    .tonight-grid.tonight-conditions {
+	      grid-template-columns: repeat(2, minmax(0, 1fr));
+	    }
 
     .tonight-card {
       position: relative;
@@ -845,6 +870,11 @@
     .tonight-card.tonight-weather::before {
       background: rgba(138, 169, 255, 0.82);
     }
+
+	    .tonight-conditions .tonight-card {
+	      padding: 13px 16px 13px 18px;
+	      border-radius: 18px;
+	    }
 
     .tonight-head {
       display: flex;
@@ -883,6 +913,25 @@
       margin-top: 4px;
       color: #c4d4ec;
     }
+
+	    .tonight-conditions .tonight-head {
+	      margin-bottom: 5px;
+	    }
+
+	    .tonight-conditions .tonight-head h3 {
+	      font-size: 0.68rem;
+	      letter-spacing: 0.18em;
+	    }
+
+	    .tonight-conditions .tonight-value {
+	      font-size: 0.95rem;
+	      letter-spacing: 0.02em;
+	    }
+
+	    .tonight-conditions .tonight-sub {
+	      font-size: 0.72rem;
+	      line-height: 1.32;
+	    }
 
     .timeline-panel,
     .guide-panel,
@@ -1007,13 +1056,14 @@
       line-height: 1.35;
     }
 
-    .view-toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
+	    .view-toolbar {
+	      display: flex;
+	      align-items: center;
+	      justify-content: space-between;
+	      gap: 12px;
+	      flex-wrap: wrap;
+	      flex: 0 0 auto;
+	    }
 
     .view-toggle {
       display: inline-flex;
@@ -1025,16 +1075,25 @@
       width: fit-content;
     }
 
-    .viewer {
-      position: relative;
-      background: var(--panel-strong);
-      border: 1px solid var(--border);
-      border-radius: 26px;
-      min-height: 460px;
-      overflow: hidden;
-      box-shadow: var(--shadow);
-      overscroll-behavior: contain;
-    }
+	    .viewer {
+	      position: relative;
+	      background: var(--panel-strong);
+	      border: 1px solid var(--border);
+	      border-radius: 26px;
+	      height: clamp(440px, 58vh, 660px);
+	      min-height: 0;
+	      overflow: hidden;
+	      box-shadow: var(--shadow);
+	      overscroll-behavior: contain;
+	      transition: border-color 0.24s ease, box-shadow 0.24s ease;
+	    }
+
+	    .viewer.is-previewing {
+	      border-color: rgba(155, 92, 255, 0.66);
+	      box-shadow:
+	        0 0 0 1px rgba(155, 92, 255, 0.28),
+	        0 22px 64px rgba(9, 5, 22, 0.55);
+	    }
 
     .viewer-track-status {
       margin-top: 12px;
@@ -2171,20 +2230,31 @@
       100% { transform: scale(1.6); opacity: 0; }
     }
 
-    @media (max-width: 900px) {
-      .tonight-grid {
-        grid-template-columns: 1fr;
-      }
+	    @media (max-width: 900px) {
+	      .tonight-grid {
+	        grid-template-columns: repeat(2, minmax(0, 1fr));
+	      }
 
-      .panel-grid {
-        grid-template-columns: 1fr;
+	      .sky-hero {
+	        gap: 14px;
+	      }
+
+	      .sky-hero__heading {
+	        align-items: stretch;
+	        flex-direction: column;
+	        gap: 12px;
+	      }
+
+	      .panel-grid {
+	        grid-template-columns: 1fr;
         gap: 20px;
       }
 
-      .viewer {
-        min-height: 380px;
-        padding-bottom: 0;
-      }
+	      .viewer {
+	        height: clamp(360px, 48vh, 440px);
+	        min-height: 360px;
+	        padding-bottom: 0;
+	      }
 
       .sky-overlay,
       .globe-overlay {
@@ -2279,12 +2349,24 @@
       }
     }
 
-    @media (max-width: 560px) {
-      .app {
-        gap: 18px;
-      }
+	    @media (max-width: 560px) {
+	      .app {
+	        gap: 18px;
+	      }
 
-      .panel-title {
+		    .tonight-grid {
+		        grid-template-columns: 1fr;
+		      }
+
+		      .tonight-grid.tonight-conditions {
+		        grid-template-columns: repeat(2, minmax(0, 1fr));
+		      }
+
+		      .tonight-conditions .tonight-card {
+		        padding: 12px 12px 12px 14px;
+		      }
+
+	      .panel-title {
         font-size: 0.88rem;
         letter-spacing: 0.14em;
       }

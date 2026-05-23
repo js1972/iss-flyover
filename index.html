@@ -9,19 +9,19 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="ISS Flyover" />
-  <link rel="manifest" href="manifest.webmanifest?v=2026.04.23-tle.1" />
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png?v=2026.04.23-tle.1" />
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32x32.png?v=2026.04.23-tle.1" />
-  <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16x16.png?v=2026.04.23-tle.1" />
-  <link rel="shortcut icon" href="assets/icons/favicon.ico?v=2026.04.23-tle.1" />
+  <link rel="manifest" href="manifest.webmanifest?v=2026.05.23-preview.4" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png?v=2026.05.23-preview.4" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32x32.png?v=2026.05.23-preview.4" />
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16x16.png?v=2026.05.23-preview.4" />
+  <link rel="shortcut icon" href="assets/icons/favicon.ico?v=2026.05.23-preview.4" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link
     rel="stylesheet"
-    href="assets/vendor/leaflet/leaflet.css?v=2026.04.23-tle.1"
+    href="assets/vendor/leaflet/leaflet.css?v=2026.05.23-preview.4"
   />
-  <link rel="stylesheet" href="assets/css/app.css?v=2026.04.23-tle.1" />
+  <link rel="stylesheet" href="assets/css/app.css?v=2026.05.23-preview.4" />
 </head>
 <body>
   <div class="boot-overlay" id="boot-overlay" role="status" aria-live="polite" aria-atomic="true">
@@ -70,42 +70,72 @@
       </div>
     </header>
 
-    <section class="section-head" id="tonight-head">
-      <h2 class="section-title">What To See Tonight</h2>
-      <p class="section-subtitle">Tonight's ISS pass, standout sky event, moonlight, and weather at a glance.</p>
-    </section>
+	    <section class="sky-hero" id="sky-hero">
+	      <div class="sky-hero__heading">
+	        <section class="section-head" id="tonight-head">
+	          <h2 class="section-title">What To See Tonight</h2>
+	          <p class="section-subtitle">Live sky view first, with tonight's conditions and upcoming viewing windows below.</p>
+	        </section>
 
-    <section class="tonight-grid" id="tonight-grid">
-      <div class="card tonight-card tonight-iss">
-        <div class="tonight-head">
-          <h3>ISS Tonight</h3>
-          <button class="share-chip" id="share-tonight-iss" type="button">Share</button>
+        <div class="view-toolbar">
+          <div class="view-toggle" role="tablist">
+            <button class="active" id="btn-sky">User View</button>
+            <button id="btn-globe">Globe View</button>
+            <button id="btn-map">Map View</button>
+          </div>
+          <div class="preview-banner" id="preview-banner" hidden>
+            <span id="preview-text">Previewing pass</span>
+            <button id="preview-exit">Return to Live</button>
+          </div>
         </div>
-        <div class="tonight-value" id="tonight-iss">Calculating…</div>
-        <div class="tonight-sub" id="tonight-iss-meta">Need location to evaluate tonight's visible ISS pass.</div>
       </div>
-      <div class="card tonight-card tonight-sky">
-        <div class="tonight-head">
-          <h3>Sky Tonight</h3>
-          <button class="share-chip" id="share-tonight-sky" type="button">Share</button>
+
+      <div class="panel-inline-status viewer-track-status" id="track-status" hidden></div>
+
+      <section class="viewer" id="viewer-panel">
+        <div id="map" class="view-panel" aria-label="ISS ground track map"></div>
+        <div id="globe-view" class="view-panel" aria-label="ISS globe view">
+          <div id="globe"></div>
+          <div class="globe-overlay">Drag to rotate, scroll to zoom. Track paths are computed from live ISS TLE data.</div>
         </div>
-        <div class="tonight-value" id="tonight-sky">Calculating…</div>
-        <div class="tonight-sub" id="tonight-sky-meta">Planets and alignments update with your location.</div>
-      </div>
-      <div class="card tonight-card tonight-moon">
-        <div class="tonight-head">
-          <h3>Moonlight Tonight</h3>
+        <div id="sky-view" class="view-panel active" aria-label="ISS sky view">
+          <canvas id="sky"></canvas>
+          <div class="sky-overlay">Drag to rotate the sky, scroll to zoom. The arc shows the ISS pass, planet markers show naked-eye targets, and faint constellation guides help with orientation.</div>
         </div>
-        <div class="tonight-value" id="tonight-moon">Calculating…</div>
-        <div class="tonight-sub" id="tonight-moon-meta">Moon phase and sky darkness guidance.</div>
-      </div>
-      <div class="card tonight-card tonight-weather">
-        <div class="tonight-head">
-          <h3>Weather Tonight</h3>
+      </section>
+
+	      <section class="tonight-grid tonight-conditions" id="tonight-grid" aria-label="Tonight conditions">
+	        <div class="card tonight-card tonight-iss" hidden>
+	          <div class="tonight-head">
+	            <h3>ISS Tonight</h3>
+	            <button class="share-chip" id="share-tonight-iss" type="button">Share</button>
+	          </div>
+	          <div class="tonight-value" id="tonight-iss">Calculating…</div>
+	          <div class="tonight-sub" id="tonight-iss-meta">Need location to evaluate tonight's visible ISS pass.</div>
+	        </div>
+	        <div class="card tonight-card tonight-sky" hidden>
+	          <div class="tonight-head">
+	            <h3>Sky Tonight</h3>
+	            <button class="share-chip" id="share-tonight-sky" type="button">Share</button>
+          </div>
+          <div class="tonight-value" id="tonight-sky">Calculating…</div>
+          <div class="tonight-sub" id="tonight-sky-meta">Planets and alignments update with your location.</div>
         </div>
-        <div class="tonight-value" id="tonight-weather">Checking…</div>
-        <div class="tonight-sub" id="tonight-weather-meta">Cloud, wind, and clarity forecast for observing.</div>
-      </div>
+        <div class="card tonight-card tonight-moon">
+          <div class="tonight-head">
+            <h3>Moonlight Tonight</h3>
+          </div>
+          <div class="tonight-value" id="tonight-moon">Calculating…</div>
+          <div class="tonight-sub" id="tonight-moon-meta">Moon phase and sky darkness guidance.</div>
+        </div>
+        <div class="card tonight-card tonight-weather">
+          <div class="tonight-head">
+            <h3>Weather Tonight</h3>
+          </div>
+          <div class="tonight-value" id="tonight-weather">Checking…</div>
+          <div class="tonight-sub" id="tonight-weather-meta">Cloud, wind, and clarity forecast for observing.</div>
+        </div>
+      </section>
     </section>
 
     <section class="card timeline-panel is-collapsed" id="timeline-panel">
@@ -128,30 +158,10 @@
       </div>
     </section>
 
-    <div class="view-toolbar">
-      <div class="view-toggle" role="tablist">
-        <button class="active" id="btn-sky">User View</button>
-        <button id="btn-globe">Globe View</button>
-        <button id="btn-map">Map View</button>
-      </div>
-      <div class="preview-banner" id="preview-banner" hidden>
-        <span id="preview-text">Previewing pass</span>
-        <button id="preview-exit">Return to Live</button>
-      </div>
-    </div>
-    <div class="panel-inline-status viewer-track-status" id="track-status" hidden></div>
-
-    <section class="viewer" id="viewer-panel">
-      <div id="map" class="view-panel" aria-label="ISS ground track map"></div>
-      <div id="globe-view" class="view-panel" aria-label="ISS globe view">
-        <div id="globe"></div>
-        <div class="globe-overlay">Drag to rotate, scroll to zoom. Track paths are computed from live ISS TLE data.</div>
-      </div>
-      <div id="sky-view" class="view-panel active" aria-label="ISS sky view">
-        <canvas id="sky"></canvas>
-        <div class="sky-overlay">Drag to rotate the sky, scroll to zoom. The arc shows the ISS pass, planet markers show naked-eye targets, and faint constellation guides help with orientation.</div>
-      </div>
-    </section>
+	    <section class="section-head queue-head" id="queue-head">
+	      <h2 class="section-title">Next Up</h2>
+	      <p class="section-subtitle">ISS passes and night-sky highlights worth planning around.</p>
+	    </section>
 
     <section class="panel-grid">
       <div class="card panel-card forecast-card" id="forecast-panel">
@@ -276,11 +286,11 @@
   </div>
   <div class="toast" id="share-toast"></div>
 
-  <script src="assets/vendor/leaflet/leaflet.js?v=2026.04.23-tle.1"></script>
-  <script src="assets/vendor/suncalc/suncalc.js?v=2026.04.23-tle.1"></script>
-  <script src="assets/vendor/astronomy/astronomy.browser.min.js?v=2026.04.23-tle.1"></script>
-  <script src="assets/vendor/three/three.min.js?v=2026.04.23-tle.1"></script>
-  <script src="assets/vendor/three/OrbitControls.js?v=2026.04.23-tle.1"></script>
-  <script type="module" src="assets/js/main.js?v=2026.04.23-tle.1"></script>
+  <script src="assets/vendor/leaflet/leaflet.js?v=2026.05.23-preview.4"></script>
+  <script src="assets/vendor/suncalc/suncalc.js?v=2026.05.23-preview.4"></script>
+  <script src="assets/vendor/astronomy/astronomy.browser.min.js?v=2026.05.23-preview.4"></script>
+  <script src="assets/vendor/three/three.min.js?v=2026.05.23-preview.4"></script>
+  <script src="assets/vendor/three/OrbitControls.js?v=2026.05.23-preview.4"></script>
+  <script type="module" src="assets/js/main.js?v=2026.05.23-preview.4"></script>
 </body>
 </html>
