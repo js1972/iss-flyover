@@ -1226,13 +1226,24 @@
 	      content: "";
 	      position: absolute;
 	      left: 50%;
-	      top: 5px;
-	      width: 0;
-	      height: 0;
-	      border-left: 3.5px solid transparent;
-	      border-right: 3.5px solid transparent;
-	      border-bottom: 7px solid rgba(39, 231, 196, 0.92);
-	      transform: translateX(-50%);
+	      top: 50%;
+	      width: 9px;
+	      height: 20px;
+	      background: linear-gradient(180deg, rgba(39, 231, 196, 0.96) 0 48%, rgba(162, 199, 222, 0.82) 48% 100%);
+	      clip-path: polygon(50% 0, 100% 48%, 62% 48%, 62% 100%, 38% 100%, 38% 48%, 0 48%);
+	      transform: translate(-50%, -50%) rotate(28deg);
+	    }
+
+	    .sky-compass-btn::after {
+	      content: "";
+	      position: absolute;
+	      left: 50%;
+	      top: 50%;
+	      width: 22px;
+	      height: 22px;
+	      border: 1px solid rgba(126, 217, 255, 0.28);
+	      border-radius: 50%;
+	      transform: translate(-50%, -50%);
 	    }
 
 	    .sky-compass-btn:hover,
@@ -1251,6 +1262,10 @@
 	    }
 
 	    .sky-compass-btn.active::before {
+	      display: none;
+	    }
+
+	    .sky-compass-btn.active::after {
 	      display: none;
 	    }
 
