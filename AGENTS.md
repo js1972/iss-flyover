@@ -9,18 +9,23 @@ Keep changes minimal and aligned with the existing static-site setup.
 - Preserve static-file deployability.
 
 ## Run Locally
-- Run a local web server from the repo root with `python3 -m http.server`.
+- Run a local web server from the repo root with `python3 -m http.server 8000 --bind 127.0.0.1`.
 - Test through `http://`, not `file://`.
+- Prefer the Codex in-app browser for local UX smoke tests. Use an external browser or Playwright only when the requested check needs it.
 
 ## Verification
 - After relevant changes, do a browser smoke test locally.
 - Verify the affected flows, especially location handling, live ISS refresh, forecast rendering, and failure states for remote data.
+- Preserve the card/detail-card preview flow: tapping an ISS pass or night-sky event should switch to User View, preview that event time, and scroll the chart into focus.
 - Real-device testing requires committing and pushing changes first.
 
 ## Operational Notes
 - This app is aggressively cached on phones. When shipping static asset changes, bump the asset/app version in `index.html`, `manifest.webmanifest`, `assets/js/version.js`, and `version.json`.
 - Prefer CelesTrak TLE data for fast startup and refresh. Treat it as a valid live source, not a degraded forecast condition. Keep `wheretheiss.at` TLE as backup only.
 - Keep the boot path fast: orbit/forecast data should unblock the initial render, while weather can refresh in the background after the UI becomes usable.
+- Night-sky highlights default to the evening-first viewing preference. Keep that preference configurable and persisted, and avoid burying dusk-to-midnight events behind early-morning picks.
+- Compass mode is primarily a PWA/iPhone experience. Keep the non-compass fallback usable, request device-orientation permission only from a user gesture, and avoid overlays that obscure the sky chart.
+- Advanced support/diagnostic sections should default hidden on each fresh load so the chart and recommendations stay central.
 
 ## Project Structure
 - `index.html`: static app shell and CDN script includes.
