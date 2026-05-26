@@ -1,4 +1,4 @@
-import { createHealthState } from "./status.js";
+import { createHealthState } from "./status.js?v=2026.05.26-compass.4";
 
 export const state =  {
   user: null,
@@ -56,6 +56,13 @@ export const state =  {
     zoom: 1,
     dragging: false,
     dragStart: null,
+    compass: {
+      active: false,
+      heading: null,
+      smoothedHeading: null,
+      accuracy: null,
+      supported: null
+    },
     stars: []
   },
   layout: {

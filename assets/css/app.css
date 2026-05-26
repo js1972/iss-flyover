@@ -1191,6 +1191,97 @@
       touch-action: none;
     }
 
+	    .sky-compass-controls {
+	      position: absolute;
+	      top: 16px;
+	      right: 16px;
+	      z-index: 5;
+	      display: flex;
+	      align-items: center;
+	      gap: 8px;
+	    }
+
+	    .sky-compass-btn {
+	      position: relative;
+	      display: flex;
+	      align-items: center;
+	      justify-content: center;
+	      width: 42px;
+	      height: 42px;
+	      box-sizing: border-box;
+	      padding: 8px 0 0;
+	      border-radius: 50%;
+	      border: 1px solid rgba(126, 217, 255, 0.5);
+	      background: rgba(5, 10, 18, 0.72);
+	      color: #e7f7ff;
+	      box-shadow: 0 10px 24px rgba(1, 6, 18, 0.34);
+	      font-family: "IBM Plex Mono", monospace;
+	      font-size: 0.86rem;
+	      font-weight: 700;
+	      letter-spacing: 0.04em;
+	      backdrop-filter: blur(8px);
+	    }
+
+	    .sky-compass-btn::before {
+	      content: "";
+	      position: absolute;
+	      left: 50%;
+	      top: 5px;
+	      width: 0;
+	      height: 0;
+	      border-left: 3.5px solid transparent;
+	      border-right: 3.5px solid transparent;
+	      border-bottom: 7px solid rgba(39, 231, 196, 0.92);
+	      transform: translateX(-50%);
+	    }
+
+	    .sky-compass-btn:hover,
+	    .sky-compass-btn:focus-visible {
+	      border-color: rgba(39, 231, 196, 0.88);
+	      box-shadow: 0 0 0 2px rgba(39, 231, 196, 0.18), 0 12px 30px rgba(1, 6, 18, 0.48);
+	    }
+
+	    .sky-compass-btn.active {
+	      border-color: rgba(39, 231, 196, 0.95);
+	      background: rgba(8, 30, 34, 0.88);
+	      color: #ffffff;
+	    }
+
+	    .sky-compass-btn[disabled] {
+	      cursor: not-allowed;
+	      opacity: 0.48;
+	    }
+
+	    .sky-compass-pill {
+	      position: absolute;
+	      left: 50%;
+	      top: 16px;
+	      z-index: 4;
+	      transform: translateX(-50%);
+	      max-width: calc(100% - 132px);
+	      padding: 8px 12px;
+	      border: 1px solid rgba(39, 231, 196, 0.36);
+	      border-radius: 999px;
+	      background: rgba(6, 12, 22, 0.76);
+	      color: #cfefff;
+	      box-shadow: 0 10px 26px rgba(1, 6, 18, 0.38);
+	      font-family: "IBM Plex Mono", monospace;
+	      font-size: 0.72rem;
+	      line-height: 1.2;
+	      text-align: center;
+	      backdrop-filter: blur(8px);
+	      pointer-events: none;
+	    }
+
+	    .sky-compass-pill[hidden] {
+	      display: none !important;
+	    }
+
+	    #sky-view.compass-active .sky-compass-pill {
+	      border-color: rgba(39, 231, 196, 0.58);
+	      color: #eaffff;
+	    }
+
     .sky-overlay {
       position: absolute;
       left: 20px;
@@ -2256,10 +2347,27 @@
 	        padding-bottom: 0;
 	      }
 
-      .sky-overlay,
-      .globe-overlay {
-        display: none;
-      }
+	      .sky-overlay,
+	      .globe-overlay {
+	        display: none;
+	      }
+
+		      .sky-compass-controls {
+		        top: 12px;
+		        right: 12px;
+		      }
+
+		      .sky-compass-btn {
+		        width: 38px;
+		        height: 38px;
+		        font-size: 0.78rem;
+		      }
+
+		      .sky-compass-pill {
+		        top: 12px;
+		        max-width: calc(100% - 112px);
+		        font-size: 0.66rem;
+		      }
 
       .preview-banner {
         margin: 8px 0 0;

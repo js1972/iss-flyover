@@ -1,12 +1,12 @@
 
-import { state } from "./state.js";
-import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, ISS_TLE_FALLBACK_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js";
-import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, tonightGridEl, passList, skyEventsList, actionStatusEl, actionStatusLabelEl, actionStatusMetaEl, actionStatusActionEl, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, forecastStatusEl, skyPanelEl, conditionsPanelEl, trackStatusEl, conditionsStatusEl, previewBanner, previewText, previewExitButton, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, conditionsList } from "./dom.js";
-import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js";
-import { fetchJson } from "./network.js";
-import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js";
-import { beginSourceAttempt, hasUsableData, markSourceDegraded, markSourceOk, markSourceUnavailable, setHealthBanner } from "./status.js";
-import { APP_VERSION, ASSET_VERSION, DEPLOYED_AT } from "./version.js?v=2026.05.23-preview.4";
+import { state } from "./state.js?v=2026.05.26-compass.4";
+import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, ISS_TLE_FALLBACK_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js?v=2026.05.26-compass.4";
+import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, skyCompassButton, skyCompassStatus, tonightGridEl, passList, skyEventsList, actionStatusEl, actionStatusLabelEl, actionStatusMetaEl, actionStatusActionEl, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, forecastStatusEl, skyPanelEl, conditionsPanelEl, trackStatusEl, conditionsStatusEl, previewBanner, previewText, previewExitButton, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, conditionsList } from "./dom.js?v=2026.05.26-compass.4";
+import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js?v=2026.05.26-compass.4";
+import { fetchJson } from "./network.js?v=2026.05.26-compass.4";
+import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js?v=2026.05.26-compass.4";
+import { beginSourceAttempt, hasUsableData, markSourceDegraded, markSourceOk, markSourceUnavailable, setHealthBanner } from "./status.js?v=2026.05.26-compass.4";
+import { APP_VERSION, ASSET_VERSION, DEPLOYED_AT } from "./version.js?v=2026.05.26-compass.4";
 
 const AUTO_REFRESH_STALE_MS = 15 * 60 * 1000;
 const VERSION_URL = `./version.json?v=${encodeURIComponent(ASSET_VERSION)}`;
@@ -25,6 +25,8 @@ let satelliteLib = null;
 let satelliteLibPromise = null;
 let globeRendering = false;
 let skyResizeQueued = false;
+let compassStatusTimerId = null;
+let compassSignalTimerId = null;
 const AU_STATE_CODES = {
   "Western Australia": "WA",
   "New South Wales": "NSW",
@@ -5138,6 +5140,154 @@ function queueSkyResize() {
   });
 }
 
+function normalizeDegrees(value) {
+  return ((value % 360) + 360) % 360;
+}
+
+function shortestHeadingDelta(from, to) {
+  return ((to - from + 540) % 360) - 180;
+}
+
+function getDeviceCompassHeading(event) {
+  const webkitHeading = event.webkitCompassHeading;
+  if (Number.isFinite(webkitHeading)) return normalizeDegrees(webkitHeading);
+  if (event.absolute && Number.isFinite(event.alpha)) return normalizeDegrees(360 - event.alpha);
+  return null;
+}
+
+function formatCompassHeading(heading) {
+  if (!Number.isFinite(heading)) return "calibrating";
+  return `${Math.round(normalizeDegrees(heading))}° ${azimuthToCompass(heading)}`;
+}
+
+function setCompassStatus(message, options = {}) {
+  if (!skyCompassStatus) return;
+  skyCompassStatus.textContent = message;
+  skyCompassStatus.hidden = false;
+  window.clearTimeout(compassStatusTimerId);
+  if (options.hideAfter) {
+    compassStatusTimerId = window.setTimeout(() => {
+      if (!state.sky.compass.active) skyCompassStatus.hidden = true;
+    }, options.hideAfter);
+  }
+}
+
+function updateCompassControl() {
+  const active = Boolean(state.sky.compass.active);
+  skyViewEl.classList.toggle("compass-active", active);
+  if (skyCompassButton) {
+    skyCompassButton.classList.toggle("active", active);
+    skyCompassButton.setAttribute("aria-pressed", String(active));
+    skyCompassButton.setAttribute("title", active ? "Turn compass mode off" : "Align with compass");
+    skyCompassButton.setAttribute("aria-label", active ? "Turn compass mode off" : "Align with compass");
+  }
+
+  if (!skyCompassStatus) return;
+  if (active) {
+    const accuracy = state.sky.compass.accuracy;
+    const accuracySuffix = Number.isFinite(accuracy) && accuracy > 35 ? " • low accuracy" : "";
+    setCompassStatus(`Compass on • ${formatCompassHeading(state.sky.compass.smoothedHeading)}${accuracySuffix}`);
+  } else if (!skyCompassStatus.textContent) {
+    skyCompassStatus.hidden = true;
+  }
+}
+
+function handleCompassOrientation(event) {
+  if (!state.sky.compass.active) return;
+  const heading = getDeviceCompassHeading(event);
+  if (!Number.isFinite(heading)) return;
+  window.clearTimeout(compassSignalTimerId);
+
+  const compass = state.sky.compass;
+  compass.heading = heading;
+  compass.accuracy = Number.isFinite(event.webkitCompassAccuracy) ? event.webkitCompassAccuracy : null;
+  if (!Number.isFinite(compass.smoothedHeading)) {
+    compass.smoothedHeading = heading;
+  } else {
+    const delta = shortestHeadingDelta(compass.smoothedHeading, heading);
+    if (Math.abs(delta) >= 0.8) {
+      compass.smoothedHeading = normalizeDegrees(compass.smoothedHeading + delta * 0.18);
+    }
+  }
+
+  state.sky.rotation = -toRadians(compass.smoothedHeading);
+  updateCompassControl();
+  updateSkyCanvas();
+}
+
+function stopCompassMode(reason = "off", options = {}) {
+  const wasActive = state.sky.compass.active;
+  window.clearTimeout(compassSignalTimerId);
+  window.removeEventListener("deviceorientation", handleCompassOrientation, true);
+  state.sky.compass.active = false;
+  state.sky.compass.smoothedHeading = null;
+  state.sky.compass.heading = null;
+  state.sky.compass.accuracy = null;
+  updateCompassControl();
+  if (!wasActive && !options.forceStatus) return;
+
+  if (reason === "paused") {
+    setCompassStatus("Compass paused", { hideAfter: 2400 });
+    if (!options.silent) showToast("Compass paused. Dragging returned to manual control.", 2200);
+  } else {
+    setCompassStatus("Compass off", { hideAfter: 1500 });
+  }
+}
+
+async function startCompassMode() {
+  if (!("DeviceOrientationEvent" in window)) {
+    setCompassStatus("Compass unavailable", { hideAfter: 2600 });
+    showToast("Compass is not available on this device.", 2600);
+    return;
+  }
+  if (!window.isSecureContext) {
+    setCompassStatus("Compass needs HTTPS", { hideAfter: 3200 });
+    showToast("Compass mode needs HTTPS on iPhone.", 3200);
+    return;
+  }
+
+  try {
+    const requestPermission = window.DeviceOrientationEvent?.requestPermission;
+    if (typeof requestPermission === "function") {
+      const permission = await requestPermission.call(window.DeviceOrientationEvent);
+      if (permission !== "granted") {
+        setCompassStatus("Compass permission denied", { hideAfter: 3200 });
+        showToast("Compass permission was not granted.", 2800);
+        return;
+      }
+    }
+  } catch (error) {
+    console.warn("Compass permission failed.", error);
+    setCompassStatus("Compass unavailable", { hideAfter: 3200 });
+    showToast("Compass mode could not start.", 2800);
+    return;
+  }
+
+  state.sky.compass.active = true;
+  state.sky.compass.supported = true;
+  state.sky.compass.heading = null;
+  state.sky.compass.smoothedHeading = null;
+  state.sky.compass.accuracy = null;
+  window.addEventListener("deviceorientation", handleCompassOrientation, true);
+  updateCompassControl();
+  setCompassStatus("Compass on • calibrating");
+  compassSignalTimerId = window.setTimeout(() => {
+    if (!state.sky.compass.active || Number.isFinite(state.sky.compass.heading)) return;
+    stopCompassMode("off", { forceStatus: true, silent: true });
+    setCompassStatus("No compass signal", { hideAfter: 3200 });
+    showToast("Compass heading is unavailable on this device.", 3000);
+  }, 4500);
+  showToast("Compass mode on. Aim the top of your phone toward the sky.", 3000);
+}
+
+function toggleCompassMode() {
+  if (state.sky.compass.active) {
+    stopCompassMode("off");
+    return;
+  }
+  void startCompassMode();
+}
+
 function initSky() {
   state.sky.stars = Array.from({ length: 140 }).map(() => ({
     az: Math.random() * 360,
@@ -5154,6 +5304,7 @@ function initSky() {
   };
 
   skyCanvas.addEventListener("pointerdown", (event) => {
+    if (state.sky.compass.active) stopCompassMode("paused");
     state.sky.dragging = true;
     state.sky.dragStart = { x: event.clientX, rotation: state.sky.rotation };
     skyCanvas.setPointerCapture(event.pointerId);
@@ -5168,6 +5319,7 @@ function initSky() {
 
   skyCanvas.addEventListener("wheel", (event) => {
     event.preventDefault();
+    if (state.sky.compass.active) stopCompassMode("paused");
     const delta = Math.sign(event.deltaY) * 0.05;
     state.sky.zoom = Math.min(1.4, Math.max(0.8, state.sky.zoom - delta));
     updateSkyCanvas();
@@ -5709,6 +5861,7 @@ function setActiveView(view) {
   if (isSky) {
     queueSkyResize();
   } else if (previewBanner) {
+    if (state.sky.compass.active) stopCompassMode("paused", { silent: true });
     previewExitButton.hidden = true;
     previewBanner.hidden = true;
   }
@@ -5717,6 +5870,9 @@ function setActiveView(view) {
 document.getElementById("btn-map").addEventListener("click", () => setActiveView("map"));
 document.getElementById("btn-globe").addEventListener("click", () => setActiveView("globe"));
 document.getElementById("btn-sky").addEventListener("click", () => setActiveView("sky"));
+if (skyCompassButton) {
+  skyCompassButton.addEventListener("click", toggleCompassMode);
+}
 
 let layoutQueued = false;
 window.addEventListener("resize", () => {
@@ -5742,6 +5898,8 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
     queueSkyResize();
     maybeAutoRefresh();
+  } else if (state.sky.compass.active) {
+    stopCompassMode("paused", { silent: true });
   }
 });
 
