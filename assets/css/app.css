@@ -616,14 +616,7 @@
 	    }
 
 	    .sky-hero__heading {
-	      display: flex;
-	      align-items: flex-end;
-	      justify-content: space-between;
-	      gap: 18px;
-	    }
-
-	    .sky-hero .section-head {
-	      min-width: 0;
+	      display: block;
 	    }
 
 	    .queue-head {
@@ -813,6 +806,57 @@
       display: none;
     }
 
+    .sky-preference-popover {
+      width: min(360px, 82vw);
+    }
+
+    .sky-preference-title {
+      margin-bottom: 8px;
+      color: #eef4ff;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .sky-preference-options {
+      display: grid;
+      gap: 7px;
+    }
+
+    .sky-preference-option {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 9px;
+      border-radius: 10px;
+      border: 1px solid rgba(121, 152, 213, 0.28);
+      background: rgba(7, 14, 28, 0.42);
+      color: #c8d9f2;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.74rem;
+      cursor: pointer;
+      transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+    }
+
+    .sky-preference-option:hover {
+      border-color: rgba(87, 230, 255, 0.48);
+      background: rgba(14, 26, 48, 0.68);
+    }
+
+    .sky-preference-option.selected {
+      border-color: rgba(23, 241, 177, 0.52);
+      background: rgba(23, 241, 177, 0.1);
+      color: #ecfff8;
+    }
+
+    .sky-preference-option input {
+      accent-color: #17f1b1;
+      margin: 0;
+      flex: 0 0 auto;
+    }
+
     .stat-value {
       font-family: "IBM Plex Mono", monospace;
       font-size: 1.05rem;
@@ -954,6 +998,36 @@
     }
 
     .timeline-content[hidden] {
+      display: none !important;
+    }
+
+    .advanced-section {
+      display: grid;
+      gap: 16px;
+    }
+
+    .advanced-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 15px 18px;
+      border-radius: 18px;
+      border: 1px solid rgba(92, 118, 164, 0.28);
+      background: linear-gradient(160deg, rgba(9, 16, 31, 0.78), rgba(7, 12, 24, 0.84));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
+    }
+
+    .advanced-section.is-collapsed .advanced-heading {
+      border-color: rgba(92, 118, 164, 0.22);
+    }
+
+    .advanced-content {
+      display: grid;
+      gap: 18px;
+    }
+
+    .advanced-content[hidden] {
       display: none !important;
     }
 
@@ -1351,9 +1425,215 @@
       gap: 16px;
     }
 
-    .sky-note {
-      max-width: 32rem;
-      margin: -2px 0 14px;
+    .nextup-feature {
+      position: relative;
+      overflow: hidden;
+      padding: 16px;
+      border-radius: 20px;
+      border: 1px solid rgba(116, 153, 218, 0.34);
+      background:
+        radial-gradient(circle at 12% 0%, rgba(42, 209, 255, 0.18), transparent 42%),
+        radial-gradient(circle at 92% 12%, rgba(155, 92, 255, 0.16), transparent 40%),
+        linear-gradient(160deg, rgba(14, 24, 44, 0.98), rgba(8, 14, 28, 0.96));
+      box-shadow:
+        inset 0 1px 0 rgba(214, 230, 255, 0.09),
+        0 16px 34px rgba(2, 6, 16, 0.4);
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .nextup-feature::after {
+      content: "";
+      position: absolute;
+      inset: auto 16px 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(87, 230, 255, 0.55), transparent);
+      pointer-events: none;
+    }
+
+    .nextup-feature.clickable {
+      cursor: pointer;
+    }
+
+    .nextup-feature.clickable:hover {
+      transform: translateY(-1px);
+      border-color: rgba(87, 230, 255, 0.58);
+      box-shadow:
+        inset 0 1px 0 rgba(214, 230, 255, 0.1),
+        0 18px 38px rgba(3, 10, 24, 0.48);
+    }
+
+    .nextup-feature.best,
+    .nextup-feature.best-of-week {
+      border-color: rgba(23, 241, 177, 0.55);
+      background:
+        radial-gradient(circle at 12% 0%, rgba(23, 241, 177, 0.18), transparent 44%),
+        radial-gradient(circle at 94% 10%, rgba(255, 188, 105, 0.14), transparent 38%),
+        linear-gradient(160deg, rgba(13, 28, 39, 0.98), rgba(8, 14, 28, 0.96));
+      box-shadow:
+        0 0 0 1px rgba(23, 241, 177, 0.14),
+        0 16px 34px rgba(3, 18, 18, 0.42);
+    }
+
+    .nextup-feature.preview,
+    .sky-top-pick.nextup-feature.selected {
+      border-color: rgba(155, 92, 255, 0.76);
+      box-shadow:
+        0 0 0 2px rgba(155, 92, 255, 0.54),
+        0 0 0 5px rgba(155, 92, 255, 0.14),
+        0 16px 34px rgba(18, 10, 38, 0.5);
+    }
+
+    .feature-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .feature-copy {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .feature-kicker {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.64rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: #95b0d6;
+    }
+
+    .feature-title {
+      margin: 7px 0 0;
+      color: #f2f7ff;
+      font-size: 1.32rem;
+      line-height: 1.12;
+      font-weight: 700;
+    }
+
+    .feature-sub {
+      margin-top: 6px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.82rem;
+      line-height: 1.35;
+      color: #aecaed;
+    }
+
+    .feature-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+      flex: 0 0 auto;
+      max-width: 44%;
+    }
+
+    .feature-metrics {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .sky-night-companions {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(150, 176, 224, 0.18);
+      display: grid;
+      gap: 8px;
+    }
+
+    .sky-night-companion-label {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: #95b0d6;
+    }
+
+    .sky-night-companion {
+      width: 100%;
+      display: grid;
+      gap: 3px;
+      padding: 10px 11px;
+      border-radius: 14px;
+      border: 1px solid rgba(116, 153, 218, 0.24);
+      background: rgba(7, 13, 27, 0.42);
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+    }
+
+    .sky-night-companion:hover {
+      border-color: rgba(87, 230, 255, 0.46);
+      background: rgba(14, 26, 48, 0.68);
+      transform: translateY(-1px);
+    }
+
+    .sky-night-companion.selected {
+      border-color: rgba(155, 92, 255, 0.66);
+      background: rgba(155, 92, 255, 0.14);
+      box-shadow: 0 0 0 2px rgba(155, 92, 255, 0.18);
+    }
+
+    .sky-night-companion-title {
+      color: #f1f6ff;
+      font-size: 0.98rem;
+      line-height: 1.15;
+      font-weight: 700;
+    }
+
+    .sky-night-companion-meta,
+    .sky-night-companion-detail {
+      font-family: "IBM Plex Mono", monospace;
+      line-height: 1.35;
+    }
+
+    .sky-night-companion-meta {
+      color: #dce7fb;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .sky-night-companion-detail {
+      color: #9fd6f3;
+      font-size: 0.76rem;
+    }
+
+    .nextup-expand-toggle {
+      width: 100%;
+      padding: 12px 13px;
+      border-radius: 16px;
+      border: 1px solid rgba(98, 121, 168, 0.3);
+      background: linear-gradient(135deg, rgba(14, 24, 44, 0.76), rgba(9, 15, 29, 0.82));
+      color: #d9e9ff;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.74rem;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      cursor: pointer;
+      transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+    }
+
+    .nextup-expand-toggle:hover {
+      border-color: rgba(87, 230, 255, 0.56);
+      background: linear-gradient(135deg, rgba(20, 36, 64, 0.9), rgba(11, 20, 38, 0.92));
+      transform: translateY(-1px);
+    }
+
+    .nextup-detail-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .sky-detail-list .sky-day-group {
+      margin-top: 0;
     }
 
     .guide-grid {
@@ -1737,10 +2017,6 @@
     .pass-item.preview::before {
       content: none !important;
       display: none !important;
-    }
-
-    .forecast-note {
-      margin: -4px 0 10px;
     }
 
     .pass-item {
@@ -2352,9 +2628,7 @@
 	      }
 
 	      .sky-hero__heading {
-	        align-items: stretch;
-	        flex-direction: column;
-	        gap: 12px;
+	        display: block;
 	      }
 
 	      .panel-grid {
@@ -2399,15 +2673,6 @@
 
       .view-toolbar {
         display: block;
-      }
-
-      .forecast-note {
-        margin: 0 0 10px;
-        line-height: 1.35;
-      }
-
-      .sky-note {
-        max-width: none;
       }
 
       .panel-heading {
@@ -2477,6 +2742,30 @@
       .share-chip {
         padding: 6px 9px;
       }
+
+      .nextup-feature {
+        padding: 14px;
+      }
+
+      .feature-title {
+        font-size: 1.14rem;
+      }
+
+      .feature-actions {
+        max-width: 48%;
+      }
+
+      .feature-metrics {
+        gap: 7px;
+      }
+
+      .nextup-expand-toggle {
+        padding: 11px 12px;
+      }
+
+      .sky-night-companion {
+        padding: 9px 10px;
+      }
     }
 
 	    @media (max-width: 560px) {
@@ -2528,6 +2817,45 @@
 
       .compact-title-pass {
         font-size: 1.08rem;
+      }
+
+      .feature-head {
+        gap: 10px;
+      }
+
+      .feature-title {
+        font-size: 1.04rem;
+      }
+
+      .feature-sub {
+        font-size: 0.76rem;
+      }
+
+      .feature-actions {
+        max-width: 52%;
+      }
+
+      .feature-kicker {
+        font-size: 0.58rem;
+        letter-spacing: 0.13em;
+      }
+
+      .feature-metrics {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      .nextup-expand-toggle {
+        font-size: 0.68rem;
+      }
+
+      .sky-night-companion-title {
+        font-size: 0.92rem;
+      }
+
+      .sky-night-companion-meta,
+      .sky-night-companion-detail {
+        font-size: 0.72rem;
       }
 
       .compact-title-event {

@@ -9,19 +9,19 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="ISS Flyover" />
-  <link rel="manifest" href="manifest.webmanifest?v=2026.05.26-compass.10" />
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png?v=2026.05.26-compass.10" />
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32x32.png?v=2026.05.26-compass.10" />
-  <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16x16.png?v=2026.05.26-compass.10" />
-  <link rel="shortcut icon" href="assets/icons/favicon.ico?v=2026.05.26-compass.10" />
+  <link rel="manifest" href="manifest.webmanifest?v=2026.05.26-nextup.8" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png?v=2026.05.26-nextup.8" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32x32.png?v=2026.05.26-nextup.8" />
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16x16.png?v=2026.05.26-nextup.8" />
+  <link rel="shortcut icon" href="assets/icons/favicon.ico?v=2026.05.26-nextup.8" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link
     rel="stylesheet"
-    href="assets/vendor/leaflet/leaflet.css?v=2026.05.26-compass.10"
+    href="assets/vendor/leaflet/leaflet.css?v=2026.05.26-nextup.8"
   />
-  <link rel="stylesheet" href="assets/css/app.css?v=2026.05.26-compass.10" />
+  <link rel="stylesheet" href="assets/css/app.css?v=2026.05.26-nextup.8" />
 </head>
 <body>
   <div class="boot-overlay" id="boot-overlay" role="status" aria-live="polite" aria-atomic="true">
@@ -72,11 +72,6 @@
 
 	    <section class="sky-hero" id="sky-hero">
 	      <div class="sky-hero__heading">
-	        <section class="section-head" id="tonight-head">
-	          <h2 class="section-title">What To See Tonight</h2>
-	          <p class="section-subtitle">Live sky view first, with tonight's conditions and upcoming viewing windows below.</p>
-	        </section>
-
         <div class="view-toolbar">
           <div class="view-toggle" role="tablist">
             <button class="active" id="btn-sky">User View</button>
@@ -164,7 +159,7 @@
 
 	    <section class="section-head queue-head" id="queue-head">
 	      <h2 class="section-title">Next Up</h2>
-	      <p class="section-subtitle">ISS passes and night-sky highlights worth planning around.</p>
+	      <p class="section-subtitle">Best viewing picks first, with the full outlook underneath.</p>
 	    </section>
 
     <section class="panel-grid">
@@ -176,8 +171,6 @@
             <div class="panel-popover" id="iss-best-note" hidden>ISS BEST prioritizes higher max elevation, then longer visible duration. If tied, sky context (planet/alignment context) is used as a tie-break only.</div>
           </div>
         </div>
-        <div class="stat-sub forecast-note" id="forecast-note">Sky highlights show naked-eye planets plus moon phase context. ISS Best remains based on ISS visibility.</div>
-        <div class="panel-inline-status" id="forecast-status" hidden></div>
         <div class="pass-list" id="pass-list">
           <div class="pass-item">
             <div>
@@ -193,10 +186,25 @@
           <h3 class="panel-title">Night Sky Highlights</h3>
       <div class="panel-info-wrap">
         <button class="panel-info-btn" id="sky-best-info" type="button" aria-expanded="false" aria-controls="sky-best-note" title="How sky best night is chosen">i</button>
-        <div class="panel-popover" id="sky-best-note" hidden>Night Sky Highlights are grouped by date. BEST NIGHT marks the strongest evening or morning across the next 7 days, weighted by event strength, visibility, moonlight, and weather.</div>
+        <div class="panel-popover sky-preference-popover" id="sky-best-note" hidden>
+          <div class="sky-preference-title">Viewing preference</div>
+          <div class="sky-preference-options" role="radiogroup" aria-label="Night sky viewing preference">
+            <label class="sky-preference-option">
+              <input type="radio" name="sky-viewing-preference" value="evening-first" />
+              <span>Evening first</span>
+            </label>
+            <label class="sky-preference-option">
+              <input type="radio" name="sky-viewing-preference" value="best-quality" />
+              <span>Best quality</span>
+            </label>
+            <label class="sky-preference-option">
+              <input type="radio" name="sky-viewing-preference" value="morning-friendly" />
+              <span>Morning friendly</span>
+            </label>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="stat-sub forecast-note sky-note">Grouped by observing night (sunset to dawn) with a top pick first and extra highlights underneath.</div>
     <div class="sky-event-list" id="sky-events-list">
           <div class="sky-event-item">
             <div>
@@ -209,92 +217,103 @@
       </div>
     </section>
 
-    <section class="panel-grid guide-grid">
-      <div class="card panel-card conditions-panel" id="conditions-panel">
-        <div class="panel-heading">
-          <h3 class="panel-title">Observing Conditions Tonight</h3>
+    <section class="advanced-section is-collapsed" id="advanced-panel">
+      <div class="advanced-heading">
+        <div class="panel-heading-copy">
+          <h3 class="panel-title">Advanced</h3>
+          <p class="panel-heading-sub">Manual coordinates, detailed observing conditions, and live telemetry.</p>
         </div>
-        <div class="stat-sub guide-note">Weather, clearest window, and moonlight conditions for stepping outside.</div>
-        <div class="panel-inline-status" id="conditions-status" hidden></div>
-        <div class="conditions-list" id="conditions-list">
-          <div class="condition-item">
-            <p class="pass-title">Waiting for forecast…</p>
-            <div class="pass-meta">Weather and moonlight conditions appear here.</div>
-          </div>
-        </div>
+        <button class="panel-toggle-btn" id="advanced-toggle" type="button" aria-expanded="false" aria-controls="advanced-content">Show</button>
       </div>
-    </section>
+      <div class="advanced-content" id="advanced-content" hidden>
+        <section class="panel-grid guide-grid">
+          <div class="card panel-card conditions-panel" id="conditions-panel">
+            <div class="panel-heading">
+              <h3 class="panel-title">Observing Conditions Tonight</h3>
+            </div>
+            <div class="stat-sub guide-note">Weather, clearest window, and moonlight conditions for stepping outside.</div>
+            <div class="panel-inline-status" id="conditions-status" hidden></div>
+            <div class="conditions-list" id="conditions-list">
+              <div class="condition-item">
+                <p class="pass-title">Waiting for forecast…</p>
+                <div class="pass-meta">Weather and moonlight conditions appear here.</div>
+              </div>
+            </div>
+          </div>
+        </section>
 
-    <section class="settings-section">
-      <div class="card controls">
-        <div class="control-group">
-          <label>Manual Coordinates</label>
-          <div class="control-row">
-            <input id="lat" type="number" step="0.0001" placeholder="Lat" />
-            <input id="lon" type="number" step="0.0001" placeholder="Lon" />
-            <button id="apply-coords">Apply</button>
+        <section class="settings-section">
+          <div class="card controls">
+            <div class="control-group">
+              <label>Manual Coordinates</label>
+              <div class="control-row">
+                <input id="lat" type="number" step="0.0001" placeholder="Lat" />
+                <input id="lon" type="number" step="0.0001" placeholder="Lon" />
+                <button id="apply-coords">Apply</button>
+              </div>
+            </div>
+            <div class="control-group">
+              <label>Track Path Window (Hours)</label>
+              <input id="track-hours" type="range" min="2" max="12" value="6" />
+              <div class="stat-sub" id="track-hours-label">6 hours of orbit path</div>
+            </div>
+            <div class="control-group">
+              <label>Update Interval</label>
+              <div class="stat-sub">ISS position refreshes every 6 seconds. Forecast refreshes automatically when the app resumes or the day changes.</div>
+            </div>
+            <div class="control-group control-group--compact">
+              <label>Manual Refresh</label>
+              <div class="control-row control-row--compact">
+                <button id="refresh" class="tertiary">Refresh Now</button>
+                <div class="stat-sub">Usually not needed. Use it if the forecast looks stale.</div>
+              </div>
+            </div>
           </div>
-        </div>
-        <div class="control-group">
-          <label>Track Path Window (Hours)</label>
-          <input id="track-hours" type="range" min="2" max="12" value="6" />
-          <div class="stat-sub" id="track-hours-label">6 hours of orbit path</div>
-        </div>
-        <div class="control-group">
-          <label>Update Interval</label>
-          <div class="stat-sub">ISS position refreshes every 6 seconds. Forecast refreshes automatically when the app resumes or the day changes.</div>
-        </div>
-        <div class="control-group control-group--compact">
-          <label>Manual Refresh</label>
-          <div class="control-row control-row--compact">
-            <button id="refresh" class="tertiary">Refresh Now</button>
-            <div class="stat-sub">Usually not needed. Use it if the forecast looks stale.</div>
-          </div>
-        </div>
-      </div>
-    </section>
+        </section>
 
-    <section class="status-section" id="live-data-panel">
-      <div class="section-head">
-        <h2 class="section-title">Live Data</h2>
-        <p class="section-subtitle">Live telemetry and observing context. Useful for tuning coordinates and checking real-time ISS state.</p>
-      </div>
-      <div class="status-grid">
-        <div class="card">
-          <h3>ISS Position</h3>
-          <div class="stat-value" id="iss-coords">Loading…</div>
-          <div class="stat-sub" id="iss-meta">Awaiting data</div>
-        </div>
-        <div class="card">
-          <h3>Your Location</h3>
-          <div class="stat-value" id="user-coords">Unknown</div>
-          <div class="stat-sub" id="user-meta">Geolocation not set</div>
-        </div>
-        <div class="card">
-          <h3>Next Visible Pass</h3>
-          <div class="stat-value" id="next-pass">Calculating…</div>
-          <div class="stat-sub" id="next-pass-meta">Need location to predict</div>
-        </div>
-        <div class="card">
-          <h3>Visibility Status</h3>
-          <div class="stat-value" id="visibility">Night check pending</div>
-          <div class="stat-sub" id="visibility-meta">Sun altitude unavailable</div>
-        </div>
-        <div class="card">
-          <h3>Moon Phase</h3>
-          <div class="stat-value" id="moon-phase">Calculating…</div>
-          <div class="stat-sub" id="moon-phase-meta">Need location to evaluate sky darkness</div>
-        </div>
+        <section class="status-section" id="live-data-panel">
+          <div class="section-head">
+            <h2 class="section-title">Live Data</h2>
+            <p class="section-subtitle">Live telemetry and observing context. Useful for tuning coordinates and checking real-time ISS state.</p>
+          </div>
+          <div class="status-grid">
+            <div class="card">
+              <h3>ISS Position</h3>
+              <div class="stat-value" id="iss-coords">Loading…</div>
+              <div class="stat-sub" id="iss-meta">Awaiting data</div>
+            </div>
+            <div class="card">
+              <h3>Your Location</h3>
+              <div class="stat-value" id="user-coords">Unknown</div>
+              <div class="stat-sub" id="user-meta">Geolocation not set</div>
+            </div>
+            <div class="card">
+              <h3>Next Visible Pass</h3>
+              <div class="stat-value" id="next-pass">Calculating…</div>
+              <div class="stat-sub" id="next-pass-meta">Need location to predict</div>
+            </div>
+            <div class="card">
+              <h3>Visibility Status</h3>
+              <div class="stat-value" id="visibility">Night check pending</div>
+              <div class="stat-sub" id="visibility-meta">Sun altitude unavailable</div>
+            </div>
+            <div class="card">
+              <h3>Moon Phase</h3>
+              <div class="stat-value" id="moon-phase">Calculating…</div>
+              <div class="stat-sub" id="moon-phase-meta">Need location to evaluate sky darkness</div>
+            </div>
+          </div>
+        </section>
       </div>
     </section>
   </div>
   <div class="toast" id="share-toast"></div>
 
-  <script src="assets/vendor/leaflet/leaflet.js?v=2026.05.26-compass.10"></script>
-  <script src="assets/vendor/suncalc/suncalc.js?v=2026.05.26-compass.10"></script>
-  <script src="assets/vendor/astronomy/astronomy.browser.min.js?v=2026.05.26-compass.10"></script>
-  <script src="assets/vendor/three/three.min.js?v=2026.05.26-compass.10"></script>
-  <script src="assets/vendor/three/OrbitControls.js?v=2026.05.26-compass.10"></script>
-  <script type="module" src="assets/js/main.js?v=2026.05.26-compass.10"></script>
+  <script src="assets/vendor/leaflet/leaflet.js?v=2026.05.26-nextup.8"></script>
+  <script src="assets/vendor/suncalc/suncalc.js?v=2026.05.26-nextup.8"></script>
+  <script src="assets/vendor/astronomy/astronomy.browser.min.js?v=2026.05.26-nextup.8"></script>
+  <script src="assets/vendor/three/three.min.js?v=2026.05.26-nextup.8"></script>
+  <script src="assets/vendor/three/OrbitControls.js?v=2026.05.26-nextup.8"></script>
+  <script type="module" src="assets/js/main.js?v=2026.05.26-nextup.8"></script>
 </body>
 </html>

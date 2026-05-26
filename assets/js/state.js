@@ -1,4 +1,4 @@
-import { createHealthState } from "./status.js?v=2026.05.26-compass.10";
+import { createHealthState } from "./status.js?v=2026.05.26-nextup.8";
 
 export const state =  {
   user: null,
@@ -75,6 +75,7 @@ export const state =  {
     refreshPromise: null,
     lastRefreshStatus: "idle",
     timelineExpanded: false,
+    advancedExpanded: false,
     booting: true,
     bootReady: false,
     bootStage: "iss",
@@ -82,6 +83,9 @@ export const state =  {
     bootError: null,
     lastSuccessfulRefreshAt: 0,
     lastRefreshLocalDate: "",
+    issPassListExpanded: false,
+    skyHighlightListExpanded: false,
+    skyViewingPreference: "evening-first",
     expandedSkyDayKeys: new Set(),
     appVersion: {
       current: "",
