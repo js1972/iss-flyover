@@ -1,12 +1,12 @@
 
-import { state } from "./state.js?v=2026.05.26-compass.4";
-import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, ISS_TLE_FALLBACK_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js?v=2026.05.26-compass.4";
-import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, skyCompassButton, skyCompassStatus, tonightGridEl, passList, skyEventsList, actionStatusEl, actionStatusLabelEl, actionStatusMetaEl, actionStatusActionEl, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, forecastStatusEl, skyPanelEl, conditionsPanelEl, trackStatusEl, conditionsStatusEl, previewBanner, previewText, previewExitButton, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, conditionsList } from "./dom.js?v=2026.05.26-compass.4";
-import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js?v=2026.05.26-compass.4";
-import { fetchJson } from "./network.js?v=2026.05.26-compass.4";
-import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js?v=2026.05.26-compass.4";
-import { beginSourceAttempt, hasUsableData, markSourceDegraded, markSourceOk, markSourceUnavailable, setHealthBanner } from "./status.js?v=2026.05.26-compass.4";
-import { APP_VERSION, ASSET_VERSION, DEPLOYED_AT } from "./version.js?v=2026.05.26-compass.4";
+import { state } from "./state.js?v=2026.05.26-compass.7";
+import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, ISS_TLE_FALLBACK_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js?v=2026.05.26-compass.7";
+import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, skyCompassButton, skyCompassStatus, tonightGridEl, passList, skyEventsList, actionStatusEl, actionStatusLabelEl, actionStatusMetaEl, actionStatusActionEl, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, forecastStatusEl, skyPanelEl, conditionsPanelEl, trackStatusEl, conditionsStatusEl, previewBanner, previewText, previewExitButton, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, conditionsList } from "./dom.js?v=2026.05.26-compass.7";
+import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js?v=2026.05.26-compass.7";
+import { fetchJson } from "./network.js?v=2026.05.26-compass.7";
+import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js?v=2026.05.26-compass.7";
+import { beginSourceAttempt, hasUsableData, markSourceDegraded, markSourceOk, markSourceUnavailable, setHealthBanner } from "./status.js?v=2026.05.26-compass.7";
+import { APP_VERSION, ASSET_VERSION, DEPLOYED_AT } from "./version.js?v=2026.05.26-compass.7";
 
 const AUTO_REFRESH_STALE_MS = 15 * 60 * 1000;
 const VERSION_URL = `./version.json?v=${encodeURIComponent(ASSET_VERSION)}`;
@@ -5174,19 +5174,18 @@ function setCompassStatus(message, options = {}) {
 
 function updateCompassControl() {
   const active = Boolean(state.sky.compass.active);
+  const headingLabel = formatCompassHeading(state.sky.compass.smoothedHeading);
   skyViewEl.classList.toggle("compass-active", active);
   if (skyCompassButton) {
     skyCompassButton.classList.toggle("active", active);
     skyCompassButton.setAttribute("aria-pressed", String(active));
-    skyCompassButton.setAttribute("title", active ? "Turn compass mode off" : "Align with compass");
-    skyCompassButton.setAttribute("aria-label", active ? "Turn compass mode off" : "Align with compass");
+    skyCompassButton.setAttribute("title", active ? `Compass on: ${headingLabel}. Tap to turn off.` : "Align with compass");
+    skyCompassButton.setAttribute("aria-label", active ? `Compass on: ${headingLabel}. Tap to turn off.` : "Align with compass");
   }
 
   if (!skyCompassStatus) return;
   if (active) {
-    const accuracy = state.sky.compass.accuracy;
-    const accuracySuffix = Number.isFinite(accuracy) && accuracy > 35 ? " • low accuracy" : "";
-    setCompassStatus(`Compass on • ${formatCompassHeading(state.sky.compass.smoothedHeading)}${accuracySuffix}`);
+    skyCompassStatus.hidden = true;
   } else if (!skyCompassStatus.textContent) {
     skyCompassStatus.hidden = true;
   }
@@ -5270,7 +5269,7 @@ async function startCompassMode() {
   state.sky.compass.accuracy = null;
   window.addEventListener("deviceorientation", handleCompassOrientation, true);
   updateCompassControl();
-  setCompassStatus("Compass on • calibrating");
+  if (skyCompassStatus) skyCompassStatus.hidden = true;
   compassSignalTimerId = window.setTimeout(() => {
     if (!state.sky.compass.active || Number.isFinite(state.sky.compass.heading)) return;
     stopCompassMode("off", { forceStatus: true, silent: true });

@@ -1254,14 +1254,13 @@
 
 	    .sky-compass-pill {
 	      position: absolute;
-	      left: 50%;
-	      top: 16px;
+	      right: 16px;
+	      top: 66px;
 	      z-index: 4;
-	      transform: translateX(-50%);
-	      max-width: calc(100% - 132px);
-	      padding: 8px 12px;
+	      max-width: min(230px, calc(100% - 32px));
+	      padding: 7px 11px;
 	      border: 1px solid rgba(39, 231, 196, 0.36);
-	      border-radius: 999px;
+	      border-radius: 12px;
 	      background: rgba(6, 12, 22, 0.76);
 	      color: #cfefff;
 	      box-shadow: 0 10px 26px rgba(1, 6, 18, 0.38);
@@ -2363,11 +2362,12 @@
 		        font-size: 0.78rem;
 		      }
 
-		      .sky-compass-pill {
-		        top: 12px;
-		        max-width: calc(100% - 112px);
-		        font-size: 0.66rem;
-		      }
+			      .sky-compass-pill {
+			        right: 12px;
+			        top: 58px;
+			        max-width: min(210px, calc(100% - 24px));
+			        font-size: 0.66rem;
+			      }
 
       .preview-banner {
         margin: 8px 0 0;
