@@ -1,4 +1,4 @@
-import { createHealthState } from "./status.js?v=2026.05.26-compass.7";
+import { createHealthState } from "./status.js?v=2026.05.26-compass.9";
 
 export const state =  {
   user: null,

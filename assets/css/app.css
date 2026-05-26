@@ -1242,9 +1242,16 @@
 	    }
 
 	    .sky-compass-btn.active {
+	      padding: 0;
 	      border-color: rgba(39, 231, 196, 0.95);
 	      background: rgba(8, 30, 34, 0.88);
 	      color: #ffffff;
+	      font-size: 0.68rem;
+	      letter-spacing: 0;
+	    }
+
+	    .sky-compass-btn.active::before {
+	      display: none;
 	    }
 
 	    .sky-compass-btn[disabled] {
