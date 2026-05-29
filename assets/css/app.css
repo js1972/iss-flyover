@@ -423,65 +423,6 @@
       color: #ffc0c0;
     }
 
-    .action-status {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 12px 14px;
-      border-radius: 18px;
-      border: 1px solid rgba(108, 132, 188, 0.24);
-      background: rgba(12, 18, 34, 0.74);
-      box-shadow: inset 0 1px 0 rgba(186, 206, 245, 0.04);
-    }
-
-    .action-status[hidden] {
-      display: none !important;
-    }
-
-    .action-status[data-level="info"] {
-      border-color: rgba(84, 194, 255, 0.34);
-      background: linear-gradient(135deg, rgba(14, 24, 42, 0.86), rgba(8, 16, 30, 0.94));
-    }
-
-    .action-status[data-level="warning"] {
-      border-color: rgba(255, 180, 82, 0.4);
-      background: linear-gradient(135deg, rgba(34, 24, 12, 0.88), rgba(22, 16, 10, 0.95));
-    }
-
-    .action-status[data-level="danger"] {
-      border-color: rgba(255, 107, 107, 0.46);
-      background: linear-gradient(135deg, rgba(40, 16, 18, 0.92), rgba(22, 11, 12, 0.95));
-    }
-
-    .action-status__copy {
-      min-width: 0;
-      flex: 1;
-      display: grid;
-      gap: 4px;
-    }
-
-    .action-status__label {
-      color: #eef5ff;
-      font-size: 0.82rem;
-      font-weight: 600;
-      line-height: 1.25;
-      letter-spacing: 0.02em;
-    }
-
-    .action-status__meta {
-      color: #9eb1d0;
-      font-size: 0.72rem;
-      line-height: 1.35;
-      letter-spacing: 0.03em;
-    }
-
-    .action-status__action {
-      flex: 0 0 auto;
-      white-space: nowrap;
-    }
-
     button {
       background: rgba(40, 52, 80, 0.7);
       border: 1px solid rgba(120, 140, 180, 0.25);
@@ -535,9 +476,6 @@
         justify-content: space-between;
       }
 
-      .action-status {
-        align-items: flex-start;
-      }
     }
 
     @media (max-width: 560px) {
@@ -566,14 +504,6 @@
         font-size: 0.63rem;
       }
 
-      .action-status {
-        flex-direction: column;
-        align-items: stretch;
-      }
-
-      .action-status__action {
-        width: 100%;
-      }
     }
 
     .status-grid {

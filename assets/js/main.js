@@ -1,12 +1,12 @@
 
-import { state } from "./state.js?v=2026.05.26-nextup.8";
-import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, ISS_TLE_FALLBACK_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js?v=2026.05.26-nextup.8";
-import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, skyCompassButton, skyCompassStatus, tonightGridEl, passList, skyEventsList, actionStatusEl, actionStatusLabelEl, actionStatusMetaEl, actionStatusActionEl, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, trackStatusEl, conditionsStatusEl, previewBanner, previewText, previewExitButton, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, advancedPanel, advancedToggle, advancedContent, conditionsList } from "./dom.js?v=2026.05.26-nextup.8";
-import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js?v=2026.05.26-nextup.8";
-import { fetchJson } from "./network.js?v=2026.05.26-nextup.8";
-import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js?v=2026.05.26-nextup.8";
-import { beginSourceAttempt, hasUsableData, markSourceDegraded, markSourceOk, markSourceUnavailable, setHealthBanner } from "./status.js?v=2026.05.26-nextup.8";
-import { APP_VERSION, ASSET_VERSION, DEPLOYED_AT } from "./version.js?v=2026.05.26-nextup.8";
+import { state } from "./state.js?v=2026.05.29-status.1";
+import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, ISS_TLE_FALLBACK_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js?v=2026.05.29-status.1";
+import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, skyCompassButton, skyCompassStatus, tonightGridEl, passList, skyEventsList, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, trackStatusEl, conditionsStatusEl, previewBanner, previewText, previewExitButton, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, advancedPanel, advancedToggle, advancedContent, conditionsList } from "./dom.js?v=2026.05.29-status.1";
+import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js?v=2026.05.29-status.1";
+import { fetchJson } from "./network.js?v=2026.05.29-status.1";
+import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js?v=2026.05.29-status.1";
+import { beginSourceAttempt, hasUsableData, markSourceDegraded, markSourceOk, markSourceUnavailable } from "./status.js?v=2026.05.29-status.1";
+import { APP_VERSION, ASSET_VERSION, DEPLOYED_AT } from "./version.js?v=2026.05.29-status.1";
 
 const AUTO_REFRESH_STALE_MS = 15 * 60 * 1000;
 const VERSION_URL = `./version.json?v=${encodeURIComponent(ASSET_VERSION)}`;
@@ -178,112 +178,14 @@ function setInlineStatus(element, { level = "info", message = "", meta = "", hid
   `;
 }
 
-function resolveBannerState() {
-  const forecast = getHealthSource("forecast");
-  const track = getHealthSource("track");
-  const weather = getHealthSource("weather");
-  const location = getHealthSource("location");
-  const appVersion = getHealthSource("appVersion");
-
-  if (state.ui.appVersion.updateAvailable) {
-    return {
-      level: "warning",
-      message: "A newer app version is available.",
-      meta: "Reload to avoid stale cached logic or outdated data handling.",
-      action: { key: "reload-app", label: "Reload app" },
-      hidden: false
-    };
-  }
-
-  if (forecast.status === "unavailable") {
-    const staleMeta = forecast.lastSuccessAt
-      ? `Showing the last successful forecast from ${getStatusTimestampLabel(forecast.lastSuccessAt)}.`
-      : "No reliable ISS forecast is currently available.";
-    return {
-      level: "danger",
-      message: "ISS forecast unavailable.",
-      meta: `${buildSourceReason(forecast, "Live orbit calculations failed.")} ${staleMeta}`.trim(),
-      action: { key: "retry-refresh", label: "Retry refresh" },
-      hidden: false
-    };
-  }
-
-  if (forecast.status === "degraded") {
-    return {
-      level: "warning",
-      message: "ISS forecast is degraded.",
-      meta: buildSourceReason(forecast, "Using the last successful forecast while live refresh is unavailable."),
-      action: { key: "retry-refresh", label: "Retry refresh" },
-      hidden: false
-    };
-  }
-
-  if (track.status === "degraded" || track.status === "unavailable") {
-    const isLimitedTrack = track.accuracy === "positions-fallback";
-    return {
-      level: track.status === "unavailable" ? "danger" : "warning",
-      message: track.status === "unavailable"
-        ? "Orbit track unavailable."
-        : isLimitedTrack
-        ? "Orbit track is limited."
-        : "Orbit track is using a fallback source.",
-      meta: buildSourceReason(track, isLimitedTrack
-        ? "Track rendering is using limited fallback data."
-        : "Track rendering is using an alternate live source."),
-      action: { key: "retry-refresh", label: "Retry refresh" },
-      hidden: false
-    };
-  }
-
-  if (location.status === "degraded") {
-    return {
-      level: "warning",
-      message: describeLocationAccuracy(state.user?.source),
-      meta: buildSourceReason(location, "Location accuracy is reduced, so local pass timing may shift."),
-      action: { key: "request-precise-location", label: "Use precise location" },
-      hidden: false
-    };
-  }
-
-  if (weather.status === "unavailable") {
-    return {
-      level: "info",
-      message: "ISS forecast is current.",
-      meta: "Weather details are temporarily unavailable, but pass timing is still valid.",
-      action: { key: "retry-refresh", label: "Retry refresh" },
-      hidden: false
-    };
-  }
-
-  return {
-    level: "info",
-    message: "Live sky data is current.",
-    meta: state.ui.lastSuccessfulRefreshAt
-      ? `Updated ${getStatusTimestampLabel(state.ui.lastSuccessfulRefreshAt)} using ${describeLocationAccuracy(state.user?.source || "saved location").toLowerCase()}.`
-      : "Awaiting first successful refresh.",
-    action: null,
-    hidden: !state.ui.hasCompletedInitialLoad && !state.ui.refreshing
-  };
-}
-
 function syncHealthBanner() {
-  const banner = resolveBannerState();
-  setHealthBanner(state.health, banner);
-  if (!actionStatusEl || !actionStatusLabelEl || !actionStatusMetaEl || !actionStatusActionEl) return;
-  actionStatusEl.hidden = banner.hidden;
-  actionStatusEl.dataset.level = banner.level;
-  actionStatusLabelEl.textContent = banner.message;
-  actionStatusMetaEl.textContent = banner.meta || "";
-  actionStatusMetaEl.hidden = !banner.meta;
-  if (banner.action) {
-    actionStatusActionEl.hidden = false;
-    actionStatusActionEl.textContent = banner.action.label;
-    actionStatusActionEl.dataset.action = banner.action.key;
-  } else {
-    actionStatusActionEl.hidden = true;
-    actionStatusActionEl.textContent = "";
-    delete actionStatusActionEl.dataset.action;
-  }
+  state.health.banner = {
+    level: "info",
+    message: "",
+    meta: "",
+    action: null,
+    hidden: true
+  };
 }
 
 function syncPanelStatuses() {
@@ -611,27 +513,6 @@ function setRefreshingUI(active) {
     conditionsPanelEl.classList.toggle("loading", showSectionVeil);
     conditionsPanelEl.setAttribute("aria-busy", String(active));
   }
-  if (active) {
-    setHealthBanner(state.health, {
-      level: "info",
-      message: "Updating forecasts...",
-      meta: "Refreshing orbit, pass, and observing-condition data.",
-      action: null,
-      hidden: false
-    });
-    syncHealthBanner();
-  }
-}
-
-function setActionStatus(text, meta = "") {
-  setHealthBanner(state.health, {
-    level: state.health.banner.level || "info",
-    message: text,
-    meta,
-    action: state.health.banner.action,
-    hidden: false
-  });
-  syncHealthBanner();
 }
 
 function getLocalDateKey(date = new Date()) {
@@ -5913,7 +5794,6 @@ locateButton.addEventListener("click", async (event) => {
         const pos = await requestDeviceLocationWithRetry();
         await setUserLocation(pos.coords.latitude, pos.coords.longitude, "Device location");
         triggerHaptic("success");
-        setActionStatus(`Location updated ${formatTime(new Date())} local`);
         showToast("Using precise device location.");
         return;
       } catch (error) {
@@ -5928,7 +5808,6 @@ locateButton.addEventListener("click", async (event) => {
       await setUserLocation(approx.lat, approx.lon, `${approx.source} (approximate)`);
       const prefix = geoError ? `${geolocationErrorMessage(geoError)} ` : "";
       triggerHaptic("success");
-      setActionStatus(`Approximate location set ${formatTime(new Date())} local`);
       showToast(`${prefix}Using approximate IP location.`, 3600);
       return;
     }
@@ -5970,7 +5849,6 @@ document.getElementById("apply-coords").addEventListener("click", () => {
     triggerHaptic("start");
     setUserLocation(lat, lon, "Manual coordinates").then(() => {
       triggerHaptic("success");
-      setActionStatus(`Manual location set ${formatTime(new Date())} local`);
       showToast("Using manual coordinates.");
     }).catch(() => {
       triggerHaptic("error");
@@ -5983,23 +5861,6 @@ document.getElementById("apply-coords").addEventListener("click", () => {
 });
 
 document.getElementById("refresh").addEventListener("click", () => refreshAll({ interactive: true, forceTleRefresh: true }));
-
-if (actionStatusActionEl) {
-  actionStatusActionEl.addEventListener("click", () => {
-    const action = actionStatusActionEl.dataset.action;
-    if (action === "retry-refresh") {
-      void refreshAll({ interactive: true, forceTleRefresh: true });
-      return;
-    }
-    if (action === "reload-app") {
-      window.location.reload();
-      return;
-    }
-    if (action === "request-precise-location") {
-      locateButton?.click();
-    }
-  });
-}
 
 if (timelineToggle) {
   timelineToggle.addEventListener("click", () => {
