@@ -1,4 +1,4 @@
-import { createHealthState } from "./status.js?v=2026.05.26-nextup.8";
+import { createHealthState } from "./status.js?v=2026.09.03-sky-tonight.1";
 
 export const state =  {
   user: null,
@@ -74,7 +74,7 @@ export const state =  {
     refreshing: false,
     refreshPromise: null,
     lastRefreshStatus: "idle",
-    timelineExpanded: false,
+    timelineExpanded: true,
     advancedExpanded: false,
     booting: true,
     bootReady: false,

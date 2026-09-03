@@ -1,12 +1,13 @@
 
-import { state } from "./state.js?v=2026.05.29-status.1";
-import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, ISS_TLE_FALLBACK_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js?v=2026.05.29-status.1";
-import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, skyCompassButton, skyCompassStatus, tonightGridEl, passList, skyEventsList, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, trackStatusEl, conditionsStatusEl, previewBanner, previewText, previewExitButton, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, advancedPanel, advancedToggle, advancedContent, conditionsList } from "./dom.js?v=2026.05.29-status.1";
-import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js?v=2026.05.29-status.1";
-import { fetchJson } from "./network.js?v=2026.05.29-status.1";
-import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js?v=2026.05.29-status.1";
-import { beginSourceAttempt, hasUsableData, markSourceDegraded, markSourceOk, markSourceUnavailable } from "./status.js?v=2026.05.29-status.1";
-import { APP_VERSION, ASSET_VERSION, DEPLOYED_AT } from "./version.js?v=2026.05.29-status.1";
+import { state } from "./state.js?v=2026.09.03-sky-tonight.1";
+import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, ISS_TLE_FALLBACK_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js?v=2026.09.03-sky-tonight.1";
+import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, skyCompassButton, skyCompassStatus, tonightGridEl, passList, skyEventsList, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, trackStatusEl, conditionsStatusEl, previewBanner, previewText, previewExitButton, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, monthlyPanelEl, monthlyTitleEl, monthlySummaryEl, monthlySourceLinkEl, monthlyHighlightListEl, monthlySourceEl, advancedPanel, advancedToggle, advancedContent, conditionsList } from "./dom.js?v=2026.09.03-sky-tonight.1";
+import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js?v=2026.09.03-sky-tonight.1";
+import { fetchJson } from "./network.js?v=2026.09.03-sky-tonight.1";
+import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js?v=2026.09.03-sky-tonight.1";
+import { renderMonthlySkyGuide } from "./monthly-guide.js?v=2026.09.03-sky-tonight.1";
+import { beginSourceAttempt, hasUsableData, markSourceDegraded, markSourceOk, markSourceUnavailable } from "./status.js?v=2026.09.03-sky-tonight.1";
+import { APP_VERSION, ASSET_VERSION, DEPLOYED_AT } from "./version.js?v=2026.09.03-sky-tonight.1";
 
 const AUTO_REFRESH_STALE_MS = 15 * 60 * 1000;
 const VERSION_URL = `./version.json?v=${encodeURIComponent(ASSET_VERSION)}`;
@@ -753,7 +754,7 @@ function buildPassShareMessage(pass) {
   ];
   if (pass.skySummary) details.push(pass.skySummary);
   if (pass.moonPhase) details.push(`Moon ${pass.moonPhase.icon} ${pass.moonPhase.name} (${pass.moonPhase.illuminationPct}%)`);
-  return `ISS Flyover Explorer\n${dateLabel}\n${details.join(" • ")}`;
+  return `Sky Tonight\n${dateLabel}\n${details.join(" • ")}`;
 }
 
 function buildSkyEventShareMessage(event) {
@@ -762,7 +763,7 @@ function buildSkyEventShareMessage(event) {
   const moonSummary = event.moonPhase
     ? `Moon ${event.moonPhase.icon} ${event.moonPhase.name} (${event.moonPhase.illuminationPct}%)`
     : "Moon phase unavailable";
-  return `ISS Flyover Explorer\n${event.title}\n${event.details}\nBest around ${focusLabel}\n${moonSummary}`;
+  return `Sky Tonight\n${getSkyEventDisplayLabel(event)}\n${event.details}\nBest around ${focusLabel}\n${moonSummary}`;
 }
 
 async function shareTextPayload(title, text) {
@@ -1867,14 +1868,9 @@ function buildSkyNightBundles(lat, lon, alignmentEvents) {
     const summary = topTargets.map((target) => formatSkyTarget(target)).join(" • ");
     const context = getSkyContextAt(new Date(entry.timestamp * 1000), lat, lon);
     const eventType = names.length === 1 ? "planet" : "group";
-    let title = "";
-    if (names.length === 1) {
-      title = `${names[0]} visible`;
-    } else if (names.length === 2) {
-      title = `${names[0]} + ${names[1]}`;
-    } else {
-      title = `${names[0]}, ${names[1]} +${names.length - 2} planets`;
-    }
+    const title = names.length === 1
+      ? `${names[0]} visible`
+      : names.join(" + ");
 
     return {
       id: `group-${entry.skyWindow}-${entry.timestamp}-${names.join("-")}`,
@@ -2065,7 +2061,7 @@ function getSkyBadgeDescriptors(event) {
   if (event.guideKind === "constellation") badgeDescriptors.push({ className: "weather-clear", label: "Constellation", priority: 2 });
   if (event.guideKind === "star") badgeDescriptors.push({ className: "weather-clear", label: "Bright Star", priority: 2 });
   if (event.notableReason === "alignment") badgeDescriptors.push({ className: "alignment", label: "Alignment", priority: 1 });
-  if (event.notableReason === "multi-body") badgeDescriptors.push({ className: "multi", label: "3 Bodies", priority: 2 });
+  if (event.notableReason === "multi-body") badgeDescriptors.push({ className: "multi", label: `${event.bodies?.length || 3} Bodies`, priority: 2 });
   if (event.isBestOfWeek) badgeDescriptors.push({ className: "best", label: "Best", priority: 1 });
   if (event.visibilityTier === "binoculars") badgeDescriptors.push({ className: "tier-binoculars", label: "Binoculars", priority: 3 });
   return badgeDescriptors;
@@ -2079,6 +2075,9 @@ function createSkyTopPick(event, selectedEventId, options = {}) {
   const badgeDescriptors = getSkyBadgeDescriptors(event);
   const badgeSpans = getTopSkyBadgeSpans(badgeDescriptors);
   const focusLabel = formatDateTime(new Date((event.focusTs || event.start) * 1000));
+  item.setAttribute("role", "button");
+  item.setAttribute("tabindex", "0");
+  item.setAttribute("aria-label", `${getSkyEventDisplayLabel(event)}, ${focusLabel}. Preview in User View.`);
   const moonContextLine = formatCombinedMoonContext({
     moonPhaseSummary: event.moonPhaseSummary,
     moonlightSummary: event.moonlightSummary
@@ -2088,7 +2087,7 @@ function createSkyTopPick(event, selectedEventId, options = {}) {
     <div class="sky-top-head">
       <div class="sky-top-copy">
         <div class="sky-top-kicker">${kicker}</div>
-        <p class="pass-title sky-top-title">${event.title}</p>
+        <p class="pass-title sky-top-title">${getSkyEventDisplayLabel(event)}</p>
         <div class="pass-meta event-time">${focusLabel}</div>
       </div>
       <div class="sky-top-actions">
@@ -2110,6 +2109,11 @@ function createSkyTopPick(event, selectedEventId, options = {}) {
     });
   }
   item.addEventListener("click", () => setSkyEventPreview(event));
+  item.addEventListener("keydown", (keyEvent) => {
+    if (keyEvent.target !== item || !["Enter", " "].includes(keyEvent.key)) return;
+    keyEvent.preventDefault();
+    setSkyEventPreview(event);
+  });
   return item;
 }
 
@@ -2159,7 +2163,7 @@ function createSkySecondaryRow(event, selectedEventId) {
   item.innerHTML = `
     <div class="sky-secondary-main">
       <div class="sky-secondary-head">
-        <p class="pass-title sky-secondary-title">${event.title}</p>
+        <p class="pass-title sky-secondary-title">${getSkyEventDisplayLabel(event)}</p>
         ${badgeSpansSecondary ? `<div class="sky-row-badges">${badgeSpansSecondary}</div>` : ""}
       </div>
       <div class="pass-meta event-time">${focusLabel} • ${getSkyEventWindowLabel(event)}</div>
@@ -2668,9 +2672,9 @@ function renderTimeline() {
   if (!timelineList) return;
   if (!state.user) {
     timelineList.innerHTML = `
-      <div class="timeline-item">
+      <div class="timeline-item" role="listitem">
         <div class="timeline-dot"></div>
-        <div class="timeline-time">--:--</div>
+        <div class="timeline-time"><span>--:--</span><small>Tonight</small></div>
         <div class="timeline-label">Waiting for location</div>
         <div class="timeline-sub">Sunset, sky windows, and weather appear here.</div>
       </div>
@@ -2679,9 +2683,9 @@ function renderTimeline() {
   }
   if (!state.tonightSnapshot?.window && !hasForecastRuntime()) {
     timelineList.innerHTML = `
-      <div class="timeline-item">
+      <div class="timeline-item" role="listitem">
         <div class="timeline-dot"></div>
-        <div class="timeline-time">--:--</div>
+        <div class="timeline-time"><span>--:--</span><small>Tonight</small></div>
         <div class="timeline-label">Timeline unavailable</div>
         <div class="timeline-sub">Reload the app to restore moonlight and night-window calculations.</div>
       </div>
@@ -2691,23 +2695,50 @@ function renderTimeline() {
   const scheduleEntries = state.tonightSnapshot?.scheduleEntries || [];
   if (!scheduleEntries.length) {
     timelineList.innerHTML = `
-      <div class="timeline-item">
+      <div class="timeline-item" role="listitem">
         <div class="timeline-dot"></div>
-        <div class="timeline-time">--:--</div>
+        <div class="timeline-time"><span>--:--</span><small>Tonight</small></div>
         <div class="timeline-label">Quiet night</div>
         <div class="timeline-sub">No notable observing windows were found tonight.</div>
       </div>
     `;
     return;
   }
-  timelineList.innerHTML = scheduleEntries.map((entry) => `
-    <div class="timeline-item ${entry.tone === "event" || entry.tone === "meteor" ? "sky" : entry.tone === "weather" ? "weather" : entry.tone === "iss" ? "iss" : entry.tone === "moon" || entry.tone === "dark" ? "moon" : entry.tone === "sun" || entry.tone === "twilight" ? "rare" : ""}">
+  const observingNightStart = new Date((state.tonightSnapshot?.window?.startTs || scheduleEntries[0].timestamp) * 1000);
+  const observingNightKey = getLocalDateKey(observingNightStart);
+  timelineList.innerHTML = scheduleEntries.map((entry) => {
+    const entryDate = new Date(entry.timestamp * 1000);
+    const dayLabel = getLocalDateKey(entryDate) === observingNightKey ? "Tonight" : "Tomorrow";
+    return `
+    <div class="timeline-item ${entry.tone === "event" || entry.tone === "meteor" ? "sky" : entry.tone === "weather" ? "weather" : entry.tone === "iss" ? "iss" : entry.tone === "moon" || entry.tone === "dark" ? "moon" : entry.tone === "sun" || entry.tone === "twilight" ? "rare" : ""}" role="listitem">
       <div class="timeline-dot"></div>
-      <div class="timeline-time">${formatTime(new Date(entry.timestamp * 1000))}</div>
+      <div class="timeline-time"><span>${formatTime(entryDate)}</span><small>${dayLabel}</small></div>
       <div class="timeline-label">${entry.label}</div>
       <div class="timeline-sub">${entry.sub}</div>
     </div>
-  `).join("");
+  `;
+  }).join("");
+}
+
+function renderMonthlyHighlights() {
+  try {
+    renderMonthlySkyGuide({
+      user: state.user,
+      elements: {
+        panel: monthlyPanelEl,
+        title: monthlyTitleEl,
+        summary: monthlySummaryEl,
+        sourceLink: monthlySourceLinkEl,
+        list: monthlyHighlightListEl,
+        source: monthlySourceEl
+      }
+    });
+  } catch (error) {
+    console.warn("Monthly sky guide render failed.", error);
+    if (monthlyHighlightListEl) {
+      monthlyHighlightListEl.innerHTML = '<div class="monthly-empty">The monthly guide is temporarily unavailable. Tonight and the seven-night outlook remain live.</div>';
+    }
+  }
 }
 
 function renderConditionsList() {
@@ -3182,6 +3213,7 @@ function updateTonightHighlights() {
   if (!tonightIss || !tonightSky || !tonightMoon || !tonightWeather) return;
 
   state.tonightSnapshot = buildTonightSnapshot();
+  renderMonthlyHighlights();
 
   if (!state.user) {
     state.tonight.pass = null;
@@ -4505,7 +4537,7 @@ function resolveSkyViewState(nowTs = Math.floor(Date.now() / 1000)) {
       skyPass: upcomingPass,
       skyEvent: null,
       observingNightKey: snapshot.window?.observingNightKey || emptyState.observingNightKey,
-      bannerText: formatPassPreviewBanner("Tonight preview: ISS pass", upcomingPass, contextTs),
+      bannerText: formatPassPreviewBanner("Tonight: ISS pass", upcomingPass, contextTs),
       showExit: false
     };
   }
@@ -4519,7 +4551,7 @@ function resolveSkyViewState(nowTs = Math.floor(Date.now() / 1000)) {
       skyPass: null,
       skyEvent: upcomingEvent,
       observingNightKey: upcomingEvent.observingNightKey || snapshot.window?.observingNightKey || emptyState.observingNightKey,
-      bannerText: `Tonight preview: ${getSkyEventDisplayLabel(upcomingEvent)} ${formatPreviewMoment(focusTs)}`,
+      bannerText: `Tonight: ${getSkyEventDisplayLabel(upcomingEvent)} • ${formatPreviewMoment(focusTs)}`,
       showExit: false
     };
   }
@@ -4975,10 +5007,13 @@ function updateSkyCanvas(options = {}) {
         const boxWidth = ctx.measureText(text).width + (options.horizontalPadding ?? 6);
         const boxHeight = options.height ?? 14;
         const candidates = (options.candidatesBuilder || buildDefaultLabelCandidates)(anchor, boxWidth, boxHeight, options);
-        const choice = candidates.find((candidate) => (
-          (!options.requireSafeBounds || isWithinSafeBounds(candidate, options.safePadding))
-          && !hasOverlap(candidate)
-        )) || (options.allowOverlapFallback === false ? null : candidates[0]);
+        const requireSafeBounds = options.requireSafeBounds !== false;
+        const eligibleCandidates = requireSafeBounds
+          ? candidates.filter((candidate) => isWithinSafeBounds(candidate, options.safePadding))
+          : candidates;
+        const choice = eligibleCandidates.find((candidate) => !hasOverlap(candidate))
+          || (options.allowOverlapFallback === false ? null : eligibleCandidates[0])
+          || null;
         if (!choice) return null;
         labelBoxes.push(choice);
         return choice;
@@ -5012,6 +5047,7 @@ function updateSkyCanvas(options = {}) {
 
         const label = `${target.body} ${Math.round(target.elevation)}°`;
         const box = placeLabel(label, point);
+        if (!box) return;
         ctx.fillStyle = isSelected ? "rgba(12, 8, 26, 0.82)" : "rgba(4, 10, 20, 0.72)";
         ctx.strokeStyle = isSelected
           ? "rgba(180, 112, 255, 0.45)"
@@ -5129,6 +5165,7 @@ function updateSkyCanvas(options = {}) {
 
         const label = item.kind === "star" ? item.title : `${item.title}`;
         const box = placeLabel(label, point);
+        if (!box) return;
         ctx.fillStyle = "rgba(6, 12, 22, 0.7)";
         ctx.fillRect(box.x - 2, box.y - 1, box.width + 4, box.height + 2);
         ctx.strokeStyle = guideBorder;
@@ -5945,9 +5982,15 @@ function setActiveView(view) {
   const isGlobe = view === "globe";
   const isSky = view === "sky";
 
-  document.getElementById("btn-map").classList.toggle("active", isMap);
-  document.getElementById("btn-globe").classList.toggle("active", isGlobe);
-  document.getElementById("btn-sky").classList.toggle("active", isSky);
+  const mapButton = document.getElementById("btn-map");
+  const globeButton = document.getElementById("btn-globe");
+  const skyButton = document.getElementById("btn-sky");
+  mapButton.classList.toggle("active", isMap);
+  globeButton.classList.toggle("active", isGlobe);
+  skyButton.classList.toggle("active", isSky);
+  mapButton.setAttribute("aria-selected", String(isMap));
+  globeButton.setAttribute("aria-selected", String(isGlobe));
+  skyButton.setAttribute("aria-selected", String(isSky));
 
   mapEl.classList.toggle("active", isMap);
   globeViewEl.classList.toggle("active", isGlobe);
@@ -6015,7 +6058,7 @@ state.ui.appVersion.current = APP_VERSION;
 state.ui.appVersion.latest = APP_VERSION;
 setBootStage(state.ui.bootStage);
 setBooting(true);
-setTimelineExpanded(false);
+setTimelineExpanded(true);
 setAdvancedExpanded(false);
 loadSkyViewingPreference();
 syncSkyViewingPreferenceControls();

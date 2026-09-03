@@ -1,12 +1,14 @@
-# ISS Flyover Explorer
+# Sky Tonight
 
-A dark-themed static web app for tracking the International Space Station, previewing visible passes, and exploring the orbit on a globe.
+A dark-themed local sky guide for planning an evening around planets, ISS flyovers, weather, moonlight, and standout monthly events.
 
 ## Features
 - Real-time ISS position with smooth animation
 - Globe view with draggable orbit track
 - User view sky projection with preview mode for upcoming passes
 - 7-day visibility forecast (night + high elevation)
+- Vertical tonight timeline with sky, darkness, weather, Moon, and ISS moments
+- NASA-attributed monthly skywatching highlights with local visibility checks
 - Location persistence between reloads
 - Automatic forecast refresh on app resume and date rollover
 

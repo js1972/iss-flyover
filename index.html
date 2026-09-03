@@ -3,25 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>ISS Flyover Explorer</title>
+  <title>Sky Tonight</title>
   <meta name="theme-color" content="#050913" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="ISS Flyover" />
-  <link rel="manifest" href="manifest.webmanifest?v=2026.05.29-status.1" />
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png?v=2026.05.29-status.1" />
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32x32.png?v=2026.05.29-status.1" />
-  <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16x16.png?v=2026.05.29-status.1" />
-  <link rel="shortcut icon" href="assets/icons/favicon.ico?v=2026.05.29-status.1" />
+  <meta name="apple-mobile-web-app-title" content="Sky Tonight" />
+  <link rel="manifest" href="manifest.webmanifest?v=2026.09.03-sky-tonight.1" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png?v=2026.09.03-sky-tonight.1" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32x32.png?v=2026.09.03-sky-tonight.1" />
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16x16.png?v=2026.09.03-sky-tonight.1" />
+  <link rel="shortcut icon" href="assets/icons/favicon.ico?v=2026.09.03-sky-tonight.1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link
     rel="stylesheet"
-    href="assets/vendor/leaflet/leaflet.css?v=2026.05.29-status.1"
+    href="assets/vendor/leaflet/leaflet.css?v=2026.09.03-sky-tonight.1"
   />
-  <link rel="stylesheet" href="assets/css/app.css?v=2026.05.29-status.1" />
+  <link rel="stylesheet" href="assets/css/app.css?v=2026.09.03-sky-tonight.1" />
 </head>
 <body>
   <div class="boot-overlay" id="boot-overlay" role="status" aria-live="polite" aria-atomic="true">
@@ -44,8 +44,9 @@
     <header>
       <div class="title-row">
         <div>
-          <h1>ISS Flyover Explorer</h1>
-          <p class="subtitle">Real-time ISS tracking and night-sky planning for your location.</p>
+          <div class="brand-kicker">Your local night-sky guide</div>
+          <h1>Sky Tonight</h1>
+          <p class="subtitle">Planets, ISS flyovers, and the best time to look up from your location.</p>
         </div>
         <div class="actions">
           <div class="location-control">
@@ -66,10 +67,10 @@
 	    <section class="sky-hero" id="sky-hero">
 	      <div class="sky-hero__heading">
         <div class="view-toolbar">
-          <div class="view-toggle" role="tablist">
-            <button class="active" id="btn-sky">User View</button>
-            <button id="btn-globe">Globe View</button>
-            <button id="btn-map">Map View</button>
+          <div class="view-toggle" role="tablist" aria-label="Sky explorer view">
+            <button class="active" id="btn-sky" role="tab" aria-selected="true" aria-controls="sky-view">User View</button>
+            <button id="btn-globe" role="tab" aria-selected="false" aria-controls="globe-view">Globe View</button>
+            <button id="btn-map" role="tab" aria-selected="false" aria-controls="map">Map View</button>
           </div>
           <div class="preview-banner" id="preview-banner" hidden>
             <span id="preview-text">Previewing pass</span>
@@ -86,8 +87,8 @@
           <div id="globe"></div>
           <div class="globe-overlay">Drag to rotate, scroll to zoom. Track paths are computed from live ISS TLE data.</div>
         </div>
-        <div id="sky-view" class="view-panel active" aria-label="ISS sky view">
-          <canvas id="sky"></canvas>
+        <div id="sky-view" class="view-panel active" aria-label="Local night sky view">
+          <canvas id="sky" role="img" aria-label="Interactive local sky chart showing planets, highlighted targets, and ISS pass paths"></canvas>
           <div class="sky-compass-controls">
             <button class="sky-compass-btn" id="sky-compass-toggle" type="button" aria-label="Align with compass" aria-pressed="false" title="Align with compass"></button>
           </div>
@@ -130,17 +131,18 @@
       </section>
     </section>
 
-    <section class="card timeline-panel is-collapsed" id="timeline-panel">
+    <section class="card timeline-panel" id="timeline-panel">
       <div class="panel-heading">
         <div class="panel-heading-copy">
-          <h3 class="panel-title">Tonight Schedule</h3>
-          <p class="panel-heading-sub">Sunset, moonlight, sky windows, and weather in time order.</p>
+          <div class="section-kicker">Your evening plan</div>
+          <h2 class="panel-title">Tonight</h2>
+          <p class="panel-heading-sub">What to see, when the sky darkens, and the clearest time to step outside.</p>
         </div>
-        <button class="panel-toggle-btn" id="timeline-toggle" type="button" aria-expanded="false" aria-controls="timeline-content">Show</button>
+        <button class="panel-toggle-btn" id="timeline-toggle" type="button" aria-expanded="true" aria-controls="timeline-content">Hide</button>
       </div>
-      <div class="timeline-content" id="timeline-content" hidden>
-        <div class="timeline-list" id="timeline-list">
-        <div class="timeline-item">
+      <div class="timeline-content" id="timeline-content">
+        <div class="timeline-list" id="timeline-list" role="list" aria-label="Tonight in time order">
+        <div class="timeline-item" role="listitem">
           <div class="timeline-dot"></div>
           <div class="timeline-time">--:--</div>
           <div class="timeline-label">Waiting for location</div>
@@ -151,16 +153,19 @@
     </section>
 
 	    <section class="section-head queue-head" id="queue-head">
-	      <h2 class="section-title">Next Up</h2>
-	      <p class="section-subtitle">Best viewing picks first, with the full outlook underneath.</p>
+	      <h2 class="section-title">Next 7 Nights</h2>
+	      <p class="section-subtitle">The strongest local sky picks first, with ISS flyovers included when they are visible.</p>
 	    </section>
 
     <section class="panel-grid">
       <div class="card panel-card forecast-card" id="forecast-panel">
         <div class="panel-heading">
-          <h3 class="panel-title">Upcoming ISS Passes</h3>
+          <div class="panel-heading-copy">
+            <h3 class="panel-title">ISS Flyovers</h3>
+            <p class="panel-heading-sub">Visible passes near you over the next seven nights.</p>
+          </div>
           <div class="panel-info-wrap">
-            <button class="panel-info-btn" id="iss-best-info" type="button" aria-expanded="false" aria-controls="iss-best-note" title="How ISS best pass is chosen">i</button>
+            <button class="panel-info-btn" id="iss-best-info" type="button" aria-label="How the best ISS pass is chosen" aria-expanded="false" aria-controls="iss-best-note" title="How ISS best pass is chosen">i</button>
             <div class="panel-popover" id="iss-best-note" hidden>ISS BEST prioritizes higher max elevation, then longer visible duration. If tied, sky context (planet/alignment context) is used as a tie-break only.</div>
           </div>
         </div>
@@ -176,9 +181,12 @@
       </div>
       <div class="card panel-card sky-card" id="sky-panel">
         <div class="panel-heading">
-          <h3 class="panel-title">Night Sky Highlights</h3>
+          <div class="panel-heading-copy">
+            <h3 class="panel-title">Sky Highlights</h3>
+            <p class="panel-heading-sub">Planets, alignments, meteor showers, and deep-sky targets worth your time.</p>
+          </div>
       <div class="panel-info-wrap">
-        <button class="panel-info-btn" id="sky-best-info" type="button" aria-expanded="false" aria-controls="sky-best-note" title="How sky best night is chosen">i</button>
+        <button class="panel-info-btn" id="sky-best-info" type="button" aria-label="Choose how sky highlights are ranked" aria-expanded="false" aria-controls="sky-best-note" title="How sky best night is chosen">i</button>
         <div class="panel-popover sky-preference-popover" id="sky-best-note" hidden>
           <div class="sky-preference-title">Viewing preference</div>
           <div class="sky-preference-options" role="radiogroup" aria-label="Night sky viewing preference">
@@ -208,6 +216,21 @@
           </div>
         </div>
       </div>
+    </section>
+
+    <section class="card monthly-panel" id="monthly-panel" aria-labelledby="monthly-title">
+      <div class="monthly-heading">
+        <div class="monthly-heading-copy">
+          <div class="section-kicker">This month</div>
+          <h2 class="section-title" id="monthly-title">Monthly sky guide</h2>
+          <p class="section-subtitle" id="monthly-summary">A curated view of the month's standout sky moments.</p>
+        </div>
+        <a class="source-chip" id="monthly-source-link" href="https://science.nasa.gov/skywatching/whats-up/" target="_blank" rel="noopener noreferrer">NASA guide</a>
+      </div>
+      <div class="monthly-highlight-list" id="monthly-highlight-list" role="list" aria-live="polite">
+        <div class="monthly-empty">Loading this month's guide…</div>
+      </div>
+      <p class="monthly-source" id="monthly-source">NASA's monthly guide, checked against your local sky where possible.</p>
     </section>
 
     <section class="advanced-section is-collapsed" id="advanced-panel">
@@ -240,8 +263,8 @@
             <div class="control-group">
               <label>Manual Coordinates</label>
               <div class="control-row">
-                <input id="lat" type="number" step="0.0001" placeholder="Lat" />
-                <input id="lon" type="number" step="0.0001" placeholder="Lon" />
+                <input id="lat" type="number" step="0.0001" placeholder="Lat" aria-label="Latitude" />
+                <input id="lon" type="number" step="0.0001" placeholder="Lon" aria-label="Longitude" />
                 <button id="apply-coords">Apply</button>
               </div>
             </div>
@@ -302,11 +325,11 @@
   </div>
   <div class="toast" id="share-toast"></div>
 
-  <script src="assets/vendor/leaflet/leaflet.js?v=2026.05.29-status.1"></script>
-  <script src="assets/vendor/suncalc/suncalc.js?v=2026.05.29-status.1"></script>
-  <script src="assets/vendor/astronomy/astronomy.browser.min.js?v=2026.05.29-status.1"></script>
-  <script src="assets/vendor/three/three.min.js?v=2026.05.29-status.1"></script>
-  <script src="assets/vendor/three/OrbitControls.js?v=2026.05.29-status.1"></script>
-  <script type="module" src="assets/js/main.js?v=2026.05.29-status.1"></script>
+  <script src="assets/vendor/leaflet/leaflet.js?v=2026.09.03-sky-tonight.1"></script>
+  <script src="assets/vendor/suncalc/suncalc.js?v=2026.09.03-sky-tonight.1"></script>
+  <script src="assets/vendor/astronomy/astronomy.browser.min.js?v=2026.09.03-sky-tonight.1"></script>
+  <script src="assets/vendor/three/three.min.js?v=2026.09.03-sky-tonight.1"></script>
+  <script src="assets/vendor/three/OrbitControls.js?v=2026.09.03-sky-tonight.1"></script>
+  <script type="module" src="assets/js/main.js?v=2026.09.03-sky-tonight.1"></script>
 </body>
 </html>

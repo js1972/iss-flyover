@@ -294,12 +294,33 @@
       font-size: clamp(2rem, 2vw + 1.6rem, 3rem);
       margin: 0;
       letter-spacing: 0.04em;
+      color: #f3f8ff;
+      text-shadow: 0 0 30px rgba(87, 230, 255, 0.12);
+    }
+
+    .brand-kicker,
+    .section-kicker {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.65rem;
+      font-weight: 600;
+      line-height: 1.25;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #72e5ff;
+    }
+
+    .brand-kicker {
+      margin-bottom: 5px;
+      background: linear-gradient(90deg, #72e5ff, #8ef5c9 72%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
     }
 
     .subtitle {
       color: var(--muted);
       font-size: 0.98rem;
-      margin: 0;
+      margin: 3px 0 0;
       max-width: 700px;
     }
 
@@ -984,37 +1005,56 @@
     }
 
     .timeline-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 12px;
-      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      max-width: 860px;
+      margin-top: 16px;
     }
 
     .timeline-item {
       position: relative;
-      padding: 12px 12px 12px 14px;
-      border-radius: 16px;
-      border: 1px solid rgba(110, 138, 184, 0.24);
-      background: linear-gradient(160deg, rgba(11, 18, 34, 0.92), rgba(7, 12, 24, 0.95));
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+      display: grid;
+      grid-template-columns: 72px 22px minmax(0, 1fr);
+      grid-template-areas:
+        "time dot label"
+        "time line sub";
+      column-gap: 8px;
+      min-height: 66px;
+      padding: 2px 0 14px;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
       animation: fadeRise 420ms ease both;
     }
 
     .timeline-item::before {
       content: "";
       position: absolute;
-      inset: 0;
-      background: radial-gradient(circle at 10% 0%, rgba(42, 209, 255, 0.12), transparent 58%);
+      left: 90px;
+      top: 16px;
+      bottom: -2px;
+      width: 1px;
+      background: linear-gradient(180deg, rgba(91, 190, 224, 0.5), rgba(99, 118, 164, 0.16));
       pointer-events: none;
     }
 
+    .timeline-item:last-child::before {
+      display: none;
+    }
+
     .timeline-dot {
-      width: 8px;
-      height: 8px;
+      grid-area: dot;
+      align-self: start;
+      justify-self: center;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
       background: var(--accent);
-      box-shadow: 0 0 0 5px rgba(42, 209, 255, 0.12);
-      margin-bottom: 10px;
+      border: 2px solid #0a1222;
+      box-shadow: 0 0 0 4px rgba(42, 209, 255, 0.12), 0 0 14px rgba(42, 209, 255, 0.3);
+      margin-top: 3px;
+      z-index: 1;
     }
 
     .timeline-item.weather .timeline-dot {
@@ -1042,22 +1082,242 @@
     }
 
     .timeline-time {
+      grid-area: time;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+      padding-top: 0;
       font-family: "IBM Plex Mono", monospace;
-      font-size: 0.84rem;
-      color: #d9e7ff;
-      margin-bottom: 6px;
+      font-size: 0.82rem;
+      color: #e1ecff;
+      text-align: right;
+    }
+
+    .timeline-time small {
+      font-size: 0.54rem;
+      line-height: 1;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #6f86a9;
     }
 
     .timeline-label {
+      grid-area: label;
       font-weight: 600;
       color: #eef4ff;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
+      line-height: 1.2;
     }
 
     .timeline-sub {
+      grid-area: sub;
       color: var(--muted);
       font-size: 0.8rem;
       line-height: 1.35;
+    }
+
+    .timeline-item.sky .timeline-label,
+    .timeline-item.iss .timeline-label {
+      color: #e8ddff;
+    }
+
+    .timeline-item.weather .timeline-label {
+      color: #c9dcff;
+    }
+
+    .monthly-panel {
+      position: relative;
+      overflow: hidden;
+      padding: 20px;
+      background:
+        radial-gradient(circle at 100% 0%, rgba(155, 92, 255, 0.14), transparent 42%),
+        radial-gradient(circle at 0% 100%, rgba(42, 209, 255, 0.09), transparent 38%),
+        linear-gradient(155deg, rgba(13, 21, 39, 0.94), rgba(8, 14, 28, 0.94));
+    }
+
+    .monthly-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid rgba(113, 143, 194, 0.2);
+    }
+
+    .monthly-heading-copy {
+      min-width: 0;
+    }
+
+    .monthly-heading .section-title {
+      margin-top: 5px;
+      color: #edf4ff;
+    }
+
+    .monthly-heading .section-subtitle {
+      margin-top: 5px;
+      max-width: 680px;
+    }
+
+    .source-chip {
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      padding: 8px 13px;
+      border: 1px solid rgba(168, 132, 255, 0.48);
+      border-radius: 999px;
+      background: rgba(87, 54, 150, 0.2);
+      color: #e6d9ff;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.1em;
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+    }
+
+    .source-chip:hover,
+    .source-chip:focus-visible {
+      border-color: rgba(190, 161, 255, 0.82);
+      background: rgba(109, 70, 185, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .monthly-highlight-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 15px;
+    }
+
+    .monthly-highlight {
+      display: grid;
+      grid-template-columns: 78px minmax(0, 1fr);
+      gap: 14px;
+      min-width: 0;
+      padding: 15px;
+      border: 1px solid rgba(119, 144, 188, 0.24);
+      border-radius: 18px;
+      background: linear-gradient(150deg, rgba(16, 25, 45, 0.9), rgba(8, 14, 27, 0.88));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+    }
+
+    .monthly-highlight.current,
+    .monthly-highlight.soon {
+      border-color: rgba(23, 241, 177, 0.38);
+      background:
+        radial-gradient(circle at 0% 0%, rgba(23, 241, 177, 0.1), transparent 50%),
+        linear-gradient(150deg, rgba(14, 31, 40, 0.94), rgba(8, 14, 27, 0.9));
+    }
+
+    .monthly-highlight.past {
+      opacity: 0.66;
+    }
+
+    .monthly-date-block {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 7px;
+      padding-right: 12px;
+      border-right: 1px solid rgba(117, 145, 194, 0.18);
+    }
+
+    .monthly-date,
+    .monthly-status,
+    .monthly-equipment,
+    .monthly-local {
+      font-family: "IBM Plex Mono", monospace;
+    }
+
+    .monthly-date {
+      color: #f3f7ff;
+      font-size: 0.78rem;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .monthly-status {
+      color: #86a0c6;
+      font-size: 0.56rem;
+      line-height: 1.2;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .monthly-highlight-copy {
+      min-width: 0;
+    }
+
+    .monthly-highlight-copy h3 {
+      margin: 0;
+      color: #f0f5ff;
+      font-size: 1.02rem;
+      line-height: 1.18;
+      letter-spacing: 0.01em;
+      text-transform: none;
+    }
+
+    .monthly-highlight-copy p {
+      margin: 6px 0 0;
+      color: #aebed6;
+      font-size: 0.8rem;
+      line-height: 1.42;
+    }
+
+    .monthly-highlight-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 8px;
+      margin-top: 10px;
+    }
+
+    .monthly-equipment,
+    .monthly-local {
+      border-radius: 999px;
+      font-size: 0.59rem;
+      line-height: 1.2;
+    }
+
+    .monthly-equipment {
+      padding: 5px 8px;
+      border: 1px solid rgba(255, 188, 105, 0.34);
+      background: rgba(255, 188, 105, 0.1);
+      color: #ffdda9;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .monthly-local {
+      padding: 5px 0;
+      color: #9db2d2;
+    }
+
+    .monthly-local.visible {
+      color: #9cf4d5;
+    }
+
+    .monthly-local.limited {
+      color: #e9c58f;
+    }
+
+    .monthly-source {
+      margin: 13px 0 0;
+      color: #7388a9;
+      font-size: 0.7rem;
+      line-height: 1.35;
+    }
+
+    .monthly-empty {
+      grid-column: 1 / -1;
+      padding: 16px;
+      border: 1px dashed rgba(115, 141, 187, 0.3);
+      border-radius: 16px;
+      color: #9fb0ca;
+      font-size: 0.82rem;
+      line-height: 1.4;
     }
 
 	    .view-toolbar {
@@ -1774,6 +2034,11 @@
       transform: translateY(-1px);
       border-color: rgba(42, 209, 255, 0.46);
       background: linear-gradient(160deg, rgba(18, 28, 48, 0.98), rgba(12, 20, 36, 0.98));
+    }
+
+    .sky-top-pick[role="button"]:focus-visible {
+      outline: 2px solid rgba(114, 229, 255, 0.92);
+      outline-offset: 3px;
     }
 
     .sky-top-pick.best-of-week {
@@ -2566,6 +2831,14 @@
         gap: 20px;
       }
 
+      .panel-grid > .sky-card {
+        order: -1;
+      }
+
+      .monthly-highlight-list {
+        grid-template-columns: 1fr;
+      }
+
 	      .viewer {
 	        height: clamp(360px, 48vh, 440px);
 	        min-height: 360px;
@@ -2703,6 +2976,71 @@
 	        gap: 18px;
 	      }
 
+      .brand-kicker {
+        font-size: 0.59rem;
+      }
+
+      .subtitle {
+        font-size: 0.9rem;
+        line-height: 1.38;
+      }
+
+      .timeline-panel,
+      .monthly-panel {
+        padding: 16px;
+      }
+
+      .timeline-item {
+        grid-template-columns: 58px 20px minmax(0, 1fr);
+        column-gap: 7px;
+        min-height: 64px;
+      }
+
+      .timeline-item::before {
+        left: 75px;
+      }
+
+      .timeline-time {
+        font-size: 0.76rem;
+      }
+
+      .timeline-label {
+        font-size: 0.94rem;
+      }
+
+      .timeline-sub {
+        font-size: 0.74rem;
+      }
+
+      .monthly-heading {
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .source-chip {
+        min-height: 44px;
+        padding: 8px 11px;
+        font-size: 0.6rem;
+      }
+
+      .monthly-highlight {
+        grid-template-columns: 66px minmax(0, 1fr);
+        gap: 11px;
+        padding: 13px;
+      }
+
+      .monthly-date-block {
+        padding-right: 10px;
+      }
+
+      .monthly-highlight-copy h3 {
+        font-size: 0.98rem;
+      }
+
+      .monthly-highlight-copy p {
+        font-size: 0.76rem;
+      }
+
 		    .tonight-grid {
 		        grid-template-columns: 1fr;
 		      }
@@ -2736,8 +3074,8 @@
       }
 
       .panel-info-btn {
-        width: 20px;
-        height: 20px;
+        width: 28px;
+        height: 28px;
         font-size: 0.72rem;
       }
 
@@ -2802,6 +3140,23 @@
 
       .sky-top-actions {
         max-width: 48%;
+      }
+
+      .sky-feature .sky-top-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .sky-feature .sky-top-actions {
+        max-width: none;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+      }
+
+      .sky-feature .sky-top-badges {
+        justify-content: flex-start;
       }
 
       .sky-top-title {
