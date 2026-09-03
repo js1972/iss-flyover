@@ -1,6 +1,6 @@
 # Sky Tonight
 
-A dark-themed local sky guide for planning an evening around planets, ISS flyovers, weather, moonlight, and standout monthly events.
+A dark-themed local sky guide for planning an evening around planets, ISS flyovers, weather, and moonlight.
 
 ## Features
 - Real-time ISS position with smooth animation
@@ -8,7 +8,6 @@ A dark-themed local sky guide for planning an evening around planets, ISS flyove
 - User view sky projection with preview mode for upcoming passes
 - 7-day visibility forecast (night + high elevation)
 - Vertical tonight timeline with sky, darkness, weather, Moon, and ISS moments
-- NASA-attributed monthly skywatching highlights with local visibility checks
 - Location persistence between reloads
 - Automatic forecast refresh on app resume and date rollover
 

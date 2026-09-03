@@ -1,13 +1,12 @@
 
-import { state } from "./state.js?v=2026.09.03-sky-tonight.1";
-import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, ISS_TLE_FALLBACK_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js?v=2026.09.03-sky-tonight.1";
-import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, skyCompassButton, skyCompassStatus, tonightGridEl, passList, skyEventsList, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, trackStatusEl, conditionsStatusEl, previewBanner, previewText, previewExitButton, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, monthlyPanelEl, monthlyTitleEl, monthlySummaryEl, monthlySourceLinkEl, monthlyHighlightListEl, monthlySourceEl, advancedPanel, advancedToggle, advancedContent, conditionsList } from "./dom.js?v=2026.09.03-sky-tonight.1";
-import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js?v=2026.09.03-sky-tonight.1";
-import { fetchJson } from "./network.js?v=2026.09.03-sky-tonight.1";
-import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js?v=2026.09.03-sky-tonight.1";
-import { renderMonthlySkyGuide } from "./monthly-guide.js?v=2026.09.03-sky-tonight.1";
-import { beginSourceAttempt, hasUsableData, markSourceDegraded, markSourceOk, markSourceUnavailable } from "./status.js?v=2026.09.03-sky-tonight.1";
-import { APP_VERSION, ASSET_VERSION, DEPLOYED_AT } from "./version.js?v=2026.09.03-sky-tonight.1";
+import { state } from "./state.js?v=2026.09.03-sky-tonight.2";
+import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, ISS_TLE_FALLBACK_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js?v=2026.09.03-sky-tonight.2";
+import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, skyCompassButton, skyCompassStatus, tonightGridEl, passList, skyEventsList, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, trackStatusEl, conditionsStatusEl, previewBanner, previewText, previewExitButton, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, advancedPanel, advancedToggle, advancedContent, conditionsList } from "./dom.js?v=2026.09.03-sky-tonight.2";
+import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js?v=2026.09.03-sky-tonight.2";
+import { fetchJson } from "./network.js?v=2026.09.03-sky-tonight.2";
+import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js?v=2026.09.03-sky-tonight.2";
+import { beginSourceAttempt, hasUsableData, markSourceDegraded, markSourceOk, markSourceUnavailable } from "./status.js?v=2026.09.03-sky-tonight.2";
+import { APP_VERSION, ASSET_VERSION, DEPLOYED_AT } from "./version.js?v=2026.09.03-sky-tonight.2";
 
 const AUTO_REFRESH_STALE_MS = 15 * 60 * 1000;
 const VERSION_URL = `./version.json?v=${encodeURIComponent(ASSET_VERSION)}`;
@@ -2720,27 +2719,6 @@ function renderTimeline() {
   }).join("");
 }
 
-function renderMonthlyHighlights() {
-  try {
-    renderMonthlySkyGuide({
-      user: state.user,
-      elements: {
-        panel: monthlyPanelEl,
-        title: monthlyTitleEl,
-        summary: monthlySummaryEl,
-        sourceLink: monthlySourceLinkEl,
-        list: monthlyHighlightListEl,
-        source: monthlySourceEl
-      }
-    });
-  } catch (error) {
-    console.warn("Monthly sky guide render failed.", error);
-    if (monthlyHighlightListEl) {
-      monthlyHighlightListEl.innerHTML = '<div class="monthly-empty">The monthly guide is temporarily unavailable. Tonight and the seven-night outlook remain live.</div>';
-    }
-  }
-}
-
 function renderConditionsList() {
   if (!conditionsList) return;
   if (!state.user) {
@@ -3213,8 +3191,6 @@ function updateTonightHighlights() {
   if (!tonightIss || !tonightSky || !tonightMoon || !tonightWeather) return;
 
   state.tonightSnapshot = buildTonightSnapshot();
-  renderMonthlyHighlights();
-
   if (!state.user) {
     state.tonight.pass = null;
     state.tonight.skyEvent = null;

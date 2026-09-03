@@ -1,4 +1,4 @@
-import { createHealthState } from "./status.js?v=2026.09.03-sky-tonight.1";
+import { createHealthState } from "./status.js?v=2026.09.03-sky-tonight.2";
 
 export const state =  {
   user: null,
