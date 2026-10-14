@@ -7,3 +7,8 @@
 # local virtual environments
 .venv/
 .venv-icons/
+
+# Native iOS build products and personal Xcode state
+ios/build/
+**/xcuserdata/
+*.xcuserstate

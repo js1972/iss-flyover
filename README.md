@@ -2,6 +2,13 @@
 
 A dark-themed local sky guide for planning an evening around planets, ISS flyovers, weather, and moonlight.
 
+## Native iOS app
+
+The native SwiftUI app and Home/Lock Screen widgets live in `ios/`. Open
+`ios/SkyTonight.xcodeproj` and select the **SkyTonight** scheme. See
+[iOS setup, signing, architecture, and tests](ios/README.md) for details.
+The website remains independently deployable as static files.
+
 ## Features
 - Real-time ISS position with smooth animation
 - Globe view with draggable orbit track
