@@ -27,7 +27,19 @@ Keep these identifiers stable, including when troubleshooting signing. Changing 
 
 The paid developer account is `js.dev.one@proton.me`. Sky Tonight is an independent app: never reuse another app’s bundle identifiers, App Groups, keychain groups, or data containers. Its App Group is exclusively for Sky Tonight and its own widget extension. Only the Apple developer signing team is common to other apps in the account. Select that paid team for **both** targets in Signing & Capabilities and enable automatic signing. The new App Group must be registered and included in both provisioning profiles. Do not switch to a Personal Team or remove App Groups to work around a signing failure.
 
-On 14 October 2026, after signing in through Xcode Settings → Apple Accounts, automatic provisioning created dedicated profiles for both targets. Version 1.0 (build 1), from commit `58a65b4`, was installed and launched successfully on the paired iPhone 16 Pro Max. Both signatures and profiles were verified against the permanent identifiers, the exclusive Sky Tonight App Group, and device eligibility; profiles expire 14 October 2027. No App Store upload was performed. Physical compass accuracy and Home/Lock Screen widget behaviour remain for hands-on testing.
+On 14 October 2026, after signing in through Xcode Settings → Apple Accounts, automatic provisioning created dedicated profiles for both targets. Version 1.0 was first installed as build 1 (`58a65b4`); build 2 (`51be65a`) was subsequently installed and launched successfully on the paired iPhone 16 Pro Max, with its installed version verified. Both signatures and profiles were verified against the permanent identifiers, the exclusive Sky Tonight App Group, and device eligibility; profiles expire 14 October 2027. No App Store upload was performed. Physical compass accuracy and Home/Lock Screen widget behaviour remain for hands-on testing.
+
+## Run on an iPhone and add widgets
+
+1. Open `ios/SkyTonight.xcodeproj` from the repository root and select the **SkyTonight** scheme.
+2. Sign in to the paid account in **Xcode Settings → Apple Accounts** if new profiles are needed. Existing valid profiles can support later builds without a new sign-in.
+3. Select the permanent team above for both app and widget targets, with automatic signing. Let Xcode create profiles that include Sky Tonight’s own App Group.
+4. Connect or select the paired iPhone, enable Developer Mode if required, and unlock it. Commit and push verified changes before choosing **Run** for physical-device testing. Update the existing installation; do not uninstall it or change identifiers to resolve signing problems.
+5. Open Sky Tonight and check the observing place in **Settings**. The initial place is Perth until changed; device location is optional. Let a forecast load before adding widgets.
+6. To add a Home Screen widget, long-press the Home Screen, choose **Edit → Add Widget**, and search for **Sky Tonight**. Choose **Sky Tonight** or **Next ISS Pass** and a size. Edit the widget to select a saved observing place.
+7. For the Lock Screen, open its customization screen, select the widget area, and choose a Sky Tonight widget. Tap an event widget to open its event-time sky preview in the app.
+
+Widgets refresh on iOS’s schedule rather than every few seconds. A successful app installation includes the widget extension, but widgets must be added to the Home/Lock Screen separately. Check compass alignment, reminders, widget refresh, and widget links on the actual phone; simulator tests do not establish those hardware behaviours.
 
 ## Build and test
 
@@ -44,7 +56,7 @@ xcodebuild -project ios/SkyTonight.xcodeproj -scheme SkyTonight \
 
 Choose an available simulator name if the dedicated simulator does not exist on your Mac. Commit and push before real-device testing, following the repository workflow.
 
-Only when adding source files or updating the pinned calculation libraries:
+When editing `SkyCore/engine.js` or updating its pinned libraries, regenerate `Resources/SkyEngine.js`. Regenerate the Xcode project when adding/removing Swift files or changing settings in the project generator. These commands run from the repository root:
 
 ```sh
 python3 ios/scripts/bundle_engine.py
@@ -85,3 +97,9 @@ Upcoming → ISS passes; native orbital calculations are unchanged.
 Run `node --experimental-default-type=module --test tests/pass-visibility.test.mjs`
 from the repository root for the fixed-orbit regression and visibility boundary
 checks. The real orbit fixture is public CelesTrak data, not device location data.
+
+Verification for build 2: 12 native unit tests, 2 native UI tests, and 5 JavaScript
+visibility regression tests passed. Local browser checks covered Perth’s empty
+ISS forecast, sunlit passes at a second location, live refresh, and ISS/sky-card
+previews. The signed iPhone build was installed as an update with the permanent
+app and widget identities unchanged.
