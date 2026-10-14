@@ -25,9 +25,9 @@ Keep these identifiers stable, including when troubleshooting signing. Changing 
 | Shared App Group | `group.com.js1972.skytonight` |
 | Paid development team | `NF8828LV3U` |
 
-The team matches the existing native portfolio/hiking projects for `js.dev.one@proton.me`. Select that paid team for **both** targets in Signing & Capabilities and enable automatic signing. The new App Group must be registered and included in both provisioning profiles. Do not switch to a Personal Team or remove App Groups to work around a signing failure.
+The paid developer account is `js.dev.one@proton.me`. Sky Tonight is an independent app: never reuse another app’s bundle identifiers, App Groups, keychain groups, or data containers. Its App Group is exclusively for Sky Tonight and its own widget extension. Only the Apple developer signing team is common to other apps in the account. Select that paid team for **both** targets in Signing & Capabilities and enable automatic signing. The new App Group must be registered and included in both provisioning profiles. Do not switch to a Personal Team or remove App Groups to work around a signing failure.
 
-The initial command-line signing check reported **No Accounts** and no App Group-capable provisioning profile for these new identifiers. Sign in to the paid account in Xcode Settings → Apple Accounts, then let Xcode provision both targets. No device install or App Store upload was performed as part of the initial build.
+On 14 October 2026, after signing in through Xcode Settings → Apple Accounts, automatic provisioning created dedicated profiles for both targets. Version 1.0 (build 1), from commit `58a65b4`, was installed and launched successfully on the paired iPhone 16 Pro Max. Both signatures and profiles were verified against the permanent identifiers, the exclusive Sky Tonight App Group, and device eligibility; profiles expire 14 October 2027. No App Store upload was performed. Physical compass accuracy and Home/Lock Screen widget behaviour remain for hands-on testing.
 
 ## Build and test
 
