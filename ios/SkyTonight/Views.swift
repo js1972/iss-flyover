@@ -150,10 +150,14 @@ struct UpcomingView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     Picker("Events", selection: $issOnly) { Text("All sky highlights").tag(false); Text("ISS passes").tag(true) }.pickerStyle(.segmented)
                     if let snapshot = model.snapshot {
+                        if issOnly {
+                            Text("The ISS shines by reflected sunlight. We show passes while it is sunlit and your sky is dark, reaching at least 20° with a visible window of 1 minute or longer. Flyovers in Earth’s shadow are not visible.")
+                                .font(.subheadline).foregroundStyle(.secondary)
+                        }
                         ForEach(snapshot.nights) { night in
                             let events = snapshot.events.filter { $0.nightID == night.id && $0.end > Date() && (!issOnly || $0.kind == "iss") }.sorted { issOnly ? $0.start < $1.start : $0.score > $1.score }
                             Text(model.location.day(night.start)).font(.headline).padding(.top, 8)
-                            if events.isEmpty { Text(issOnly ? (snapshot.orbit == nil ? "ISS data unavailable. Refresh to try again." : "No qualifying sunlit ISS pass this night.") : "No remaining highlights.").font(.subheadline).foregroundStyle(.secondary) }
+                            if events.isEmpty { Text(issOnly ? (snapshot.orbit == nil ? "ISS data unavailable. Refresh to try again." : "No visible ISS pass meets these criteria this night.") : "No remaining highlights.").font(.subheadline).foregroundStyle(.secondary) }
                             ForEach(Array(events.prefix(issOnly ? 12 : 5))) { EventRow(event: $0) }
                         }
                     }

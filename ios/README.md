@@ -70,3 +70,18 @@ Weather comes from Open-Meteo's non-commercial API. Choose an appropriate commer
 ## Verification focus
 
 Automated tests cover reference SGP4 positions and Earth shadow, offline chart/forecast agreement, DST and pre-dawn observing-night boundaries, polar daylight, expired orbital/weather data, timeline expiry and native event-preview navigation. A simulator cannot verify physical heading accuracy or the real device's widget refresh cadence; check those on an iPhone after signing.
+
+## ISS visibility comparison (14 October 2026)
+
+The PWA previously counted high nighttime geometric flyovers as visible without
+checking whether sunlight reached the station. With the CelesTrak orbit dated
+13 October 2026 19:43 UTC, Perth’s 15 October 01:13 AWST flyover peaks near 73°
+but is eclipsed throughout; it must not be recommended for visual observing.
+The native calculation already excluded it. The PWA now checks illumination at
+each sample and clips visible windows at shadow/twilight boundaries, using the
+same 20° peak / 60-second minimum as iOS. Build 2 explains these criteria in
+Upcoming → ISS passes; native orbital calculations are unchanged.
+
+Run `node --experimental-default-type=module --test tests/pass-visibility.test.mjs`
+from the repository root for the fixed-orbit regression and visibility boundary
+checks. The real orbit fixture is public CelesTrak data, not device location data.

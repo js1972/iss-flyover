@@ -1,12 +1,14 @@
 
-import { state } from "./state.js?v=2026.09.03-sky-tonight.2";
-import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, ISS_TLE_FALLBACK_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js?v=2026.09.03-sky-tonight.2";
-import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, skyCompassButton, skyCompassStatus, tonightGridEl, passList, skyEventsList, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, trackStatusEl, conditionsStatusEl, previewBanner, previewText, previewExitButton, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, advancedPanel, advancedToggle, advancedContent, conditionsList } from "./dom.js?v=2026.09.03-sky-tonight.2";
-import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js?v=2026.09.03-sky-tonight.2";
-import { fetchJson } from "./network.js?v=2026.09.03-sky-tonight.2";
-import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js?v=2026.09.03-sky-tonight.2";
-import { beginSourceAttempt, hasUsableData, markSourceDegraded, markSourceOk, markSourceUnavailable } from "./status.js?v=2026.09.03-sky-tonight.2";
-import { APP_VERSION, ASSET_VERSION, DEPLOYED_AT } from "./version.js?v=2026.09.03-sky-tonight.2";
+import { state } from "./state.js?v=2026.10.14-iss-visibility.1";
+import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, ISS_TLE_FALLBACK_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js?v=2026.10.14-iss-visibility.1";
+import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, skyCompassButton, skyCompassStatus, tonightGridEl, passList, skyEventsList, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, trackStatusEl, conditionsStatusEl, previewBanner, previewText, previewExitButton, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, advancedPanel, advancedToggle, advancedContent, conditionsList } from "./dom.js?v=2026.10.14-iss-visibility.1";
+import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js?v=2026.10.14-iss-visibility.1";
+import { fetchJson } from "./network.js?v=2026.10.14-iss-visibility.1";
+import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js?v=2026.10.14-iss-visibility.1";
+import { beginSourceAttempt, hasUsableData, markSourceDegraded, markSourceOk, markSourceUnavailable } from "./status.js?v=2026.10.14-iss-visibility.1";
+import { APP_VERSION, ASSET_VERSION, DEPLOYED_AT } from "./version.js?v=2026.10.14-iss-visibility.1";
+
+import { qualifyPass } from "./pass-visibility.js?v=2026.10.14-iss-visibility.1";
 
 const AUTO_REFRESH_STALE_MS = 15 * 60 * 1000;
 const VERSION_URL = `./version.json?v=${encodeURIComponent(ASSET_VERSION)}`;
@@ -4023,7 +4025,8 @@ function buildTrackFromTLE(satrec, timestamps) {
       const v = pv.velocity;
       velocity = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z) * 3600;
     }
-    track.push({ timestamp: ts, latitude, longitude, altitude, velocity });
+    const shadow = satelliteLib.shadowFraction(satelliteLib.sunPos(satelliteLib.jday(date)).rsun, pv.position);
+    track.push({ timestamp: ts, latitude, longitude, altitude, velocity, sunlit: Number.isFinite(shadow) && shadow < 0.1 });
   });
   return track;
 }
@@ -4103,19 +4106,6 @@ async function fetchISSForecast(days = FORECAST_DAYS, stepSeconds = 120, options
   };
 }
 
-function getPassVisibilityFlags(peakTimestampSec, maxElevationDeg, durationMin) {
-  if (!state.user || !Number.isFinite(peakTimestampSec) || !hasSunCalcRuntime()) {
-    return { night: false, visible: false };
-  }
-
-  const sunAlt = SunCalc.getPosition(new Date(peakTimestampSec * 1000), state.user.lat, state.user.lon).altitude * 180 / Math.PI;
-  const night = Number.isFinite(sunAlt) && sunAlt < -6;
-  return {
-    night,
-    visible: night && maxElevationDeg > 20 && durationMin >= 2
-  };
-}
-
 async function refinePasses(passes, stepSeconds = 10) {
   if (!state.user || !passes.length) return passes;
   try {
@@ -4123,7 +4113,7 @@ async function refinePasses(passes, stepSeconds = 10) {
     const refined = [];
     for (const pass of passes) {
       const stamps = [];
-      for (let t = pass.start; t <= pass.end; t += stepSeconds) {
+      for (let t = Math.max(Math.floor(Date.now() / 1000), pass.start - 120); t <= pass.end + 120; t += stepSeconds) {
         stamps.push(t);
       }
       const track = buildTrackFromTLE(tle.data.satrec, stamps);
@@ -4143,7 +4133,6 @@ async function refinePasses(passes, stepSeconds = 10) {
       const last = above[above.length - 1];
       const peak = above.reduce((a, b) => (b.elevation > a.elevation ? b : a), above[0]);
       const durationMin = Math.max(1, Math.round((last.timestamp - first.timestamp) / 60));
-      const visibility = getPassVisibilityFlags(peak.timestamp, peak.elevation, durationMin);
 
       refined.push({
         ...pass,
@@ -4152,7 +4141,7 @@ async function refinePasses(passes, stepSeconds = 10) {
         duration: durationMin,
         maxEl: peak.elevation,
         peakPoint: peak,
-        ...visibility,
+        night: false, visible: false,
         points
       });
     }
@@ -4232,27 +4221,22 @@ function computePasses(samples) {
   return passes.map((pass) => {
     const peak = pass.points.reduce((a, b) => (b.elevation > a.elevation ? b : a), pass.points[0]);
     const durationMin = Math.max(1, Math.round((pass.end - pass.start) / 60));
-    const visibility = getPassVisibilityFlags(peak.timestamp, peak.elevation, durationMin);
     return {
       start: pass.start,
       end: pass.end,
       duration: durationMin,
       maxEl: peak.elevation,
       peakPoint: peak,
-      ...visibility,
+      night: false, visible: false,
       points: pass.points
     };
   });
 }
 
 function normalizePassVisibility(passes) {
-  return passes.map((pass) => {
-    const peakTimestampSec = pass.peakPoint?.timestamp || Math.round((pass.start + pass.end) / 2);
-    return {
-      ...pass,
-      ...getPassVisibilityFlags(peakTimestampSec, pass.maxEl, pass.duration)
-    };
-  });
+  if (!state.user || !hasSunCalcRuntime()) return passes.map(pass => ({ ...pass, visible: false }));
+  return passes.flatMap(pass => qualifyPass(pass, timestamp =>
+    SunCalc.getPosition(new Date(timestamp * 1000), state.user.lat, state.user.lon).altitude * 180 / Math.PI));
 }
 
 function createPassCard(pass, options = {}) {
@@ -4383,7 +4367,7 @@ function renderPassList() {
       <div class="pass-item">
         <div>
           <p class="pass-title">No visible passes in the next ${FORECAST_DAYS} days</p>
-          <div class="pass-meta">Try another location, then check again tonight.</div>
+          <div class="pass-meta">The ISS must be sunlit while your sky is dark. Passes in Earth’s shadow cannot be seen; picks reach at least 20° and remain visible for at least 1 minute.</div>
         </div>
         <span class="badge low">None</span>
       </div>
@@ -5562,8 +5546,8 @@ async function refreshAll(options = {}) {
         state.skyEvents = [];
         state.passes = computePasses(forecastResult.samples);
         state.passes = await refinePasses(state.passes, 10);
-        state.passes = enrichPassesWithSkyContext(state.passes);
         state.passes = normalizePassVisibility(state.passes);
+        state.passes = enrichPassesWithSkyContext(state.passes);
         state.goodPasses = state.passes.filter((pass) => pass.visible);
         if (forecastResult.degraded) {
           markSourceDegraded(forecastSource, {
