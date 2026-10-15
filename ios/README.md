@@ -181,4 +181,7 @@ ordinary `--uitesting` pauses motion for repeatable screenshots. Rendering check
 include normal and accessibility text sizes with motion paused. The imagery is
 illustrative, not a simulation of current planetary rotation, phase or naked-eye
 appearance. Widget styles and all app/group identifiers are unchanged.
-Build 8 is available for simulator review before phone installation.
+After simulator review, version 1.0 build 8 was installed and launched successfully
+on the paired iPhone 16 Pro Max on 15 October 2026. The installed version, app and
+widget signatures, dedicated profiles, and exclusive Sky Tonight App Group were
+verified. The installed app code is `ce91663`.
