@@ -39,13 +39,10 @@ struct SkyWidgetView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack { Label(issOnly ? "NEXT ISS" : "SKY TONIGHT", systemImage: issOnly ? "point.topleft.down.to.point.bottomright.curvepath" : "moon.stars.fill").font(.system(size: 10, weight: .bold)).tracking(1); Spacer(); if family == .systemMedium { Text(entry.location.name).font(.caption2).lineLimit(1) } }.foregroundStyle(Color.mint)
                     if let event {
-                        if let planet = artworkPlanet(event) {
+                        if artworkPlanet(event) != nil {
                             if family == .systemMedium {
-                                HStack(spacing: 8) {
-                                    VStack(alignment: .leading, spacing: 6) { headline(event) }
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                    WidgetPlanetArtwork(planet: planet).frame(width: 128, height: 62)
-                                }
+                                VStack(alignment: .leading, spacing: 6) { headline(event) }
+                                Spacer(minLength: 0)
                                 HStack(spacing: 16) {
                                     ForEach(Array(events.dropFirst().prefix(2))) { next in
                                         Link(destination: next.link(location: entry.location)) {
@@ -57,12 +54,7 @@ struct SkyWidgetView: View {
                                     }
                                 }
                             } else {
-                                HStack(spacing: 0) {
-                                    Text(event.title).font(.headline).lineLimit(1).minimumScaleFactor(0.85)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                    WidgetPlanetArtwork(planet: planet).frame(width: 74, height: 52)
-                                }
-                                eventTime(event)
+                                headline(event)
                             }
                         } else if family == .systemMedium {
                             HStack(alignment: .top, spacing: 16) {
@@ -91,6 +83,9 @@ struct SkyWidgetView: View {
                         Text(entry.location.name).font(.caption2)
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .shadow(color: .black.opacity(hasArtwork(event) ? 0.8 : 0), radius: 3, y: 1)
+                .background { artworkBackground(event).padding(-16) }
                 // The full-colour card is always navy, even when the phone uses light mode.
                 // Keep semantic primary/secondary text light on that surface. Let the system
                 // choose contrast for tinted, vibrant, and background-free presentations.
@@ -110,6 +105,17 @@ struct SkyWidgetView: View {
         guard !issOnly, renderingMode == .fullColor,
               showsBackground || previewFamily != nil else { return nil }
         return WidgetPlanet(event: event)
+    }
+    var canShowArtwork: Bool { renderingMode == .fullColor && (showsBackground || previewFamily != nil) }
+    func hasArtwork(_ event: SkyEvent?) -> Bool { canShowArtwork && (issOnly || event.flatMap { WidgetPlanet(event: $0) } != nil) }
+    @ViewBuilder func artworkBackground(_ event: SkyEvent?) -> some View {
+        if canShowArtwork {
+            if issOnly {
+                WidgetArtworkBackground(assetName: "WidgetISS", isISS: true, small: family == .systemSmall)
+            } else if let event, let planet = WidgetPlanet(event: event) {
+                WidgetArtworkBackground(assetName: planet.assetName, isISS: false, small: family == .systemSmall)
+            }
+        }
     }
     var emptyTitle: String {
         guard let snapshot = entry.snapshot, snapshot.validUntil > entry.date else { return "Refresh your sky" }

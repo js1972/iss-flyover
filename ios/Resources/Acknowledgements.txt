@@ -116,3 +116,10 @@ https://science.nasa.gov/wp-content/uploads/2023/05/pia05380-saturn-with-rings-1
 
 NASA/JPL image usage guidelines:
 https://www.jpl.nasa.gov/jpl-image-use-policy/
+
+
+International Space Station spacecraft icon
+NASA
+https://science.nasa.gov/multimedia/spacecraft-icons/
+https://science.nasa.gov/wp-content/uploads/2023/05/iss.png?w=600
+Bundled unchanged; displayed with scaling and fading over the widget background.

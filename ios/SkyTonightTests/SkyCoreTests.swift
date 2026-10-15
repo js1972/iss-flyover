@@ -139,6 +139,8 @@ extension SkyCoreTests {
         let template = try XCTUnwrap(snapshot.ranked(at: now).first { $0.kind == "planet" })
         let extensionURL = try XCTUnwrap(Bundle.main.builtInPlugInsURL?.appendingPathComponent("SkyWidgets.appex"))
         let widgetBundle = try XCTUnwrap(Bundle(url: extensionURL))
+        XCTAssertNotNil(UIImage(named: "WidgetISS"))
+        XCTAssertNotNil(UIImage(named: "WidgetISS", in: widgetBundle, compatibleWith: nil))
         for planet in WidgetPlanet.allCases {
             XCTAssertNotNil(UIImage(named: planet.assetName), "Missing app preview asset: \(planet)")
             XCTAssertNotNil(UIImage(named: planet.assetName, in: widgetBundle, compatibleWith: nil), "Missing widget asset: \(planet)")

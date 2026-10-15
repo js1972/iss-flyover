@@ -139,3 +139,19 @@ times, and does not alter saved forecasts. Rendering tests check all five planet
 in both sizes and appearances, verify assets in both bundles, and cover unsupported
 subjects. Build 4 is prepared for simulator review; phone installation is deferred
 until the user has reviewed it.
+
+
+## Larger widget artwork (build 5, 15 October 2026)
+
+Planet images now extend behind the main labels and towards the card edge rather
+than occupying a small slot beside the title. Horizontal and vertical fading keeps
+the text and footer readable. Next ISS cards have a bundled transparent NASA ISS
+illustration, including unavailable/expired/no-visible-pass states; artwork never
+changes the data status or implies there is a visible pass. Lock Screen and tinted
+layouts continue to follow the system presentation.
+
+The simulator preview launched with `--uitesting --widget-preview` uses an offline
+forecast and intentionally skips live orbit/weather downloads. Its ISS data
+unavailable state is expected. Remove `--uitesting` to exercise live data. The
+preview and screenshots do not establish real-device refresh cadence. Phone
+installation remains deferred for simulator review.

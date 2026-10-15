@@ -59,7 +59,7 @@ for name,kind in kinds.items():
         embed=obj('embedbuild',f'isa = PBXBuildFile; fileRef = {products["SkyWidgets"]}; settings = {{ ATTRIBUTES = (RemoveHeadersOnCopy); }};')
         phases.append(obj('embed',f'isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = ({embed}); name = "Embed Widgets"; runOnlyForDeploymentPostprocessing = 0;'))
     suffix='' if name=='SkyTonight' else '.widgets' if name=='SkyWidgets' else '.'+name.lower()
-    settings=f'CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = {TEAM}; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE+suffix}; PRODUCT_NAME = "$(TARGET_NAME)"; CURRENT_PROJECT_VERSION = 4; MARKETING_VERSION = 1.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";'
+    settings=f'CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = {TEAM}; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE+suffix}; PRODUCT_NAME = "$(TARGET_NAME)"; CURRENT_PROJECT_VERSION = 5; MARKETING_VERSION = 1.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";'
     if name in ['SkyTonight','SkyWidgets']:
         settings+=f' GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = {name}/Info.plist; CODE_SIGN_ENTITLEMENTS = {name}/{name}.entitlements;'
         if name=='SkyTonight':settings+=' ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;'
