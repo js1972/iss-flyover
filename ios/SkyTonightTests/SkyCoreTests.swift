@@ -1,5 +1,7 @@
 import XCTest
 import JavaScriptCore
+import SwiftUI
+import WidgetKit
 @testable import SkyTonight
 
 final class SkyCoreTests: XCTestCase {
@@ -127,5 +129,35 @@ extension SkyCoreTests {
     }
     @MainActor func testISSIconAvailable() {
         XCTAssertNotNil(UIImage(systemName:"point.topleft.down.to.point.bottomright.curvepath"))
+    }
+}
+
+
+extension SkyCoreTests {
+    @MainActor func testHomeWidgetRenderingMatchesAcrossLightAndDarkAppearance() async throws {
+        var snapshot = try await SkyCalculator.shared.forecast(location: .perth, now: now, eveningFirst: true, orbit: nil)
+        // A valid orbit with no ISS event exercises the same empty state as the reported screenshot.
+        snapshot.orbit = OrbitData(epoch: now, fetchedAt: now, source: "Rendering fixture")
+        let populated = SkyEntry(date: now, snapshot: snapshot, location: .perth)
+        let unavailable = SkyEntry(date: now, snapshot: nil, location: .perth)
+        for family in [WidgetFamily.systemSmall, .systemMedium] {
+            for (name, entry, issOnly) in [("Tonight", populated, false), ("No ISS pass", populated, true), ("Unavailable", unavailable, true)] {
+                func render(_ scheme: ColorScheme) throws -> UIImage {
+                    let content = SkyWidgetView(previewFamily: family, entry: entry, issOnly: issOnly)
+                        .padding(16).frame(width: family == .systemSmall ? 170 : 350, height: 170)
+                        .background(Color(red: 0.07, green: 0.13, blue: 0.22))
+                        .environment(\.widgetRenderingMode, .fullColor)
+                        .environment(\.colorScheme, scheme)
+                    let renderer = ImageRenderer(content: content); renderer.scale = 2
+                    return try XCTUnwrap(renderer.uiImage)
+                }
+                let light = try render(.light), dark = try render(.dark)
+                let lightBytes = try XCTUnwrap(light.pngData()), darkBytes = try XCTUnwrap(dark.pngData())
+                XCTAssertTrue(lightBytes == darkBytes, "\(name) / \(family): dark-card content changed with the phone appearance")
+                let attachment = XCTAttachment(image: light)
+                attachment.name = "\(name) - \(family) - light appearance"
+                attachment.lifetime = .keepAlways; add(attachment)
+            }
+        }
     }
 }

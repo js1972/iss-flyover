@@ -13,6 +13,9 @@ struct SkyEntry: TimelineEntry {
 }
 struct SkyWidgetView: View {
     @Environment(\.widgetFamily) private var systemFamily
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.widgetRenderingMode) private var renderingMode
+    @Environment(\.showsWidgetContainerBackground) private var showsBackground
     var previewFamily: WidgetFamily? = nil
     var family: WidgetFamily { previewFamily ?? systemFamily }
     var entry: SkyEntry
@@ -63,6 +66,10 @@ struct SkyWidgetView: View {
                         Text(entry.location.name).font(.caption2)
                     }
                 }
+                // The full-colour card is always navy, even when the phone uses light mode.
+                // Keep semantic primary/secondary text light on that surface. Let the system
+                // choose contrast for tinted, vibrant, and background-free presentations.
+                .environment(\.colorScheme, renderingMode == .fullColor && (showsBackground || previewFamily != nil) ? .dark : colorScheme)
             }
         }.widgetURL(url)
             .containerBackground(for: .widget) { LinearGradient(colors: [Color(red:0.07,green:0.13,blue:0.22),Color(red:0.025,green:0.055,blue:0.1)], startPoint: .topLeading, endPoint: .bottomTrailing) }

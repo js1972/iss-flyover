@@ -27,7 +27,9 @@ extension SkyFlowTests {
         let app = XCUIApplication(); app.launchArguments = ["--uitesting", "--widget-preview"]; app.launch()
         XCTAssertTrue(app.staticTexts["Widget previews"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["SKY TONIGHT"].firstMatch.waitForExistence(timeout: 15))
-        let image = XCTAttachment(screenshot: app.screenshot()); image.name = "Widget layouts"; image.lifetime = .keepAlways; add(image)
+        let image = XCTAttachment(screenshot: app.screenshot()); image.name = "Widget layouts - light appearance"; image.lifetime = .keepAlways; add(image)
         XCTAssertTrue(app.staticTexts["ISS data unavailable"].exists)
+        app.buttons["Dark"].tap()
+        let darkImage = XCTAttachment(screenshot: app.screenshot()); darkImage.name = "Widget layouts - dark appearance"; darkImage.lifetime = .keepAlways; add(darkImage)
     }
 }

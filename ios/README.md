@@ -103,3 +103,15 @@ visibility regression tests passed. Local browser checks covered Perth’s empty
 ISS forecast, sunlit passes at a second location, live refresh, and ISS/sky-card
 previews. The signed iPhone build was installed as an update with the permanent
 app and widget identities unchanged.
+
+## Widget appearance (build 3, 15 October 2026)
+
+Home Screen widgets retain their navy background in light and dark appearance.
+Their full-colour content uses a dark colour scheme on that background so primary
+and secondary text stay light and readable during the day. Lock Screen, tinted,
+and background-free presentations continue to use the system’s colour scheme.
+
+The debug widget preview now starts in light appearance and includes a Light/Dark
+selector. A rendering regression compares small and medium cards in both
+appearances for populated forecasts, no-visible-ISS, and unavailable-data states;
+UI tests capture both appearances. The app and widget identifiers remain unchanged.
