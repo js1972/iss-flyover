@@ -4,6 +4,7 @@ import WidgetKit
 struct WidgetPreview: View {
     @EnvironmentObject var model: AppModel
     @State private var appearance: ColorScheme = .light
+    @State private var planet: WidgetPlanet? = nil
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -12,8 +13,13 @@ struct WidgetPreview: View {
                     Text("Light").tag(ColorScheme.light)
                     Text("Dark").tag(ColorScheme.dark)
                 }.pickerStyle(.segmented)
+                Picker("Artwork sample", selection: $planet) {
+                    Text("Live forecast").tag(nil as WidgetPlanet?)
+                    ForEach(WidgetPlanet.allCases, id: \.self) { Text($0.rawValue).tag(Optional($0)) }
+                }
+                if planet != nil { Text("Sample artwork · forecast times retained").font(.caption).foregroundStyle(.secondary) }
                 if let snapshot = model.snapshot {
-                    let entry = SkyEntry(date: Date(), snapshot: snapshot, location: model.location)
+                    let entry = SkyEntry(date: Date(), snapshot: sample(snapshot), location: model.location)
                     Group {
                         SkyWidgetView(previewFamily: .systemSmall, entry: entry, issOnly: false).padding(16).frame(width:170,height:170).background(Color.skyPanel,in:RoundedRectangle(cornerRadius:24))
                         SkyWidgetView(previewFamily: .systemMedium, entry: entry, issOnly: false).padding(16).frame(width:350,height:170).background(Color.skyPanel,in:RoundedRectangle(cornerRadius:24))
@@ -24,6 +30,13 @@ struct WidgetPreview: View {
                 } else { ProgressView() }
             }.padding()
         }.background(Color.skyBase)
+    }
+    private func sample(_ snapshot: SkySnapshot) -> SkySnapshot {
+        guard let planet, var event = snapshot.ranked(at: Date()).first else { return snapshot }
+        var sample = snapshot
+        event.kind = "planet"; event.body = planet.rawValue; event.title = planet.rawValue
+        sample.events = [event] + snapshot.events.filter { $0.id != event.id }
+        return sample
     }
 }
 #endif

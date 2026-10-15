@@ -134,6 +134,42 @@ extension SkyCoreTests {
 
 
 extension SkyCoreTests {
+    @MainActor func testPlanetArtworkAssetsAndLayouts() async throws {
+        var snapshot = try await SkyCalculator.shared.forecast(location: .perth, now: now, eveningFirst: true, orbit: nil)
+        let template = try XCTUnwrap(snapshot.ranked(at: now).first { $0.kind == "planet" })
+        let extensionURL = try XCTUnwrap(Bundle.main.builtInPlugInsURL?.appendingPathComponent("SkyWidgets.appex"))
+        let widgetBundle = try XCTUnwrap(Bundle(url: extensionURL))
+        for planet in WidgetPlanet.allCases {
+            XCTAssertNotNil(UIImage(named: planet.assetName), "Missing app preview asset: \(planet)")
+            XCTAssertNotNil(UIImage(named: planet.assetName, in: widgetBundle, compatibleWith: nil), "Missing widget asset: \(planet)")
+            var event = template; event.body = planet.rawValue; event.title = planet.rawValue
+            XCTAssertEqual(WidgetPlanet(event: event), planet)
+            snapshot.events = [event]
+            let entry = SkyEntry(date: now, snapshot: snapshot, location: .perth)
+            for family in [WidgetFamily.systemSmall, .systemMedium] {
+                var rendered: [Data] = []
+                for scheme in [ColorScheme.light, .dark] {
+                    let view = SkyWidgetView(previewFamily: family, entry: entry, issOnly: false)
+                        .padding(16).frame(width: family == .systemSmall ? 170 : 350, height: 170)
+                        .background(Color(red: 0.07, green: 0.13, blue: 0.22))
+                        .environment(\.widgetRenderingMode, .fullColor).environment(\.colorScheme, scheme)
+                    let renderer = ImageRenderer(content: view); renderer.scale = 3
+                    let image = try XCTUnwrap(renderer.uiImage)
+                    rendered.append(try XCTUnwrap(image.pngData()))
+                    if scheme == .light {
+                        let attachment = XCTAttachment(image: image)
+                        attachment.name = "\(planet.rawValue) - \(family)"; attachment.lifetime = .keepAlways; add(attachment)
+                    }
+                }
+                XCTAssertEqual(rendered[0], rendered[1], "\(planet) / \(family): appearance changed")
+            }
+        }
+        var unsupported = template; unsupported.body = "Neptune"
+        XCTAssertNil(WidgetPlanet(event: unsupported))
+        unsupported.body = "Saturn"; unsupported.kind = "iss"
+        XCTAssertNil(WidgetPlanet(event: unsupported))
+    }
+
     @MainActor func testHomeWidgetRenderingMatchesAcrossLightAndDarkAppearance() async throws {
         var snapshot = try await SkyCalculator.shared.forecast(location: .perth, now: now, eveningFirst: true, orbit: nil)
         // A valid orbit with no ISS event exercises the same empty state as the reported screenshot.

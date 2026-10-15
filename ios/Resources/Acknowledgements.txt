@@ -1,4 +1,4 @@
-Sky Tonight open-source acknowledgements
+Sky Tonight acknowledgements
 
 
 Astronomy Engine
@@ -78,3 +78,41 @@ SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRU
 HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+Planet artwork
+
+Bundled NASA spacecraft images identify the featured planet. These are illustrative
+views, not live images or simulations of its current phase, orientation, apparent
+size, or naked-eye detail. Displayed with cropping and screen blending over navy.
+NASA CDN 600 x 338 versions are bundled unchanged; no runtime image downloads.
+
+Mercury — PIA15162
+NASA/Johns Hopkins University Applied Physics Laboratory/Carnegie Institution of Washington
+https://science.nasa.gov/photojournal/mercury-globe-0n-180e/
+https://science.nasa.gov/wp-content/uploads/2024/03/pia15162-mercury-basins-messenger-16x9-1.jpg?resize=600,338
+
+Venus — PIA23791, Mariner 10
+NASA/JPL-Caltech
+https://science.nasa.gov/photojournal/venus-from-mariner-10/
+https://science.nasa.gov/wp-content/uploads/2024/03/venus-mariner-10-pia23791-fig2-16x9-1.jpg?resize=600,338
+
+Mars — Viking 1 global mosaic, February 1980
+NASA
+https://science.nasa.gov/wp-json/wp/v2/media/368395
+https://science.nasa.gov/wp-content/uploads/2024/03/mars-full-globe-16x9-1.jpg?resize=600,338
+
+Jupiter — PIA22946, Jupiter Marble
+Enhanced image by Kevin M. Gill (CC BY), based on images provided courtesy of
+NASA/JPL-Caltech/SwRI/MSSS. Credit and license designation as supplied by NASA.
+https://science.nasa.gov/photojournal/jupiter-marble/
+https://creativecommons.org/licenses/by/
+https://science.nasa.gov/wp-content/uploads/2024/03/jupiter-marble-pia22946-16x9-1.jpg?resize=600,338
+
+Saturn — PIA05380, Approach to Saturn
+NASA/JPL/Space Science Institute
+https://science.nasa.gov/photojournal/approach-to-saturn/
+https://science.nasa.gov/wp-content/uploads/2023/05/pia05380-saturn-with-rings-16x9-1.jpg?resize=600,338
+
+NASA/JPL image usage guidelines:
+https://www.jpl.nasa.gov/jpl-image-use-policy/

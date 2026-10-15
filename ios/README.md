@@ -115,3 +115,27 @@ The debug widget preview now starts in light appearance and includes a Light/Dar
 selector. A rendering regression compares small and medium cards in both
 appearances for populated forecasts, no-visible-ISS, and unavailable-data states;
 UI tests capture both appearances. The app and widget identifiers remain unchanged.
+
+
+## Planet widget artwork (build 4, 15 October 2026)
+
+Small and medium full-colour Sky Tonight widgets show bundled NASA imagery when
+the leading forecast event is Mercury, Venus, Mars, Jupiter, or Saturn. The planet
+name, time and direction remain readable on navy in both phone appearances.
+Medium cards retain links to the next two events beneath the featured planet.
+ISS, other event types, expired forecasts, Lock Screen widgets, tinted widgets,
+and background-free presentations retain their text-based layouts.
+
+`Resources/PlanetAssets.xcassets` is compiled into this app and its widget extension
+only. The five images total about 100 KB on disk, with no runtime image requests.
+Source URLs, credits, and the Jupiter CC BY attribution are in
+`Resources/Acknowledgements.txt`, also available in the app's acknowledgements.
+The images are illustrative spacecraft views, not current phase/orientation or
+naked-eye appearance. No identifiers, entitlements, or shared containers changed.
+
+The debug `--widget-preview` screen has an artwork sample picker and a Light/Dark
+selector. Sample selection substitutes the picture/name while retaining forecast
+times, and does not alter saved forecasts. Rendering tests check all five planets
+in both sizes and appearances, verify assets in both bundles, and cover unsupported
+subjects. Build 4 is prepared for simulator review; phone installation is deferred
+until the user has reviewed it.

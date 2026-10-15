@@ -39,7 +39,32 @@ struct SkyWidgetView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack { Label(issOnly ? "NEXT ISS" : "SKY TONIGHT", systemImage: issOnly ? "point.topleft.down.to.point.bottomright.curvepath" : "moon.stars.fill").font(.system(size: 10, weight: .bold)).tracking(1); Spacer(); if family == .systemMedium { Text(entry.location.name).font(.caption2).lineLimit(1) } }.foregroundStyle(Color.mint)
                     if let event {
-                        if family == .systemMedium {
+                        if let planet = artworkPlanet(event) {
+                            if family == .systemMedium {
+                                HStack(spacing: 8) {
+                                    VStack(alignment: .leading, spacing: 6) { headline(event) }
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    WidgetPlanetArtwork(planet: planet).frame(width: 128, height: 62)
+                                }
+                                HStack(spacing: 16) {
+                                    ForEach(Array(events.dropFirst().prefix(2))) { next in
+                                        Link(destination: next.link(location: entry.location)) {
+                                            HStack(spacing: 4) {
+                                                Text(next.title).fontWeight(.semibold)
+                                                Text(entry.location.time(next.focus)).foregroundStyle(.secondary)
+                                            }.font(.system(size: 10)).lineLimit(1).foregroundStyle(Color.primary)
+                                        }
+                                    }
+                                }
+                            } else {
+                                HStack(spacing: 0) {
+                                    Text(event.title).font(.headline).lineLimit(1).minimumScaleFactor(0.85)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    WidgetPlanetArtwork(planet: planet).frame(width: 74, height: 52)
+                                }
+                                eventTime(event)
+                            }
+                        } else if family == .systemMedium {
                             HStack(alignment: .top, spacing: 16) {
                                 VStack(alignment: .leading, spacing: 6) { headline(event); Text(event.detail).font(.caption2).foregroundStyle(.secondary).lineLimit(2) }.frame(maxWidth: .infinity, alignment: .leading)
                                 if !issOnly {
@@ -76,7 +101,15 @@ struct SkyWidgetView: View {
     }
     @ViewBuilder func headline(_ event: SkyEvent) -> some View {
         Text(event.title).font(.headline).lineLimit(2).minimumScaleFactor(0.85)
+        eventTime(event)
+    }
+    func eventTime(_ event: SkyEvent) -> some View {
         Text("\(entry.location.time(issOnly ? event.start : event.focus)) · \(event.direction)").font(.system(.title3, design: .rounded).weight(.semibold)).lineLimit(1).minimumScaleFactor(0.8)
+    }
+    func artworkPlanet(_ event: SkyEvent) -> WidgetPlanet? {
+        guard !issOnly, renderingMode == .fullColor,
+              showsBackground || previewFamily != nil else { return nil }
+        return WidgetPlanet(event: event)
     }
     var emptyTitle: String {
         guard let snapshot = entry.snapshot, snapshot.validUntil > entry.date else { return "Refresh your sky" }
