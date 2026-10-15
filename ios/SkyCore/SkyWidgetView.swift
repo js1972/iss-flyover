@@ -45,7 +45,7 @@ struct SkyWidgetView: View {
                                 if !issOnly {
                                     VStack(alignment: .leading, spacing: 8) {
                                         ForEach(Array(events.dropFirst().prefix(2))) { next in
-                                            Link(destination: next.link(location: entry.location)) { VStack(alignment: .leading, spacing: 2) { Text(next.title).font(.caption.bold()); Text("\(entry.location.time(next.focus)) · \(next.direction)").font(.caption2).foregroundStyle(.secondary) }.foregroundStyle(.primary) }
+                                            Link(destination: next.link(location: entry.location)) { VStack(alignment: .leading, spacing: 2) { Text(next.title).font(.caption.bold()); Text("\(entry.location.time(next.focus)) · \(next.direction)").font(.caption2).foregroundStyle(.secondary) }.foregroundStyle(Color.primary) }
                                         }
                                     }.frame(maxWidth: .infinity, alignment: .leading)
                                 }
