@@ -80,7 +80,7 @@ struct SkyWidgetView: View {
                         Text(emptyTitle).font(.headline)
                         Text(emptyDetail).font(.caption).foregroundStyle(.secondary)
                         Spacer(minLength: 0)
-                        Text(entry.location.name).font(.caption2)
+                        Text(entry.location.name).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

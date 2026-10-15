@@ -156,3 +156,10 @@ preview and screenshots do not establish real-device refresh cadence. After simu
 on the paired iPhone 16 Pro Max on 15 October 2026. The installed version was
 verified. App and widget signatures, device profiles, and the exclusive Sky Tonight
 App Group were checked before installation. The installed app code is `203ccb5`.
+
+
+## Location label consistency (build 6, 15 October 2026)
+
+Home Screen empty-state location labels now use the same 10-point secondary text
+as populated small cards. This keeps the ISS location consistent with the planet
+widget when no pass or no orbit data is available.
