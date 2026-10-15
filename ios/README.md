@@ -137,8 +137,7 @@ The debug `--widget-preview` screen has an artwork sample picker and a Light/Dar
 selector. Sample selection substitutes the picture/name while retaining forecast
 times, and does not alter saved forecasts. Rendering tests check all five planets
 in both sizes and appearances, verify assets in both bundles, and cover unsupported
-subjects. Build 4 is prepared for simulator review; phone installation is deferred
-until the user has reviewed it.
+subjects. Build 4 was reviewed in the simulator before the build 5 refinement below.
 
 
 ## Larger widget artwork (build 5, 15 October 2026)
@@ -153,5 +152,7 @@ layouts continue to follow the system presentation.
 The simulator preview launched with `--uitesting --widget-preview` uses an offline
 forecast and intentionally skips live orbit/weather downloads. Its ISS data
 unavailable state is expected. Remove `--uitesting` to exercise live data. The
-preview and screenshots do not establish real-device refresh cadence. Phone
-installation remains deferred for simulator review.
+preview and screenshots do not establish real-device refresh cadence. After simulator review, version 1.0 build 5 was installed and launched successfully
+on the paired iPhone 16 Pro Max on 15 October 2026. The installed version was
+verified. App and widget signatures, device profiles, and the exclusive Sky Tonight
+App Group were checked before installation. The installed app code is `203ccb5`.
