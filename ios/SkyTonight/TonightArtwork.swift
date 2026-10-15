@@ -18,48 +18,26 @@ struct EventArtwork: View {
 }
 
 struct TonightHeader: View {
-    var allowMotion = true
     @EnvironmentObject private var model: AppModel
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.dynamicTypeSize) private var typeSize
-    @State private var visible = false
-    private var best: SkyEvent? { model.snapshot?.ranked(at: Date()).first }
-    private var motionEnabled: Bool {
-        let preview = ProcessInfo.processInfo.arguments.contains("--animate-preview")
-        return allowMotion && !reduceMotion && scenePhase == .active && model.selectedTab == 0 && visible && (!model.isTesting || preview)
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            HStack(alignment: .top, spacing: 8) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("YOUR EVENING, UNDER THE STARS")
-                        .font(.caption2.weight(.semibold)).tracking(2).foregroundStyle(Color.skyMint)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text("Sky Tonight").font(.system(.largeTitle, design: .rounded).bold())
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 0)
-                Button { model.refreshSoon() } label: {
-                    Group {
-                        if model.refreshing { ProgressView() }
-                        else { Image(systemName: "arrow.clockwise").font(.title3) }
-                    }.frame(width: 44, height: 44)
-                        .background(.white.opacity(0.07), in: Circle())
-                }.disabled(model.refreshing).accessibilityLabel("Refresh forecast")
+        HStack(alignment: .top, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("YOUR EVENING, UNDER THE STARS")
+                    .font(.caption2.weight(.semibold)).tracking(2).foregroundStyle(Color.skyMint)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("Sky Tonight").font(.largeTitle.bold())
+                    .fixedSize(horizontal: false, vertical: true)
+                Label(model.location.name, systemImage: "location.fill")
+                    .font(.subheadline).foregroundStyle(.secondary)
             }
-            Spacer(minLength: typeSize.isAccessibilitySize ? 12 : 48)
-            Label(model.location.name, systemImage: "location.fill")
-                .font(.subheadline).foregroundStyle(.white.opacity(0.75))
+            Spacer(minLength: 0)
+            Button { model.refreshSoon() } label: {
+                Group {
+                    if model.refreshing { ProgressView() }
+                    else { Image(systemName: "arrow.clockwise").font(.title3) }
+                }.frame(width: 44, height: 44)
+            }.disabled(model.refreshing).accessibilityLabel("Refresh forecast")
         }
-        .padding(22)
-        .frame(maxWidth: .infinity, minHeight: 210, alignment: .leading)
-        .shadow(color: .black.opacity(0.75), radius: 4, y: 1)
-        .background { TonightSkyScene(event: best, animated: motionEnabled) }
-        .clipShape(RoundedRectangle(cornerRadius: 28))
-        .overlay(RoundedRectangle(cornerRadius: 28).stroke(.white.opacity(0.07)))
-        .onScrollVisibilityChange(threshold: 0.1) { visible = $0 }
     }
 }
 
@@ -94,9 +72,10 @@ private struct TonightSkyScene: View {
                         EventArtwork(event: event)
                             .frame(width: geometry.size.width * 1.1, height: geometry.size.height)
                             .position(x: geometry.size.width * 0.86 + sin(time / 12) * 5,
-                                      y: geometry.size.height * 0.56 + cos(time / 14) * 3)
+                                      y: geometry.size.height * 0.40 + cos(time / 14) * 3)
                             .mask {
                                 LinearGradient(stops: [.init(color: .clear, location: 0.15), .init(color: .white, location: 0.85)], startPoint: .leading, endPoint: .trailing)
+                                    .mask { LinearGradient(colors: [.white, .white, .clear], startPoint: .top, endPoint: .bottom) }
                             }
                             .opacity(0.8).blendMode(.screen)
                     }
@@ -107,9 +86,17 @@ private struct TonightSkyScene: View {
 }
 
 struct TonightPickCard: View {
+    var allowMotion = true
     @EnvironmentObject private var model: AppModel
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var visible = false
     var event: SkyEvent
+    private var motionEnabled: Bool {
+        let preview = ProcessInfo.processInfo.arguments.contains("--animate-preview")
+        return allowMotion && !reduceMotion && scenePhase == .active && model.selectedTab == 0 && visible && (!model.isTesting || preview)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -133,9 +120,10 @@ struct TonightPickCard: View {
                 .accessibilityIdentifier("tonightPreview")
         }
         .padding(22).frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.skyPanel)
+        .background { TonightSkyScene(event: event, animated: motionEnabled) }
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .overlay(RoundedRectangle(cornerRadius: 24).stroke(.white.opacity(0.07)))
+        .onScrollVisibilityChange(threshold: 0.1) { visible = $0 }
     }
     private var pickLabel: some View {
         Label("TONIGHT’S PICK", systemImage: event.symbol).font(.caption.weight(.bold)).tracking(1)

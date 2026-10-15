@@ -141,8 +141,8 @@ extension SkyCoreTests {
         let event = try XCTUnwrap(snapshot.ranked(at: now).first)
         for typeSize in [DynamicTypeSize.large, .accessibility3] {
             let content = VStack(spacing: 22) {
-                TonightHeader(allowMotion: false)
-                TonightPickCard(event: event)
+                TonightHeader()
+                TonightPickCard(allowMotion: false, event: event)
             }.padding(20).frame(width: 390).background(Color.skyBase)
                 .environmentObject(model).environment(\.colorScheme, .dark)
                 .environment(\.dynamicTypeSize, typeSize)
