@@ -163,3 +163,21 @@ App Group were checked before installation. The installed app code is `203ccb5`.
 Home Screen empty-state location labels now use the same 10-point secondary text
 as populated small cards. This keeps the ISS location consistent with the planet
 widget when no pass or no orbit data is available.
+
+
+## Illustrated Tonight screen (build 7, 15 October 2026)
+
+The native Tonight header now has a star field and artwork for the leading planet
+or ISS event. Stars twinkle slowly, the image drifts gently, and a short decorative
+meteor appears occasionally. These effects pause offscreen, on another tab, when
+the app is inactive, and under Reduce Motion. All text and controls remain still.
+The featured image appears once in the header. Tonight's Pick keeps the viewing
+details and action on a clean panel; Tonight and Upcoming event rows show compact
+planet/ISS thumbnails. Other subjects keep their familiar icons.
+All images reuse the bundled, credited assets, with no new network dependency.
+
+Run the app with `--uitesting --animate-preview` for an offline home-screen demo
+with motion; ordinary `--uitesting` keeps motion paused for repeatable screenshots.
+The imagery is illustrative, not a simulation of current planetary rotation, phase
+or naked-eye appearance. Widget styles and all app/group identifiers are unchanged.
+Build 7 is available for simulator review before phone installation.

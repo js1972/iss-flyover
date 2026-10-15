@@ -41,28 +41,11 @@ struct TonightView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("YOUR EVENING, UNDER THE STARS").font(.caption2.weight(.semibold)).tracking(2).foregroundStyle(Color.skyMint)
-                            Text("Sky Tonight").font(.largeTitle.bold())
-                            Label(model.location.name, systemImage: "location.fill").font(.subheadline).foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Button { model.refreshSoon() } label: {
-                            if model.refreshing { ProgressView() } else { Image(systemName: "arrow.clockwise").font(.title3) }
-                        }.disabled(model.refreshing).accessibilityLabel("Refresh forecast")
-                    }
+                    TonightHeader()
                     if let snapshot = model.snapshot {
                         let picks = snapshot.ranked(at: Date())
                         if let best = picks.first {
-                            VStack(alignment: .leading, spacing: 16) {
-                                HStack { Label("TONIGHT’S PICK", systemImage: best.symbol).font(.caption.weight(.bold)).tracking(1); Spacer(); Text(best.isMorning ? "Before dawn" : "After dusk").font(.caption) }.foregroundStyle(Color.skyMint)
-                                Text(best.title).font(.system(.largeTitle, design: .rounded).bold())
-                                Text("\(model.location.time(best.focus))  ·  \(best.direction)  ·  \(Int(best.elevation))° high").font(.title3.weight(.medium))
-                                Text(best.detail).font(.subheadline).foregroundStyle(.secondary)
-                                Button { model.preview(best) } label: { Label("Show me where", systemImage: "scope").frame(maxWidth: .infinity).padding(.vertical, 6) }
-                                    .buttonStyle(.borderedProminent).tint(.skyMint).foregroundStyle(Color.skyBase).accessibilityIdentifier("tonightPreview")
-                            }.skyPanel()
+                            TonightPickCard(event: best)
                         } else {
                             ContentUnavailableView("A quiet sky", systemImage: "moon.stars", description: Text("No remaining highlights in this observing window. Browse Upcoming for the next night."))
                         }
@@ -123,7 +106,11 @@ struct EventRow: View {
         VStack(alignment: .leading, spacing: 12) {
             Button { model.preview(event) } label: {
                 HStack(alignment: .top, spacing: 14) {
-                    Image(systemName: event.symbol).font(.title2).foregroundStyle(Color.skyMint).frame(width: 30)
+                    if event.artworkAsset != nil {
+                        EventArtwork(event: event).frame(width: 52, height: 52).clipped().blendMode(.screen)
+                    } else {
+                        Image(systemName: event.symbol).font(.title2).foregroundStyle(Color.skyMint).frame(width: 52, height: 52)
+                    }
                     VStack(alignment: .leading, spacing: 5) {
                         Text(event.title).font(.headline).foregroundStyle(.white)
                         Text("\(model.location.time(event.focus)) · \(event.direction) · \(Int(event.elevation))° high\(event.isMorning ? " · Before dawn" : "")").font(.subheadline).foregroundStyle(Color.skyMint)

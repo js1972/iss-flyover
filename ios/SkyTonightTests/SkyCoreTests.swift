@@ -134,6 +134,26 @@ extension SkyCoreTests {
 
 
 extension SkyCoreTests {
+    @MainActor func testTonightArtworkWithMotionPausedAndLargeText() async throws {
+        let model = AppModel()
+        let snapshot = try await SkyCalculator.shared.forecast(location: .perth, now: now, eveningFirst: true, orbit: nil)
+        model.snapshot = snapshot
+        let event = try XCTUnwrap(snapshot.ranked(at: now).first)
+        for typeSize in [DynamicTypeSize.large, .accessibility3] {
+            let content = VStack(spacing: 22) {
+                TonightHeader(allowMotion: false)
+                TonightPickCard(event: event)
+            }.padding(20).frame(width: 390).background(Color.skyBase)
+                .environmentObject(model).environment(\.colorScheme, .dark)
+                .environment(\.dynamicTypeSize, typeSize)
+            let renderer = ImageRenderer(content: content); renderer.scale = 3
+            let image = try XCTUnwrap(renderer.uiImage)
+            let attachment = XCTAttachment(image: image)
+            attachment.name = "Tonight artwork - motion paused - \(typeSize)"
+            attachment.lifetime = .keepAlways; add(attachment)
+        }
+    }
+
     @MainActor func testPlanetArtworkAssetsAndLayouts() async throws {
         var snapshot = try await SkyCalculator.shared.forecast(location: .perth, now: now, eveningFirst: true, orbit: nil)
         let template = try XCTUnwrap(snapshot.ranked(at: now).first { $0.kind == "planet" })
