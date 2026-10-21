@@ -1,4 +1,4 @@
-import { createHealthState } from "./status.js?v=2026.10.21-pwa.3";
+import { createHealthState } from "./status.js?v=2026.10.21-pwa.4";
 
 export const state =  {
   user: null,

@@ -909,6 +909,35 @@
       color: #c4d4ec;
     }
 
+    .weather-credit {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 0.75rem;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .weather-credit a {
+      color: #b2caff;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .weather-credit a:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+      border-radius: 2px;
+    }
+
+    .weather-credit__note {
+      display: block;
+      margin-top: 2px;
+    }
+
+    .weather-credit--compact {
+      margin-top: 4px;
+    }
+
 	    .tonight-conditions .tonight-head {
 	      margin-bottom: 5px;
 	    }

@@ -139,6 +139,8 @@ Before the 14 October 2026 correction, the PWA checked darkness and elevation bu
 
 Stable astronomy catalogs are local. Orbital and weather data refresh remotely. The native app calculates astronomy offline and shares cached forecasts only with its own widgets; see the [freshness rules](ios/README.md#architecture-and-freshness).
 
+The PWA displays Open-Meteo source and CC BY 4.0 links beside Weather Tonight, the evening timeline, nightly weather outlooks and detailed observing conditions. The credit notes that forecast summaries and ratings are adapted for stargazing. Shared markup is in `assets/js/weather-attribution.js`; preserve it when adding weather displays. Attribution is separate from the free API's non-commercial and usage restrictions; review the [licence](https://open-meteo.com/en/licence) and [service terms](https://open-meteo.com/en/terms) before commercial use. Native Apple Weather attribution is separate.
+
 ## Structure
 
 | Path | Purpose |
