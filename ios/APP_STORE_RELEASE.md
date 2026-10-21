@@ -67,7 +67,7 @@ Created on 21 October 2026 under Jason Scott:
 - [App Information](https://appstoreconnect.apple.com/apps/6825144581/distribution/info)
 - [TestFlight](https://appstoreconnect.apple.com/teams/4112ab50-c19d-44d5-afef-87f86c676f8e/apps/6825144581/testflight)
 
-The record is in Prepare for Submission. Creating it does not upload a build or make the app available to testers. App Store Connect also displays an updated Apple Developer Program License Agreement notice; the Account Holder must review and accept that separate agreement before submitting builds. Review-contact information needs a valid phone number before it can be saved; do not invent one or reuse account contact data without authorization.
+The record is in Prepare for Submission. Creating it does not upload a build or make the app available to testers. App Store Connect also displays an updated Apple Developer Program License Agreement notice; the Account Holder must review and accept that separate agreement before submitting builds. Jason entered the private review-contact phone number directly in App Store Connect and the review-contact details were saved successfully. Sign-in required is off because the app has no user accounts. The private number is not stored in this repository.
 
 ## App Store Connect tasks
 
