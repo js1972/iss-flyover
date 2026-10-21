@@ -30,7 +30,7 @@
     },
     {
       "title": "Your choices and deletion",
-      "text": "In Sky Tonight Settings, use Edit to remove a saved place and its cached forecast and pending reminders. Clear saved data removes all saved places, forecast caches and app reminders, switches weather off and restores the default Perth location and evening-first preference. Fresh astronomy and public orbital data may then be calculated or downloaded. You can disable location and notification permissions in iOS or iPadOS Settings. Deleting local data does not erase provider logs or existing device backups; contact the relevant provider or manage your backups for those records."
+      "text": "In Sky Tonight Settings, use Edit places beside Saved places to remove a saved place and its cached forecast and pending reminders. Clear saved data removes all saved places, forecast caches and app reminders, switches weather off and restores the default Perth location and evening-first preference. Fresh astronomy and public orbital data may then be calculated or downloaded. You can disable location and notification permissions in iOS or iPadOS Settings. Deleting local data does not erase provider logs or existing device backups; contact the relevant provider or manage your backups for those records."
     },
     {
       "title": "Support correspondence",
@@ -46,7 +46,7 @@
     }
   ],
   "support": [
-    { "title": "Choose your observing place", "text": "Open Settings to select a saved place, use optional device location, find a city, or enter coordinates and a time zone manually. Perth is the initial default, not a guess at your location. Use Edit to remove places." },
+    { "title": "Choose your observing place", "text": "Open Settings to select a saved place, use optional device location, find a city, or enter coordinates and a time zone manually. Perth is the initial default, not a guess at your location. Use Edit places beside Saved places to remove places." },
     { "title": "Weather is optional", "text": "Enable Include Apple Weather in Settings to add conditions. Without it, all astronomy features still work. If weather cannot refresh, check your internet connection and try again. Old or missing conditions are shown as unavailable; they are not a guarantee of visibility or safety." },
     { "title": "Why no ISS pass?", "text": "Only sunlit ISS passes in a dark sky, reaching at least 20 degrees and visible for at least one minute, are recommended. There may be no qualifying pass on a given night. Pull to refresh; expired orbital elements are not used for reliable predictions. Clouds and local obstructions can still prevent observing." },
     { "title": "Preview and compass", "text": "Tap a recommendation or Show me where to open its viewing time in the Sky tab. Use Return to Live to return to the current sky. Drag to rotate, or enable the compass on a supported device. Keep away from magnetic interference; compass availability varies by device." },

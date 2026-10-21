@@ -1,4 +1,4 @@
-import { createHealthState } from "./status.js?v=2026.10.21-ios-release.1";
+import { createHealthState } from "./status.js?v=2026.10.21-ios-release.2";
 
 export const state =  {
   user: null,

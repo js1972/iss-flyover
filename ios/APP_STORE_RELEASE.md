@@ -1,6 +1,6 @@
 # Sky Tonight release checks
 
-Version 1.0, build 9. Keep app ID `com.js1972.skytonight`, widget ID `com.js1972.skytonight.widgets`, App Group `group.com.js1972.skytonight` and team `NF8828LV3U` unchanged.
+Version 1.0, build 10. Keep app ID `com.js1972.skytonight`, widget ID `com.js1972.skytonight.widgets`, App Group `group.com.js1972.skytonight` and team `NF8828LV3U` unchanged.
 
 ## WeatherKit and costs
 
@@ -49,6 +49,8 @@ Verify the Release build, embedded widget, dedicated profiles and WeatherKit ent
 - Five website visibility checks passed. Local browser smoke checks covered the running website, event preview and static privacy/support pages. Project/page regeneration preserves the curated icon and has no output drift.
 
 All device testing above used simulators. No physical device was installed, no distribution archive was uploaded, and no App Review submission was made.
+
+Build 10 moves the saved-place deletion control beside the Saved places list and labels it Edit places (Done while removing places). Other settings continue to apply immediately. The signed Release build and the existing standard/large-text preview-to-Settings simulator flows passed for build 10.
 
 ## App Store Connect tasks
 

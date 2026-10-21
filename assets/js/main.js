@@ -1,14 +1,14 @@
 
-import { state } from "./state.js?v=2026.10.21-ios-release.1";
-import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, ISS_TLE_FALLBACK_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js?v=2026.10.21-ios-release.1";
-import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, skyCompassButton, skyCompassStatus, tonightGridEl, passList, skyEventsList, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, trackStatusEl, conditionsStatusEl, previewBanner, previewText, previewExitButton, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, advancedPanel, advancedToggle, advancedContent, conditionsList } from "./dom.js?v=2026.10.21-ios-release.1";
-import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js?v=2026.10.21-ios-release.1";
-import { fetchJson } from "./network.js?v=2026.10.21-ios-release.1";
-import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js?v=2026.10.21-ios-release.1";
-import { beginSourceAttempt, hasUsableData, markSourceDegraded, markSourceOk, markSourceUnavailable } from "./status.js?v=2026.10.21-ios-release.1";
-import { APP_VERSION, ASSET_VERSION, DEPLOYED_AT } from "./version.js?v=2026.10.21-ios-release.1";
+import { state } from "./state.js?v=2026.10.21-ios-release.2";
+import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, ISS_TLE_FALLBACK_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js?v=2026.10.21-ios-release.2";
+import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, skyCompassButton, skyCompassStatus, tonightGridEl, passList, skyEventsList, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, trackStatusEl, conditionsStatusEl, previewBanner, previewText, previewExitButton, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, advancedPanel, advancedToggle, advancedContent, conditionsList } from "./dom.js?v=2026.10.21-ios-release.2";
+import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js?v=2026.10.21-ios-release.2";
+import { fetchJson } from "./network.js?v=2026.10.21-ios-release.2";
+import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js?v=2026.10.21-ios-release.2";
+import { beginSourceAttempt, hasUsableData, markSourceDegraded, markSourceOk, markSourceUnavailable } from "./status.js?v=2026.10.21-ios-release.2";
+import { APP_VERSION, ASSET_VERSION, DEPLOYED_AT } from "./version.js?v=2026.10.21-ios-release.2";
 
-import { qualifyPass } from "./pass-visibility.js?v=2026.10.21-ios-release.1";
+import { qualifyPass } from "./pass-visibility.js?v=2026.10.21-ios-release.2";
 
 const AUTO_REFRESH_STALE_MS = 15 * 60 * 1000;
 const VERSION_URL = `./version.json?v=${encodeURIComponent(ASSET_VERSION)}`;

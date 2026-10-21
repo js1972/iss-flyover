@@ -10,10 +10,11 @@ struct SettingsView: View {
     @State private var searching = false
     @State private var diagnostics = false
     @State private var clearingData = false
+    @State private var placeEditMode: EditMode = .inactive
     var body: some View {
         NavigationStack {
             Form {
-                Section("Observing location") {
+                Section {
                     ForEach(model.locations) { location in
                         Button { model.select(location) } label: {
                             HStack { VStack(alignment: .leading) { Text(location.name).foregroundStyle(.primary); Text(location.timeZoneID).font(.caption).foregroundStyle(.secondary) }; Spacer(); if model.location.id == location.id { Image(systemName: "checkmark.circle.fill") } }
@@ -21,6 +22,16 @@ struct SettingsView: View {
                     }.onDelete { model.removePlaces(at: $0) }
                     Button { model.useDeviceLocation() } label: { Label(model.locating ? "Finding your location…" : "Use my location", systemImage: "location.circle") }.disabled(model.locating)
                     Text("Perth is the starting location. Choose your own place here; each widget can use a different saved place.").font(.caption).foregroundStyle(.secondary)
+                } header: {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Saved places")
+                        Spacer(minLength: 12)
+                        Button(placeEditMode.isEditing ? "Done" : "Edit places") {
+                            withAnimation { placeEditMode = placeEditMode.isEditing ? .inactive : .active }
+                        }.font(.subheadline).textCase(nil).buttonStyle(.borderless)
+                            .frame(minHeight: 44)
+                            .accessibilityHint("Show or hide controls for removing saved places")
+                    }
                 }
                 Section("Add a place") {
                     TextField("City or place name", text: $name).accessibilityIdentifier("placeName")
@@ -69,7 +80,7 @@ struct SettingsView: View {
                     NavigationLink("Open-source acknowledgements") { ScrollView { Text((try? String(contentsOf: Bundle.main.url(forResource: "Acknowledgements", withExtension: "txt") ?? URL(fileURLWithPath: "/missing"), encoding: .utf8)) ?? "Astronomy Engine · satellite.js · SunCalc").font(.caption).padding() }.navigationTitle("Acknowledgements") }
                 }
                 Section("Your saved data") {
-                    Text("Use Edit to remove saved places. Clearing saved data removes all places, cached forecasts and reminders, turns weather off, and returns to the default Perth sky.").font(.footnote).foregroundStyle(.secondary)
+                    Text("Use Edit places beside Saved places to remove a place. Clearing saved data removes all places, cached forecasts and reminders, turns weather off, and returns to the default Perth sky.").font(.footnote).foregroundStyle(.secondary)
                     Button("Clear saved data", role: .destructive) { clearingData = true }
                 }
                 Section {
@@ -82,8 +93,9 @@ struct SettingsView: View {
                         Text("Saved forecasts expire after seven observing nights. Weather expires after six hours.")
                     }.font(.footnote)
                 }
-            }.navigationTitle("Settings").scrollContentBackground(.hidden).background(Color.skyBase)
-                .toolbar { EditButton() }
+            }.environment(\.editMode, $placeEditMode)
+                .navigationTitle("Settings").scrollContentBackground(.hidden).background(Color.skyBase)
+                .onDisappear { placeEditMode = .inactive }
                 .confirmationDialog("Clear all saved places, forecasts and reminders?", isPresented: $clearingData, titleVisibility: .visible) {
                     Button("Clear saved data", role: .destructive) { model.clearSavedData() }
                 }
