@@ -79,12 +79,13 @@ The public version record is in Prepare for Submission. Jason manually accepted 
 
 - Release 1.0 (10) was archived for generic iOS devices with automatic signing explicitly restricted to team `NF8828LV3U`. App and widget archive identifiers, App Group and WeatherKit entitlements were checked before export.
 - App Store Connect export/upload completed successfully. The export used `method=app-store-connect`, `destination=upload`, `teamID=NF8828LV3U`, and `testFlightInternalTestingOnly=false`; version/build numbers were preserved.
-- Apple finished processing the upload and shows build 10 as **Ready to Submit**, expiring in 90 days. This is not approval for external testing.
+- Apple finished processing the upload; build 10 was then submitted to Beta App Review and is **Waiting for Review**, expiring in 90 days. This is not approval for external testing.
 - An empty **Internal checks** group was created as required before external testing. Automatic internal distribution is off; Jason has not been invited to TestFlight.
-- The external **Early testers** group contains the one tester explicitly authorized by Jason. Public-link invitations are off. The tester currently has **No Builds Available**.
+- The external **Early testers** group contains the one tester explicitly authorized by Jason and build **1.0 (10)**. Public-link invitations are off. The build is not yet available to install while beta review is pending.
 - The beta description, feedback email and privacy URL were saved. Build-specific **What to Test** instructions cover choosing places, event previews/Return to Live, Apple Weather opt-in, saved-place editing, widgets, reminders and iPhone/iPad layout, with feedback through TestFlight.
-- The separate beta-review contact form still needs Jason to enter the private phone number and save. The browser masks the existing public-review phone value, so it was not copied or guessed. The beta-review names, email and review notes have been prepared in the form but could not be saved while that required field was missing.
-- Next: save the beta-review contact with **Sign-in required off**, add build 10 to Early testers, submit it to Beta App Review, and enable automatic tester notification on approval. Confirm the resulting review status and notification setting before describing an invitation as sent or usable.
+- The separate beta-review contact and review notes are saved. Jason entered the private phone number directly in App Store Connect. **Sign-in required is off** because the app has no user accounts.
+- **Automatically notify testers** was enabled when submitting build 10. Apple will notify the authorized external tester after approval; no invitation delivery or installation has been confirmed yet.
+- Next: Apple reviews this first external build. After approval, the tester can follow Apple's invitation to install TestFlight and Sky Tonight, read the testing notes, and send feedback. Resolve any beta-review feedback in this same app record and Proton/team NF8828LV3U session.
 
 The first external build requires Apple’s beta review. Adding a tester alone does not send an installable build. This setup does not submit or release the public App Store version.
 
