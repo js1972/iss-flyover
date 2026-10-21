@@ -27,7 +27,7 @@ The separate interactive website retains Open-Meteo and other web providers. The
 
 ## Verification
 
-Use Xcode's available simulator names/IDs. Test iPad in portrait, landscape and upside-down portrait; a smaller iPad exercises the single-column layout. Verify event-card navigation, Return to Live, Upcoming ISS empty states, offline policy/support, widgets in light/dark appearances and the largest accessibility text. All iPad checks for this release are simulator-only. Do not install on a physical device for this work.
+Use Xcode's available simulator names/IDs. Test iPad in portrait, landscape and upside-down portrait; a smaller iPad exercises the single-column layout. Verify event-card navigation, Return to Live, Upcoming ISS empty states, offline policy/support, widgets in light/dark appearances and the largest accessibility text. All iPad checks for this release are simulator-only. iPhone installation is a separate, explicitly requested check.
 
 ```sh
 xcodebuild -project ios/SkyTonight.xcodeproj -scheme SkyTonight \
@@ -48,9 +48,26 @@ Verify the Release build, embedded widget, dedicated profiles and WeatherKit ent
 - Signed iOS Release build 1.0 (9) passed. Both embedded profiles contain WeatherKit and only the dedicated Sky Tonight App Group. The compiled 1024px App Store icon is opaque.
 - Five website visibility checks passed. Local browser smoke checks covered the running website, event preview and static privacy/support pages. Project/page regeneration preserves the curated icon and has no output drift.
 
-All device testing above used simulators. No physical device was installed, no distribution archive was uploaded, and no App Review submission was made.
+The initial verification above used simulators. Builds 9 and 10 were subsequently installed and launched on the paired iPhone 16 Pro Max at Jason’s explicit request; the phone reported the expected installed build numbers. iPad verification remains simulator-only. No distribution archive has been uploaded and no App Review submission has been made.
 
 Build 10 moves the saved-place deletion control beside the Saved places list and labels it Edit places (Done while removing places). Other settings continue to apply immediately. The signed Release build and the existing standard/large-text preview-to-Settings simulator flows passed for build 10.
+
+## App Store Connect record
+
+Created on 21 October 2026 under Jason Scott:
+
+- App: Sky Tonight (iOS, covering the app’s iPhone and iPad support)
+- Apple app ID: `6825144581`
+- Bundle ID: `com.js1972.skytonight` (existing app ID, not the widget ID)
+- SKU: `skytonight-ios`
+- Primary language: English (Australia)
+- Privacy policy URL saved: https://iss-flyover.pages.dev/privacy.html
+- Support URL saved: https://iss-flyover.pages.dev/support.html
+- Version 1.0 is set to manual release; no public release is scheduled.
+- [App Information](https://appstoreconnect.apple.com/apps/6825144581/distribution/info)
+- [TestFlight](https://appstoreconnect.apple.com/teams/4112ab50-c19d-44d5-afef-87f86c676f8e/apps/6825144581/testflight)
+
+The record is in Prepare for Submission. Creating it does not upload a build or make the app available to testers. App Store Connect also displays an updated Apple Developer Program License Agreement notice; the Account Holder must review and accept that separate agreement before submitting builds. Review-contact information needs a valid phone number before it can be saved; do not invent one or reuse account contact data without authorization.
 
 ## App Store Connect tasks
 
