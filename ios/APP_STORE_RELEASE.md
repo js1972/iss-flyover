@@ -54,7 +54,7 @@ Verify the Release build, embedded widget, dedicated profiles and WeatherKit ent
 - Signed iOS Release build 1.0 (9) passed. Both embedded profiles contain WeatherKit and only the dedicated Sky Tonight App Group. The compiled 1024px App Store icon is opaque.
 - Five website visibility checks passed. Local browser smoke checks covered the running website, event preview and static privacy/support pages. Project/page regeneration preserves the curated icon and has no output drift.
 
-The initial verification above used simulators. Builds 9 and 10 were subsequently installed and launched on the paired iPhone 16 Pro Max at Jason’s explicit request; the phone reported the expected installed build numbers. iPad verification remains simulator-only. No distribution archive has been uploaded and no App Review submission has been made.
+The initial verification above used simulators. Builds 9 and 10 were subsequently installed and launched on the paired iPhone 16 Pro Max at Jason’s explicit request; the phone reported the expected installed build numbers. iPad verification remains simulator-only. Build 10 was subsequently archived and uploaded to TestFlight on 21 October 2026. No public App Review submission has been made.
 
 Build 10 moves the saved-place deletion control beside the Saved places list and labels it Edit places (Done while removing places). Other settings continue to apply immediately. The signed Release build and the existing standard/large-text preview-to-Settings simulator flows passed for build 10.
 
@@ -73,7 +73,20 @@ Created on 21 October 2026 under Jason Scott:
 - [App Information](https://appstoreconnect.apple.com/apps/6825144581/distribution/info)
 - [TestFlight](https://appstoreconnect.apple.com/teams/4112ab50-c19d-44d5-afef-87f86c676f8e/apps/6825144581/testflight)
 
-The record is in Prepare for Submission. Creating it does not upload a build or make the app available to testers. App Store Connect displays an updated Apple Developer Program License Agreement notice. The verified Proton membership’s Developer portal gives a 29 October 2026 acceptance deadline. Whether this notice blocks a TestFlight upload today has not been established; do not describe it as a proven upload blocker without validation. Any agreement must be reviewed in the verified Proton/team NF8828LV3U session, never the legacy Programic account. Jason entered the private review-contact phone number directly in App Store Connect and the review-contact details were saved successfully. Sign-in required is off because the app has no user accounts. The private number is not stored in this repository.
+The public version record is in Prepare for Submission. Jason manually accepted the updated Apple Developer Program License Agreement on 21 October 2026; acceptance was verified in the Proton/team NF8828LV3U session before the successful upload. Any future agreement must be reviewed in that verified session, never the legacy Programic account. Jason entered the private public-review contact phone number directly in App Store Connect and those details were saved successfully. Sign-in required is off because the app has no user accounts. Private phone numbers and tester email addresses are not stored in this repository.
+
+## TestFlight setup on 21 October 2026
+
+- Release 1.0 (10) was archived for generic iOS devices with automatic signing explicitly restricted to team `NF8828LV3U`. App and widget archive identifiers, App Group and WeatherKit entitlements were checked before export.
+- App Store Connect export/upload completed successfully. The export used `method=app-store-connect`, `destination=upload`, `teamID=NF8828LV3U`, and `testFlightInternalTestingOnly=false`; version/build numbers were preserved.
+- Apple finished processing the upload and shows build 10 as **Ready to Submit**, expiring in 90 days. This is not approval for external testing.
+- An empty **Internal checks** group was created as required before external testing. Automatic internal distribution is off; Jason has not been invited to TestFlight.
+- The external **Early testers** group contains the one tester explicitly authorized by Jason. Public-link invitations are off. The tester currently has **No Builds Available**.
+- The beta description, feedback email and privacy URL were saved. Build-specific **What to Test** instructions cover choosing places, event previews/Return to Live, Apple Weather opt-in, saved-place editing, widgets, reminders and iPhone/iPad layout, with feedback through TestFlight.
+- The separate beta-review contact form still needs Jason to enter the private phone number and save. The browser masks the existing public-review phone value, so it was not copied or guessed. The beta-review names, email and review notes have been prepared in the form but could not be saved while that required field was missing.
+- Next: save the beta-review contact with **Sign-in required off**, add build 10 to Early testers, submit it to Beta App Review, and enable automatic tester notification on approval. Confirm the resulting review status and notification setting before describing an invitation as sent or usable.
+
+The first external build requires Apple’s beta review. Adding a tester alone does not send an installable build. This setup does not submit or release the public App Store version.
 
 ## App Store Connect tasks
 
