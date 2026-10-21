@@ -16,7 +16,7 @@ Open [`ios/SkyTonight.xcodeproj`](ios/SkyTonight.xcodeproj), select the **SkyTon
 
 See the [iOS guide](ios/README.md) for signing, device setup, adding widgets, architecture, and tests. Sky Tonight has its own bundle identifiers and storage. Its private App Group is used only by Sky Tonight and its own widgets; it does not share data with other apps.
 
-The native app focuses on observing and widgets. Globe/ground-track views and additional alignment/eclipse highlights remain website features. Apple Watch and Live Activities are not included.
+The native app focuses on observing and widgets. The 3D globe/ground-track view and additional alignment/eclipse highlights remain website features. Apple Watch and Live Activities are not included.
 
 ## TestFlight and release management
 
@@ -98,7 +98,7 @@ Beta approval does not publish the app. The public version was left in **Prepare
 
 The website remains independently deployable as static files, with no build step or package manager. Features include:
 
-- Real-time ISS position with smooth animation, globe and map views, and orbit tracks.
+- Real-time ISS position with smooth animation, a 3D globe view, and orbit tracks.
 - Local sky projection with event-time previews from ISS and night-sky cards.
 - Seven-day visible ISS forecast and ranked sky highlights.
 - A tonight timeline with sky events, darkness, weather, Moon, and ISS moments.
@@ -133,9 +133,9 @@ Before the 14 October 2026 correction, the PWA checked darkness and elevation bu
 - **CelesTrak:** preferred ISS orbital elements for local SGP4 predictions.
 - **Where the ISS at?:** live website ISS telemetry and backup orbital elements.
 - **Apple WeatherKit:** optional native app/widget weather. **Open-Meteo:** separate website weather forecasts.
-- **OpenStreetMap Nominatim:** website reverse geocoding; **CARTO/OpenStreetMap:** website basemaps.
+- **OpenStreetMap Nominatim:** website reverse geocoding only. The flat Map View and CARTO basemaps have been removed.
 - **Astronomy Engine, SunCalc, satellite.js:** pinned local calculation libraries, also bundled for native JavaScriptCore.
-- **Leaflet and Three.js:** website map/globe rendering; **SwiftUI and WidgetKit:** native interface and widgets.
+- **Three.js:** website globe rendering; **SwiftUI and WidgetKit:** native interface and widgets.
 
 Stable astronomy catalogs are local. Orbital and weather data refresh remotely. The native app calculates astronomy offline and shares cached forecasts only with its own widgets; see the [freshness rules](ios/README.md#architecture-and-freshness).
 

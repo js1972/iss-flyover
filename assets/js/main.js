@@ -1,14 +1,14 @@
 
-import { state } from "./state.js?v=2026.10.21-ios-release.2";
-import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, ISS_TLE_FALLBACK_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, MAP_VISUALS, PLANET_VISUALS } from "./config.js?v=2026.10.21-ios-release.2";
-import { appEl, bootOverlay, bootStageEl, bootMetaEl, mapEl, globeViewEl, globeEl, skyViewEl, skyCanvas, skyCompassButton, skyCompassStatus, tonightGridEl, passList, skyEventsList, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, trackStatusEl, conditionsStatusEl, previewBanner, previewText, previewExitButton, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, advancedPanel, advancedToggle, advancedContent, conditionsList } from "./dom.js?v=2026.10.21-ios-release.2";
-import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js?v=2026.10.21-ios-release.2";
-import { fetchJson } from "./network.js?v=2026.10.21-ios-release.2";
-import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js?v=2026.10.21-ios-release.2";
-import { beginSourceAttempt, hasUsableData, markSourceDegraded, markSourceOk, markSourceUnavailable } from "./status.js?v=2026.10.21-ios-release.2";
-import { APP_VERSION, ASSET_VERSION, DEPLOYED_AT } from "./version.js?v=2026.10.21-ios-release.2";
+import { state } from "./state.js?v=2026.10.21-pwa.3";
+import { ISS_NOW_URL, ISS_POS_URL, ISS_TLE_URL, ISS_TLE_FALLBACK_URL, WEATHER_URL, REVERSE_GEOCODE_URL, STORAGE_KEY, FORECAST_DAYS, GLOBE_VISUALS, PLANET_VISUALS } from "./config.js?v=2026.10.21-pwa.3";
+import { appEl, bootOverlay, bootStageEl, bootMetaEl, globeViewEl, globeEl, skyViewEl, skyCanvas, skyCompassButton, skyCompassStatus, tonightGridEl, passList, skyEventsList, locateButton, locationLabelEl, locationCoordsEl, locationMetaEl, forecastPanelEl, skyPanelEl, conditionsPanelEl, trackStatusEl, conditionsStatusEl, previewBanner, previewText, previewExitButton, shareToast, refreshButton, timelinePanel, timelineToggle, timelineContent, timelineList, advancedPanel, advancedToggle, advancedContent, conditionsList } from "./dom.js?v=2026.10.21-pwa.3";
+import { formatCoord, formatTime, formatDateTime, formatCompactBestTime, formatTonightMoment, isCompactMobileLayout, isNarrowMobileLayout } from "./utils.js?v=2026.10.21-pwa.3";
+import { fetchJson } from "./network.js?v=2026.10.21-pwa.3";
+import { METEOR_SHOWERS, DEEP_SKY_TARGETS, BRIGHT_STARS, CONSTELLATIONS } from "./data/catalogs.js?v=2026.10.21-pwa.3";
+import { beginSourceAttempt, hasUsableData, markSourceDegraded, markSourceOk, markSourceUnavailable } from "./status.js?v=2026.10.21-pwa.3";
+import { APP_VERSION, ASSET_VERSION, DEPLOYED_AT } from "./version.js?v=2026.10.21-pwa.3";
 
-import { qualifyPass } from "./pass-visibility.js?v=2026.10.21-ios-release.2";
+import { qualifyPass } from "./pass-visibility.js?v=2026.10.21-pwa.3";
 
 const AUTO_REFRESH_STALE_MS = 15 * 60 * 1000;
 const VERSION_URL = `./version.json?v=${encodeURIComponent(ASSET_VERSION)}`;
@@ -76,10 +76,6 @@ function hasSunCalcRuntime() {
 
 function hasAstronomyRuntime() {
   return Boolean(window.Astronomy?.Observer);
-}
-
-function hasLeafletRuntime() {
-  return Boolean(window.L?.map && window.L?.marker && window.L?.polyline);
 }
 
 function hasThreeRuntime() {
@@ -953,32 +949,6 @@ function formatCombinedMoonContext({ moonSummary = "", moonPhaseSummary = "", mo
 
 function wrapLongitude(lon) {
   return ((lon + 540) % 360) - 180;
-}
-
-function computeNoWrapFitZoom(width) {
-  const safeWidth = Math.max(320, width || window.innerWidth || 1024);
-  const zoom = Math.log2(safeWidth / 256);
-  return Math.min(3.0, Math.max(1.5, zoom));
-}
-
-function syncMapNoWrapZoomConstraints(force = false) {
-  if (!state.map) return;
-  const width = mapEl.clientWidth || state.map.getSize().x || window.innerWidth;
-  const fitZoom = computeNoWrapFitZoom(width);
-  if (!force && Math.abs(fitZoom - state.mapFitZoom) < 0.01) return;
-
-  state.mapFitZoom = fitZoom;
-  state.map.setMinZoom(fitZoom);
-  if (state.map.getZoom() < fitZoom) {
-    state.map.setZoom(fitZoom, { animate: false });
-  }
-}
-
-function setMapTheme(theme) {
-  const nextTheme = theme === "fallback" ? "fallback" : "primary";
-  state.mapTheme = nextTheme;
-  mapEl.classList.remove("map-theme-primary", "map-theme-fallback");
-  mapEl.classList.add(nextTheme === "fallback" ? "map-theme-fallback" : "map-theme-primary");
 }
 
 function passKey(pass) {
@@ -3040,7 +3010,7 @@ function loadStoredLocation() {
           : `${describeLocationAccuracy(state.user.source)} is active. Local predictions may shift until a precise device location is granted.`
       });
     }
-    updateUserMarker();
+    updateGlobeMarkers();
     setStatus();
     syncPanelStatuses();
     if (!state.user.label) {
@@ -3078,28 +3048,6 @@ function interpolateSample(prev, next, nowMs) {
     altitude: altitudeA + (altitudeB - altitudeA) * t,
     velocity: velocityA + (velocityB - velocityA) * t
   };
-}
-
-function buildTrackSegments(points) {
-  if (!points.length) return [];
-  const segments = [];
-  let segment = [];
-  points.forEach((point) => {
-    if (!segment.length) {
-      segment.push(point);
-      return;
-    }
-    const prev = segment[segment.length - 1];
-    const delta = Math.abs(point.longitude - prev.longitude);
-    if (delta > 180) {
-      segments.push(segment);
-      segment = [point];
-    } else {
-      segment.push(point);
-    }
-  });
-  if (segment.length) segments.push(segment);
-  return segments.map((seg) => seg.map((p) => [p.latitude, p.longitude]));
 }
 
 function setStatus() {
@@ -3326,188 +3274,6 @@ function updateTonightHighlights() {
 
   if (shareTonightIssBtn) shareTonightIssBtn.disabled = !Boolean(state.tonight.pass);
   if (shareTonightSkyBtn) shareTonightSkyBtn.disabled = !Boolean(state.tonight.skyEvent);
-}
-
-function showMapMessage(message) {
-  if (state.mapFallbackNotified) return;
-  state.mapFallbackNotified = true;
-
-  const existing = mapEl.querySelector(".map-status");
-  if (existing) existing.remove();
-
-  const note = document.createElement("div");
-  note.className = "map-status";
-  note.textContent = message;
-  mapEl.appendChild(note);
-
-  window.setTimeout(() => {
-    note.classList.add("fade");
-    window.setTimeout(() => note.remove(), 360);
-  }, 4200);
-}
-
-function initMap() {
-  if (!hasLeafletRuntime()) {
-    const existing = mapEl.querySelector(".map-status");
-    if (existing) existing.remove();
-    const note = document.createElement("div");
-    note.className = "map-status";
-    note.textContent = "Map runtime unavailable. Reload the app to restore map view.";
-    mapEl.appendChild(note);
-    return;
-  }
-  const bounds = L.latLngBounds([[-85, -180], [85, 180]]);
-  const initialZoom = computeNoWrapFitZoom(mapEl.clientWidth || window.innerWidth);
-  state.mapFitZoom = initialZoom;
-
-  mapEl.style.setProperty("--map-bg", MAP_VISUALS.mapBackground);
-  mapEl.style.setProperty("--map-tile-filter-primary", MAP_VISUALS.tileFilterPrimary);
-  mapEl.style.setProperty("--map-tile-filter-fallback", MAP_VISUALS.tileFilterFallback);
-  setMapTheme("primary");
-
-  state.map = L.map(mapEl, {
-    zoomControl: true,
-    worldCopyJump: false,
-    maxBounds: bounds,
-    maxBoundsViscosity: 1.0,
-    preferCanvas: false,
-    minZoom: initialZoom,
-    maxZoom: 8
-  }).setView([0, 0], initialZoom);
-
-  const createTileLayer = (url) => L.tileLayer(url, {
-    attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
-    subdomains: "abcd",
-    maxZoom: 8,
-    noWrap: true,
-    bounds
-  });
-
-  state.mapTileLayer = createTileLayer(MAP_VISUALS.tilePrimary).addTo(state.map);
-
-  let tileErrors = 0;
-  const tileErrorLimit = 3;
-  const tileErrorWindowMs = 12000;
-  const tileLoadStart = Date.now();
-  const activateFallback = () => {
-    if (state.mapTheme === "fallback") return;
-    if (state.mapTileLayer) {
-      state.map.removeLayer(state.mapTileLayer);
-    }
-    state.mapTileLayer = createTileLayer(MAP_VISUALS.tileFallback).addTo(state.map);
-    setMapTheme("fallback");
-    showMapMessage("Map style fallback active.");
-  };
-
-  state.mapTileLayer.on("tileerror", () => {
-    if (state.mapTheme === "fallback") return;
-    if (Date.now() - tileLoadStart > tileErrorWindowMs) return;
-    tileErrors += 1;
-    if (tileErrors >= tileErrorLimit) {
-      activateFallback();
-    }
-  });
-
-  const issIcon = L.divIcon({
-    className: "iss-marker",
-    html: '<div class="iss-dot"></div>',
-    iconSize: [20, 20],
-    iconAnchor: [10, 10]
-  });
-
-  state.markers.iss = L.marker([0, 0], { icon: issIcon }).addTo(state.map);
-  state.trackOutline = L.polyline([], {
-    color: MAP_VISUALS.trackOutlineColor,
-    weight: 7,
-    opacity: 0.55,
-    lineCap: "round"
-  }).addTo(state.map);
-  state.trackGlow = L.polyline([], {
-    color: MAP_VISUALS.trackGlowColor,
-    weight: 5,
-    opacity: 0.30,
-    lineCap: "round"
-  }).addTo(state.map);
-  state.trackLine = L.polyline([], {
-    color: MAP_VISUALS.trackDashColor,
-    weight: 2.6,
-    opacity: 0.95,
-    dashArray: "7 9",
-    lineCap: "round"
-  }).addTo(state.map);
-
-  syncMapNoWrapZoomConstraints(true);
-}
-
-function initMapResizing() {
-  if (!state.map) return;
-  let queued = false;
-  const queueInvalidate = () => {
-    if (queued) return;
-    queued = true;
-    requestAnimationFrame(() => {
-      queued = false;
-      state.map.invalidateSize({ animate: false });
-      syncMapNoWrapZoomConstraints();
-    });
-  };
-
-  window.addEventListener("resize", queueInvalidate);
-  window.addEventListener("scroll", queueInvalidate, { passive: true });
-
-  if (window.ResizeObserver) {
-    const observer = new ResizeObserver(queueInvalidate);
-    observer.observe(document.querySelector(".viewer"));
-  }
-
-  if (window.IntersectionObserver) {
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        queueInvalidate();
-      }
-    }, { threshold: 0.1 });
-    observer.observe(mapEl);
-  }
-}
-
-function updateISSMarker() {
-  if (state.iss && state.map && state.markers.iss) {
-    state.markers.iss.setLatLng([state.iss.latitude, state.iss.longitude]);
-  }
-  updateGlobeMarkers();
-}
-
-function updateUserMarker() {
-  if (!state.user || !state.map) return;
-  if (!state.markers.user) {
-    const userIcon = L.divIcon({
-      className: "user-marker",
-      html: "",
-      iconSize: [10, 10],
-      iconAnchor: [5, 5]
-    });
-    state.markers.user = L.marker([state.user.lat, state.user.lon], { icon: userIcon }).addTo(state.map);
-  } else {
-    state.markers.user.setLatLng([state.user.lat, state.user.lon]);
-  }
-  updateGlobeMarkers();
-}
-
-function updateTrackLine() {
-  const source = state.trackData.length ? state.trackData : state.trail;
-  if (state.map && state.trackOutline && state.trackLine && state.trackGlow) {
-    const segments = buildTrackSegments(source);
-    if (segments.length) {
-      state.trackOutline.setLatLngs(segments);
-      state.trackGlow.setLatLngs(segments);
-      state.trackLine.setLatLngs(segments);
-    } else {
-      state.trackOutline.setLatLngs([]);
-      state.trackGlow.setLatLngs([]);
-      state.trackLine.setLatLngs([]);
-    }
-  }
-  updateGlobeTrack();
 }
 
 function latLonToVector3(lat, lon, radius = 1) {
@@ -3873,8 +3639,8 @@ async function fetchISSNow() {
       usingFallback: false,
       lastSuccessAt: sample.localTime
     });
-    updateISSMarker();
-    updateTrackLine();
+    updateGlobeMarkers();
+    updateGlobeTrack();
     setStatus();
     return sample;
   } catch (error) {
@@ -5505,7 +5271,7 @@ async function refreshAll(options = {}) {
       if (trackSettled.status === "fulfilled") {
         const trackResult = trackSettled.value;
         state.trackData = trackResult.data;
-        updateTrackLine();
+        updateGlobeTrack();
         if (trackResult.degraded) {
           markSourceDegraded(trackSource, {
             accuracy: trackResult.accuracy,
@@ -5523,7 +5289,7 @@ async function refreshAll(options = {}) {
         refreshedTrackNow = true;
       } else if (previousTrackData.length) {
         state.trackData = previousTrackData;
-        updateTrackLine();
+        updateGlobeTrack();
         markSourceDegraded(trackSource, {
           accuracy: "stale",
           lastSuccessAt: trackSource.lastSuccessAt,
@@ -5531,7 +5297,7 @@ async function refreshAll(options = {}) {
         });
       } else {
         state.trackData = [];
-        updateTrackLine();
+        updateGlobeTrack();
         markSourceUnavailable(trackSource, {
           reason: trackSettled.reason?.message || "Track unavailable.",
           lastSuccessAt: trackSource.lastSuccessAt
@@ -5724,7 +5490,7 @@ function animateISS() {
   const sample = interpolateSample(state.issSamples.prev, state.issSamples.next, now);
   if (sample) {
     state.iss = sample;
-    updateISSMarker();
+    updateGlobeMarkers();
     if (now - state.anim.lastStatus > 900) {
       setStatus();
       state.anim.lastStatus = now;
@@ -5765,7 +5531,7 @@ async function setUserLocation(lat, lon, source, persist = true) {
   if (persist) {
     saveUserLocation(state.user);
   }
-  updateUserMarker();
+  updateGlobeMarkers();
   setStatus();
   syncPanelStatuses();
   void ensureUserLocationLabel({ persist });
@@ -5938,28 +5704,19 @@ document.addEventListener("keydown", (event) => {
 });
 
 function setActiveView(view) {
-  const isMap = view === "map";
   const isGlobe = view === "globe";
   const isSky = view === "sky";
 
-  const mapButton = document.getElementById("btn-map");
   const globeButton = document.getElementById("btn-globe");
   const skyButton = document.getElementById("btn-sky");
-  mapButton.classList.toggle("active", isMap);
   globeButton.classList.toggle("active", isGlobe);
   skyButton.classList.toggle("active", isSky);
-  mapButton.setAttribute("aria-selected", String(isMap));
   globeButton.setAttribute("aria-selected", String(isGlobe));
   skyButton.setAttribute("aria-selected", String(isSky));
 
-  mapEl.classList.toggle("active", isMap);
   globeViewEl.classList.toggle("active", isGlobe);
   skyViewEl.classList.toggle("active", isSky);
 
-  if (isMap && state.map) {
-    state.map.invalidateSize();
-    syncMapNoWrapZoomConstraints(true);
-  }
   if (isGlobe) {
     resizeGlobe();
     renderGlobe();
@@ -5973,7 +5730,6 @@ function setActiveView(view) {
   }
 }
 
-document.getElementById("btn-map").addEventListener("click", () => setActiveView("map"));
 document.getElementById("btn-globe").addEventListener("click", () => setActiveView("globe"));
 document.getElementById("btn-sky").addEventListener("click", () => setActiveView("sky"));
 if (skyCompassButton) {
@@ -6009,8 +5765,6 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
-initMap();
-initMapResizing();
 initGlobe();
 initSky();
 handleLayoutChange(true);
@@ -6023,7 +5777,6 @@ setAdvancedExpanded(false);
 loadSkyViewingPreference();
 syncSkyViewingPreferenceControls();
 clearPreview();
-registerGestureBlocker(mapEl, () => mapEl.classList.contains("active"));
 registerGestureBlocker(globeEl, () => globeViewEl.classList.contains("active"));
 registerGestureBlocker(skyCanvas, () => skyViewEl.classList.contains("active"));
 loadStoredLocation();

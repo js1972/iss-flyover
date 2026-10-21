@@ -1,4 +1,4 @@
-import { createHealthState } from "./status.js?v=2026.10.21-ios-release.2";
+import { createHealthState } from "./status.js?v=2026.10.21-pwa.3";
 
 export const state =  {
   user: null,
@@ -7,15 +7,6 @@ export const state =  {
   tle: null,
   tlePromise: null,
   tleUpdated: 0,
-  map: null,
-  mapTileLayer: null,
-  mapTheme: "primary",
-  mapFitZoom: 2,
-  mapFallbackNotified: false,
-  markers: {},
-  trackOutline: null,
-  trackLine: null,
-  trackGlow: null,
   trackData: [],
   trail: [],
   passes: [],

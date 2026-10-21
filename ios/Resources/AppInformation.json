@@ -38,7 +38,7 @@
     },
     {
       "title": "The separate website",
-      "text": "The website at iss-flyover.pages.dev is hosted by Cloudflare Pages. These privacy and support pages are static and contain no analytics, external fonts or advertising. Cloudflare receives connection information when serving them. The interactive website is separate from the native app: it can use Open-Meteo for weather, OpenStreetMap Nominatim for place naming, CARTO/OpenStreetMap maps, and Google Fonts, alongside public ISS services. Those providers receive network information, and location-dependent website requests may include coordinates. The native app does not use Open-Meteo or those website map/font services."
+      "text": "The website at iss-flyover.pages.dev is hosted by Cloudflare Pages. These privacy and support pages are static and contain no analytics, external fonts or advertising. Cloudflare receives connection information when serving them. The interactive website is separate from the native app: it can use Open-Meteo for weather, OpenStreetMap Nominatim for place naming, and Google Fonts, alongside public ISS services. Those providers receive network information, and location-dependent website requests may include coordinates. The native app does not use Open-Meteo or those website place-name/font services."
     },
     {
       "title": "Changes and contact",

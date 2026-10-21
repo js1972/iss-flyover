@@ -2,7 +2,6 @@ export const appEl = document.getElementById("app-root");
 export const bootOverlay = document.getElementById("boot-overlay");
 export const bootStageEl = document.getElementById("boot-stage");
 export const bootMetaEl = document.getElementById("boot-meta");
-export const mapEl = document.getElementById("map");
 export const globeViewEl = document.getElementById("globe-view");
 export const globeEl = document.getElementById("globe");
 export const skyViewEl = document.getElementById("sky-view");

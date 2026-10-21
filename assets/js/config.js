@@ -19,16 +19,6 @@ export const GLOBE_VISUALS = {
   shininess: 10,
   atmosphereOpacity: 0.05
 };
-export const MAP_VISUALS = {
-  tilePrimary: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png",
-  tileFallback: "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
-  tileFilterPrimary: "brightness(0.86) contrast(1.22) saturate(1.15)",
-  tileFilterFallback: "brightness(1.12) contrast(1.10) saturate(1.06)",
-  mapBackground: "#1a2940",
-  trackOutlineColor: "#031b2a",
-  trackGlowColor: "#22d5ff",
-  trackDashColor: "#57e6ff"
-};
 export const PLANET_VISUALS = {
   planets: [
     { body: "Mercury", color: "#d0bea5" },
