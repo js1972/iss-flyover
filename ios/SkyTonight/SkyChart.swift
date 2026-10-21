@@ -9,43 +9,29 @@ struct SkyChartScreen: View {
     @State private var timeAnchor = Date()
     @State private var chartTask: Task<Void, Never>?
     let ticker = Timer.publish(every: 15, on: .main, in: .common).autoconnect()
+    @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(model.selectedEvent?.title ?? (model.previewTime == nil ? "Your sky now" : "Sky preview")).font(.title2.bold())
-                            Text("\(model.location.name) · \(model.location.day(model.previewTime ?? Date())) · \(model.location.time(model.previewTime ?? Date()))").font(.subheadline).foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Button { model.toggleCompass() } label: { Image(systemName: model.compass ? "location.north.circle.fill" : "location.north.circle").font(.title) }.accessibilityLabel(model.compass ? "Turn compass off" : "Align with compass")
+            GeometryReader { geometry in
+                let wide = geometry.size.width >= 950 && !typeSize.isAccessibilitySize
+                ScrollViewReader { scroll in
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 24) {
+                            header
+                            if wide {
+                                HStack(alignment: .top, spacing: 32) {
+                                    plot.frame(maxWidth: .infinity).id("sky-chart")
+                                    details.frame(width: 340)
+                                }
+                            } else {
+                                plot.id("sky-chart")
+                                details
+                            }
+                        }.padding(geometry.size.width >= 600 ? 32 : 20).frame(maxWidth: 1180).frame(maxWidth: .infinity)
+                    }.onChange(of: model.selectedEvent?.id) { _, value in
+                        if value != nil { scroll.scrollTo("sky-chart", anchor: .top) }
                     }
-                    SkyPlot(objects: model.chart, path: model.selectedEvent?.points ?? [], rotation: model.compass ? -model.heading : rotation, selected: model.selectedEvent?.body)
-                        .aspectRatio(1, contentMode: .fit)
-                        .gesture(DragGesture().onChanged { value in if !model.compass { rotation = dragStart + Double(value.translation.width) * 0.5 } }.onEnded { _ in dragStart = rotation })
-                        .accessibilityLabel("Sky chart. \(model.chart.map { "\($0.name), \(SkyEvent.direction($0.azimuth)), \(Int($0.elevation)) degrees" }.joined(separator: ". "))")
-                    HStack { Label("Horizon at the edge", systemImage: "circle"); Spacer(); Text("Overhead at centre") }.font(.caption).foregroundStyle(.secondary)
-                    if model.compass { Text("Compass aligned · heading \(Int(model.heading))°").font(.caption).foregroundStyle(Color.skyMint) }
-                    else { Text("Drag to rotate. Use the compass outside, away from magnetic interference.").font(.caption).foregroundStyle(.secondary) }
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack { Text("Explore time").font(.headline); Spacer(); if model.previewTime != nil { Button("Return to Live") { timeAnchor = Date(); offset = 0; model.live() }.accessibilityIdentifier("returnLive") } }
-                        Slider(value: Binding(get: { offset }, set: { value in
-                            offset = value
-                            chartTask?.cancel()
-                            model.selectedEvent = nil; model.previewTime = timeAnchor.addingTimeInterval(value * 3600)
-                            chartTask = Task { try? await Task.sleep(for: .milliseconds(100)); if !Task.isCancelled { await model.updateChart() } }
-                        }), in: -6...24, step: 0.25) { Text("Hours from the selected viewing time") }.accessibilityIdentifier("skyTimeSlider")
-                    }.skyPanel()
-                    if let event = model.selectedEvent { EventRow(event: event) }
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text("ABOVE THE HORIZON").font(.caption.weight(.bold)).tracking(1).foregroundStyle(Color.skyMint)
-                        ForEach(model.chart.filter { $0.kind == "planet" || $0.kind == "moon" || $0.kind == "iss" }) { object in
-                            HStack { Text(object.name); Spacer(); Text("\(SkyEvent.direction(object.azimuth)) · \(Int(object.elevation))°").foregroundStyle(.secondary) }.font(.subheadline)
-                        }
-                        Text("Above the horizon does not guarantee visibility: daylight, cloud and local obstructions matter.").font(.caption).foregroundStyle(.secondary)
-                    }.skyPanel()
-                }.padding(20).frame(maxWidth: 700)
+                }
             }.background(Color.skyBase).navigationTitle("Sky").navigationBarTitleDisplayMode(.inline)
                 .task { timeAnchor = model.previewTime ?? Date(); offset = 0; await model.updateChart() }
                 .onChange(of: model.selectedEvent?.id) { _, value in if value != nil { timeAnchor = model.previewTime ?? Date(); offset = 0 } }
@@ -53,7 +39,60 @@ struct SkyChartScreen: View {
                 .onReceive(ticker) { _ in if model.previewTime == nil && model.selectedTab == 1 { Task { await model.updateChart() } } }
         }
     }
+    private var header: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(model.selectedEvent?.title ?? (model.previewTime == nil ? "Your sky now" : "Sky preview")).font(.title2.bold())
+                Text("\(model.location.name) · \(model.location.day(model.previewTime ?? Date())) · \(model.location.time(model.previewTime ?? Date()))").font(.subheadline).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button { model.toggleCompass() } label: { Image(systemName: model.compass ? "location.north.circle.fill" : "location.north.circle").font(.title).frame(minWidth: 44, minHeight: 44) }.accessibilityLabel(model.compass ? "Turn compass off" : "Align with compass")
+        }
+    }
+    private var plot: some View {
+        VStack(spacing: 16) {
+            SkyPlot(objects: model.chart, path: model.selectedEvent?.points ?? [], rotation: model.compass ? -model.heading : rotation, selected: model.selectedEvent?.body)
+                .aspectRatio(1, contentMode: .fit)
+                .gesture(HorizontalSkyDrag(changed: { translation in
+                    if !model.compass { rotation = dragStart + translation * 0.5 }
+                }, ended: { dragStart = rotation }))
+                .accessibilityLabel("Sky chart. \(model.chart.map { "\($0.name), \(SkyEvent.direction($0.azimuth)), \(Int($0.elevation)) degrees" }.joined(separator: ". "))")
+            HStack { Label("Horizon at the edge", systemImage: "circle"); Spacer(); Text("Overhead at centre") }.font(.caption).foregroundStyle(.secondary)
+            if model.compass { Text("Compass aligned · heading \(Int(model.heading))°").font(.caption).foregroundStyle(Color.skyMint) }
+            else { Text("Drag to rotate. Use the compass outside, away from magnetic interference.").font(.caption).foregroundStyle(.secondary) }
+        }
+    }
+    private var details: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 12) {
+                ViewThatFits(in: .horizontal) {
+                    HStack { Text("Explore time").font(.headline); Spacer(); liveButton }
+                    VStack(alignment: .leading, spacing: 10) { Text("Explore time").font(.headline); liveButton }
+                }
+                Slider(value: Binding(get: { offset }, set: { value in
+                    offset = value
+                    chartTask?.cancel()
+                    model.selectedEvent = nil; model.previewTime = timeAnchor.addingTimeInterval(value * 3600)
+                    chartTask = Task { try? await Task.sleep(for: .milliseconds(100)); if !Task.isCancelled { await model.updateChart() } }
+                }), in: -6...24, step: 0.25) { Text("Hours from the selected viewing time") }.accessibilityIdentifier("skyTimeSlider")
+            }.skyPanel()
+            if let event = model.selectedEvent { EventRow(event: event) }
+            VStack(alignment: .leading, spacing: 14) {
+                Text("ABOVE THE HORIZON").font(.caption.weight(.bold)).tracking(1).foregroundStyle(Color.skyMint)
+                ForEach(model.chart.filter { $0.kind == "planet" || $0.kind == "moon" || $0.kind == "iss" }) { object in
+                    HStack { Text(object.name); Spacer(); Text("\(SkyEvent.direction(object.azimuth)) · \(Int(object.elevation))°").foregroundStyle(.secondary) }.font(.subheadline)
+                }
+                Text("Above the horizon does not guarantee visibility: daylight, cloud and local obstructions matter.").font(.caption).foregroundStyle(.secondary)
+            }.skyPanel()
+        }
+    }
+    @ViewBuilder private var liveButton: some View {
+        if model.previewTime != nil {
+            Button("Return to Live") { timeAnchor = Date(); offset = 0; model.live() }.accessibilityIdentifier("returnLive")
+        }
+    }
 }
+
 struct SkyPlot: View {
     var objects: [ChartObject]
     var path: [SkyPoint]

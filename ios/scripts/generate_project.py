@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """Regenerate the checked-in Xcode project using only Python's standard library."""
 from pathlib import Path
-import hashlib, json, plistlib, shutil
+import hashlib, json, plistlib
 R=Path(__file__).resolve().parents[1]
 P=R/'SkyTonight.xcodeproj'; P.mkdir(exist_ok=True)
 TEAM='NF8828LV3U'
 BUNDLE='com.js1972.skytonight'
 def plist(path, data): path.write_bytes(plistlib.dumps(data))
 base={'CFBundleDevelopmentRegion':'en','CFBundleExecutable':'$(EXECUTABLE_NAME)','CFBundleIdentifier':'$(PRODUCT_BUNDLE_IDENTIFIER)','CFBundleInfoDictionaryVersion':'6.0','CFBundleName':'$(PRODUCT_NAME)','CFBundleShortVersionString':'$(MARKETING_VERSION)','CFBundleVersion':'$(CURRENT_PROJECT_VERSION)'}
-plist(R/'SkyTonight/Info.plist',base|{'CFBundleDisplayName':'Sky Tonight','CFBundlePackageType':'APPL','LSRequiresIPhoneOS':True,'UILaunchScreen':{},'UISupportedInterfaceOrientations':['UIInterfaceOrientationPortrait','UIInterfaceOrientationLandscapeLeft','UIInterfaceOrientationLandscapeRight'],'NSLocationWhenInUseUsageDescription':'Use your location to predict the sky and ISS passes visible to you.','UIBackgroundModes':['fetch'],'BGTaskSchedulerPermittedIdentifiers':[BUNDLE+'.refresh'],'CFBundleURLTypes':[{'CFBundleURLName':BUNDLE,'CFBundleURLSchemes':['skytonight']}],'ITSAppUsesNonExemptEncryption':False})
+plist(R/'SkyTonight/Info.plist',base|{'CFBundleDisplayName':'Sky Tonight','CFBundlePackageType':'APPL','LSRequiresIPhoneOS':True,'UILaunchScreen':{},'UISupportedInterfaceOrientations':['UIInterfaceOrientationPortrait','UIInterfaceOrientationLandscapeLeft','UIInterfaceOrientationLandscapeRight'],'NSLocationWhenInUseUsageDescription':'Use your location to predict your sky and ISS passes. Apple resolves the place name; optional Apple Weather uses the observing coordinates.','UISupportedInterfaceOrientations~ipad':['UIInterfaceOrientationPortrait','UIInterfaceOrientationPortraitUpsideDown','UIInterfaceOrientationLandscapeLeft','UIInterfaceOrientationLandscapeRight'],'UIBackgroundModes':['fetch'],'BGTaskSchedulerPermittedIdentifiers':[BUNDLE+'.refresh'],'CFBundleURLTypes':[{'CFBundleURLName':BUNDLE,'CFBundleURLSchemes':['skytonight']}],'ITSAppUsesNonExemptEncryption':False})
 plist(R/'SkyWidgets/Info.plist',base|{'CFBundleDisplayName':'Sky Tonight Widgets','CFBundlePackageType':'XPC!','NSExtension':{'NSExtensionPointIdentifier':'com.apple.widgetkit-extension'}})
 for folder in ['SkyTonight','SkyWidgets']:
-    plist(R/f'{folder}/{folder}.entitlements',{'com.apple.security.application-groups':['group.'+BUNDLE]})
+    plist(R/f'{folder}/{folder}.entitlements',{'com.apple.security.application-groups':['group.'+BUNDLE],'com.apple.developer.weatherkit':True})
 plist(R/'Resources/PrivacyInfo.xcprivacy',{'NSPrivacyTracking':False,'NSPrivacyTrackingDomains':[],'NSPrivacyCollectedDataTypes':[],'NSPrivacyAccessedAPITypes':[{'NSPrivacyAccessedAPIType':'NSPrivacyAccessedAPICategoryUserDefaults','NSPrivacyAccessedAPITypeReasons':['CA92.1','1C8F.1']}]})
 assets=R/'Resources/Assets.xcassets'; (assets/'AppIcon.appiconset').mkdir(parents=True,exist_ok=True)
 (assets/'Contents.json').write_text(json.dumps({'info':{'author':'xcode','version':1}},indent=2)+'\n')
 (assets/'AppIcon.appiconset/Contents.json').write_text(json.dumps({'images':[{'filename':'AppIcon.png','idiom':'universal','platform':'ios','size':'1024x1024'}],'info':{'author':'xcode','version':1}},indent=2)+'\n')
-shutil.copyfile(R.parent/'assets/icons/icon-1024.png',assets/'AppIcon.appiconset/AppIcon.png')
+# The native icon is curated separately from website icons; never overwrite it here.
 objects=[]
 def uid(s):return hashlib.sha1(s.encode()).hexdigest()[:24].upper()
 def obj(s,v): objects.append(f'\t\t{uid(s)} = {{ {v} }};');return uid(s)
@@ -25,7 +25,7 @@ for path in sorted(R.rglob('*.swift')):
     if 'build' in path.parts: continue
     rel=str(path.relative_to(R)); refs[rel]=obj('file:'+rel,f'isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "{rel}"; sourceTree = "<group>";')
 resources={}
-for name,kind in [('SkyEngine.js','sourcecode.javascript'),('Acknowledgements.txt','text'),('PrivacyInfo.xcprivacy','text.xml'),('Assets.xcassets','folder.assetcatalog'),('PlanetAssets.xcassets','folder.assetcatalog')]:
+for name,kind in [('AppInformation.json','text.json'),('SkyEngine.js','sourcecode.javascript'),('Acknowledgements.txt','text'),('PrivacyInfo.xcprivacy','text.xml'),('Assets.xcassets','folder.assetcatalog'),('PlanetAssets.xcassets','folder.assetcatalog')]:
     resources[name]=obj('resource:'+name,f'isa = PBXFileReference; lastKnownFileType = {kind}; path = "Resources/{name}"; sourceTree = "<group>";')
 products={}
 kinds={'SkyTonight':'application','SkyWidgets':'app-extension','SkyTonightTests':'bundle.unit-test','SkyTonightUITests':'bundle.ui-testing'}
@@ -59,7 +59,7 @@ for name,kind in kinds.items():
         embed=obj('embedbuild',f'isa = PBXBuildFile; fileRef = {products["SkyWidgets"]}; settings = {{ ATTRIBUTES = (RemoveHeadersOnCopy); }};')
         phases.append(obj('embed',f'isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = ({embed}); name = "Embed Widgets"; runOnlyForDeploymentPostprocessing = 0;'))
     suffix='' if name=='SkyTonight' else '.widgets' if name=='SkyWidgets' else '.'+name.lower()
-    settings=f'CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = {TEAM}; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE+suffix}; PRODUCT_NAME = "$(TARGET_NAME)"; CURRENT_PROJECT_VERSION = 8; MARKETING_VERSION = 1.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";'
+    settings=f'CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = {TEAM}; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE+suffix}; PRODUCT_NAME = "$(TARGET_NAME)"; CURRENT_PROJECT_VERSION = 9; MARKETING_VERSION = 1.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";'
     if name in ['SkyTonight','SkyWidgets']:
         settings+=f' GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = {name}/Info.plist; CODE_SIGN_ENTITLEMENTS = {name}/{name}.entitlements;'
         if name=='SkyTonight':settings+=' ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;'

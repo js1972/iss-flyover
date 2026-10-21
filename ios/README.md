@@ -73,11 +73,11 @@ The engine reuses the repository's pinned Astronomy Engine, SunCalc and satellit
 
 - Astronomy works offline. Forecast snapshots cover seven observing nights.
 - CelesTrak is the preferred orbital source; Where the ISS at is backup. Cache refresh is attempted after six hours. Orbit epoch age is separate from download age. Elements beyond seven days are unusable, and predictions do not extend beyond that epoch horizon.
-- Weather is loaded after the first usable app render. Open-Meteo uses Unix timestamps; no implicit device-time-zone parsing. Samples more than an hour from the requested time or forecasts more than six hours old display as unavailable.
+- Optional Apple Weather is loaded after the first usable app render. WeatherKit timestamps are absolute dates; cloud/precipitation fractions become percentages and wind is converted to km/h. Samples more than an hour from the requested time or forecasts more than six hours old display as unavailable. Legacy Open-Meteo caches are discarded, never relabelled. Disabling weather clears saved conditions and blocks new app/widget weather queries.
 - Widget timelines contain future entries and a forecast-expiry state. Refresh requests and background work are opportunistic, not precise timers.
 - The initial default place is explicitly Perth, not an inferred user location. Manual locations remain fully usable if device location is denied.
 
-Weather comes from Open-Meteo's non-commercial API. Choose an appropriate commercial plan or WeatherKit before a commercial release. Attribution remains in Settings. No account, analytics, application backend or paid service is required for this development build.
+Native weather uses Apple WeatherKit after an explicit opt-in in Settings. Its allowance of 500,000 calls/month is included with the Apple Developer Program membership and shared across that membership; monitor usage before considering any extra capacity. No separate weather subscription or API secret is needed for this release. App and widget provisioning must include the WeatherKit capability and service on their existing App IDs. Official marks and source links are cached with conditions for offline attribution. The website still uses its separate Open-Meteo integration; review its service terms before using that website commercially.
 
 ## Verification focus
 
@@ -185,3 +185,15 @@ After simulator review, version 1.0 build 8 was installed and launched successfu
 on the paired iPhone 16 Pro Max on 15 October 2026. The installed version, app and
 widget signatures, dedicated profiles, and exclusive Sky Tonight App Group were
 verified. The installed app code is `ce91663`.
+
+
+## App Store preparation (build 9, 21 October 2026)
+
+- Jason selected the Earth-horizon icon. Its original and generation prompt are in `Artwork/`; the native 1024px opaque export is independent of PWA icons and preserved by the project generator.
+- Native app and widgets use opt-in Apple WeatherKit. Shared App Group and bundle IDs remain permanent. Do not restore the Open-Meteo native endpoint to bypass provisioning errors.
+- Settings contains an offline privacy policy, support contact, public policy/support links, saved-place deletion and confirmed local data reset. The copy is shared with static Cloudflare Pages documents through `Resources/AppInformation.json`.
+- Run `python3 ios/scripts/generate_legal_pages.py` after changing that copy. It generates root `privacy.html` and `support.html`; no web build step is required. Public URLs are `https://iss-flyover.pages.dev/privacy.html` and `/support.html`.
+- iPad has two-column Tonight/Upcoming layouts and side-by-side chart controls when width permits. Narrow widths and accessibility text sizes use one column. iPad supports all four orientations.
+- This release uses simulator-only iPad verification. No physical iPad claims are made. Hardware compass accuracy, real background refresh scheduling and notification delivery remain subject to device behaviour.
+
+See `APP_STORE_RELEASE.md` for publishing checks, privacy-answer guidance and repeatable test commands.

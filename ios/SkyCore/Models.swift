@@ -89,11 +89,18 @@ struct WeatherHour: Codable, Sendable, Equatable {
 struct WeatherForecast: Codable, Sendable {
     var hours: [WeatherHour]
     var fetchedAt: Date
+    // Missing on pre-WeatherKit caches: never relabel those forecasts as Apple data.
+    var credit: WeatherCredit?
     func sample(at date: Date, now: Date) -> WeatherHour? {
         guard now.timeIntervalSince(fetchedAt) < 6 * 3600,
               let sample = hours.min(by: { abs($0.time.timeIntervalSince(date)) < abs($1.time.timeIntervalSince(date)) }), abs(sample.time.timeIntervalSince(date)) <= 3600 else { return nil }
         return sample
     }
+}
+struct WeatherCredit: Codable, Sendable {
+    var legalURL: URL
+    var lightMark: Data
+    var darkMark: Data
 }
 struct SkySnapshot: Codable, Sendable {
     var schema = 1

@@ -3009,3 +3009,6 @@
         filter: saturate(0.9);
       }
     }
+
+.site-footer { position: relative; padding: 24px; text-align: center; font-size: .85rem; color: var(--muted); }
+.site-footer a { color: var(--accent-3); text-underline-offset: 4px; }

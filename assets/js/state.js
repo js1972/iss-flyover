@@ -1,4 +1,4 @@
-import { createHealthState } from "./status.js?v=2026.10.14-iss-visibility.1";
+import { createHealthState } from "./status.js?v=2026.10.21-ios-release.1";
 
 export const state =  {
   user: null,

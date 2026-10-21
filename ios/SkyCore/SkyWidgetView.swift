@@ -70,8 +70,10 @@ struct SkyWidgetView: View {
                         } else { headline(event) }
                         Spacer(minLength: 0)
                         HStack(spacing: 5) {
-                            if let weather = entry.snapshot?.weather?.sample(at: event.focus, now: entry.date) { Image(systemName: "cloud"); Text("\(Int(weather.cloud))% cloud") }
-                            else { Text("Weather unavailable") }
+                            if let weather = entry.snapshot?.weather, let sample = weather.sample(at: event.focus, now: entry.date), let credit = weather.credit {
+                                Image(systemName: "cloud"); Text("\(Int(sample.cloud))%")
+                                WeatherCreditView(credit: credit, compact: true)
+                            } else { Text("Check sky conditions") }
                             if family == .systemMedium, let night = entry.snapshot?.night(at: entry.date) { Spacer(); Text("Moon \(night.moonPercent)%") }
                         }.font(.system(size: 10)).foregroundStyle(.secondary)
                         if issOnly { Text("\(entry.location.name) · \(entry.location.day(event.start))").font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1) }

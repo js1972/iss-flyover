@@ -1,4 +1,7 @@
 import Foundation
+import CoreLocation
+import WeatherKit
+import UIKit
 
 actor SkyRepository {
     static let shared = SkyRepository()
@@ -48,6 +51,7 @@ actor SkyRepository {
         }
     }
     func refresh(location: ObservingLocation, eveningFirst: Bool, now: Date = Date()) async throws -> SkySnapshot {
+        let revision = SkyStore.dataRevision
         var orbital: OrbitData?
         var message: String?
         do { orbital = try await orbit(now: now) }
@@ -56,35 +60,43 @@ actor SkyRepository {
             message = orbital?.usable(at: now) == true ? "Orbit refresh failed. ISS times use saved orbital elements." : "ISS forecast unavailable. Planet and Moon predictions still work offline."
         }
         var snapshot = try await SkyCalculator.shared.forecast(location: location, now: now, eveningFirst: eveningFirst, orbit: orbital)
+        guard revision == SkyStore.dataRevision else { throw CancellationError() }
         snapshot.orbitMessage = message ?? (orbital?.fresh(at: now) == false ? "Older orbital elements: ISS times are approximate." : nil)
         snapshot.weather = SkyStore.read(location)?.weather
         try SkyStore.write(snapshot)
         return snapshot
     }
     func weather(location: ObservingLocation, now: Date = Date()) async throws -> WeatherForecast {
+        let revision = SkyStore.dataRevision
+        guard SkyStore.weatherEnabled else { throw SkyError.message("Weather is off. Enable Apple Weather in Settings to include conditions.") }
         if let cached = SkyStore.read(location)?.weather, now.timeIntervalSince(cached.fetchedAt) < 1800 { return cached }
-        var c = URLComponents(string: "https://api.open-meteo.com/v1/forecast")!
-        c.queryItems = [URLQueryItem(name: "latitude", value: String(location.latitude)), URLQueryItem(name: "longitude", value: String(location.longitude)), URLQueryItem(name: "hourly", value: "cloud_cover,precipitation_probability,wind_speed_10m"), URLQueryItem(name: "forecast_days", value: "7"), URLQueryItem(name: "timeformat", value: "unixtime"), URLQueryItem(name: "timezone", value: "UTC")]
-        struct Response: Decodable {
-            struct Hourly: Decodable { var time: [Double]; var cloud_cover: [Double?]; var precipitation_probability: [Double?]; var wind_speed_10m: [Double?] }
-            var hourly: Hourly
-        }
-        let response = try JSONDecoder().decode(Response.self, from: await fetch(c.url!))
-        let h = response.hourly
-        guard h.time.count == h.cloud_cover.count, h.time.count == h.precipitation_probability.count, h.time.count == h.wind_speed_10m.count else { throw SkyError.message("Incomplete weather response.") }
-        let hours = h.time.indices.compactMap { index -> WeatherHour? in
-            guard let cloud = h.cloud_cover[index], let rain = h.precipitation_probability[index], let wind = h.wind_speed_10m[index] else { return nil }
-            return WeatherHour(time: Date(timeIntervalSince1970: h.time[index]), cloud: cloud, precipitation: rain, wind: wind)
+        let service = WeatherService.shared
+        let attribution = try await service.attribution
+        let lightMark = try await fetch(attribution.combinedMarkLightURL)
+        let darkMark = try await fetch(attribution.combinedMarkDarkURL)
+        // Cache the official mark with the forecast so offline attribution still works.
+        guard UIImage(data: lightMark) != nil, UIImage(data: darkMark) != nil, attribution.legalPageURL.scheme == "https" else { throw SkyError.message("Apple Weather attribution is unavailable.") }
+        let forecast = try await service.weather(for: CLLocation(latitude: location.latitude, longitude: location.longitude), including: .hourly)
+        let hours = forecast.compactMap { hour in
+            Self.weatherHour(time: hour.date, cloudFraction: hour.cloudCover, precipitationFraction: hour.precipitationChance, wind: hour.wind.speed)
         }
         guard !hours.isEmpty else { throw SkyError.message("Weather is unavailable.") }
-        return WeatherForecast(hours: hours, fetchedAt: now)
+        guard SkyStore.weatherEnabled, revision == SkyStore.dataRevision else { throw CancellationError() }
+        return WeatherForecast(hours: hours, fetchedAt: now, credit: WeatherCredit(legalURL: attribution.legalPageURL, lightMark: lightMark, darkMark: darkMark))
+    }
+    static func weatherHour(time: Date, cloudFraction: Double, precipitationFraction: Double, wind: Measurement<UnitSpeed>) -> WeatherHour? {
+        let speed = wind.converted(to: .kilometersPerHour).value
+        guard time.timeIntervalSince1970.isFinite, cloudFraction.isFinite, precipitationFraction.isFinite, speed.isFinite,
+              (0...1).contains(cloudFraction), (0...1).contains(precipitationFraction), (0...1000).contains(speed) else { return nil }
+        return WeatherHour(time: time, cloud: cloudFraction * 100, precipitation: precipitationFraction * 100, wind: speed)
     }
     func refreshWeather(location: ObservingLocation) async -> SkySnapshot? {
+        guard SkyStore.weatherEnabled else { return SkyStore.read(location) }
         var weather: WeatherForecast?
         var message: String?
         do { weather = try await self.weather(location: location) }
         catch { message = "Weather could not refresh. Check conditions before heading out." }
-        guard var snapshot = SkyStore.read(location) else { return nil }
+        guard SkyStore.weatherEnabled, var snapshot = SkyStore.read(location) else { return nil }
         if let weather { snapshot.weather = weather }
         snapshot.weatherMessage = message
         try? SkyStore.write(snapshot)

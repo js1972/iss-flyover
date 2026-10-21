@@ -62,6 +62,52 @@ final class SkyCoreTests: XCTestCase {
         XCTAssertNil(weather.sample(at: now.addingTimeInterval(7200), now: now))
         XCTAssertNil(weather.sample(at: now, now: now.addingTimeInterval(7 * 3600)))
     }
+    func testAppleWeatherConvertsUnitsAndRejectsInvalidValues() throws {
+        let hour = try XCTUnwrap(SkyRepository.weatherHour(time: now, cloudFraction: 0.25, precipitationFraction: 0.6, wind: Measurement(value: 10, unit: .metersPerSecond)))
+        XCTAssertEqual(hour.cloud, 25)
+        XCTAssertEqual(hour.precipitation, 60)
+        XCTAssertEqual(hour.wind, 36, accuracy: 0.001)
+        XCTAssertNil(SkyRepository.weatherHour(time: now, cloudFraction: .infinity, precipitationFraction: 0, wind: Measurement(value: 0, unit: .kilometersPerHour)))
+        XCTAssertNil(SkyRepository.weatherHour(time: now, cloudFraction: 1.1, precipitationFraction: 0, wind: Measurement(value: 0, unit: .kilometersPerHour)))
+    }
+    func testLiveAppleWeatherServiceWhenRequested() async throws {
+        guard ProcessInfo.processInfo.environment["SKY_WEATHER_LIVE_CHECK"] == "YES" else { throw XCTSkip("Opt-in live WeatherKit check") }
+        let enabled = SkyStore.weatherEnabled
+        SkyStore.weatherEnabled = true
+        defer { SkyStore.weatherEnabled = enabled }
+        do {
+            let weather = try await SkyRepository.shared.weather(location: .perth)
+            XCTAssertFalse(weather.hours.isEmpty)
+            let credit = try XCTUnwrap(weather.credit)
+            XCTAssertNotNil(UIImage(data: credit.lightMark))
+            XCTAssertNotNil(UIImage(data: credit.darkMark))
+            XCTAssertEqual(credit.legalURL.scheme, "https")
+        } catch {
+            let detail = error as NSError
+            let reason = (error as? SkyError)?.localizedDescription ?? "Service request failed"
+            let underlying = detail.userInfo[NSUnderlyingErrorKey] as? NSError
+            XCTFail("\(reason): \(detail.domain) \(detail.code), underlying \(underlying?.domain ?? "none") \(underlying?.code ?? 0)")
+        }
+    }
+    func testLegacyWeatherCacheIsNotRelabeledAsAppleWeather() async throws {
+        let enabled = SkyStore.weatherEnabled
+        defer { SkyStore.weatherEnabled = enabled }
+        SkyStore.weatherEnabled = true
+        var snapshot = try await SkyCalculator.shared.forecast(location: .perth, now: now, eveningFirst: true, orbit: nil)
+        snapshot.location.id = "legacy-weather-\(UUID().uuidString)"
+        defer { SkyStore.removeForecast(snapshot.location) }
+        snapshot.weather = WeatherForecast(hours: [WeatherHour(time: now, cloud: 5, precipitation: 0, wind: 0)], fetchedAt: now)
+        try SkyStore.write(snapshot)
+        XCTAssertNil(SkyStore.read(snapshot.location)?.weather)
+        XCTAssertFalse(try XCTUnwrap(SkyStore.read(snapshot.location)).events.isEmpty)
+    }
+    func testPrivacyCopyAndPublicLinksAreBundled() throws {
+        let info = try XCTUnwrap(AppInformation.shared)
+        XCTAssertEqual(info.website.absoluteString, "https://iss-flyover.pages.dev")
+        XCTAssertEqual(info.email, "js.dev.one@proton.me")
+        XCTAssertTrue(info.privacy.contains { $0.title == "Your choices and deletion" })
+        XCTAssertTrue(info.privacy.contains { $0.title == "Optional Apple Weather" })
+    }
     func testTimelineIncludesExpiryAndRemovesPastEvents() async throws {
         let snapshot = try await SkyCalculator.shared.forecast(location: .perth, now: now, eveningFirst: true, orbit: nil)
         let dates = SkyTimeline.dates(snapshot: snapshot, now: now)

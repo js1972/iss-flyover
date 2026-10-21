@@ -9,6 +9,7 @@ final class AppModel: NSObject, ObservableObject, @preconcurrency CLLocationMana
     @Published var locations = SkyStore.locations
     @Published var snapshot: SkySnapshot?
     @Published var eveningFirst = SkyStore.eveningFirst
+    @Published var weatherEnabled = SkyStore.weatherEnabled
     @Published var refreshing = false
     @Published var message: String?
     @Published var selectedTab = 0
@@ -82,6 +83,47 @@ final class AppModel: NSObject, ObservableObject, @preconcurrency CLLocationMana
     func changePreference(_ value: Bool) {
         eveningFirst = value; SkyStore.eveningFirst = value
         revision += 1; refreshing = false; snapshot = nil; refreshSoon()
+    }
+    func changeWeather(_ value: Bool) {
+        SkyStore.dataRevision += 1
+        weatherEnabled = value; SkyStore.weatherEnabled = value
+        if !value {
+            snapshot?.weather = nil
+            // Remove cached conditions too; an in-flight response checks consent before saving.
+            for loc in locations {
+                if var saved = SkyStore.read(loc) { saved.weather = nil; try? SkyStore.write(saved) }
+            }
+        }
+        revision += 1; refreshing = false; refreshSoon()
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+    func removePlaces(at offsets: IndexSet) {
+        SkyStore.dataRevision += 1
+        let removed = offsets.map { locations[$0] }
+        locations.remove(atOffsets: offsets)
+        if locations.isEmpty { locations = [.perth] }
+        SkyStore.locations = locations
+        select(locations.first { $0.id == location.id } ?? locations[0])
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let requests = await center.pendingNotificationRequests()
+            let ids = Set(removed.map(\.id))
+            center.removePendingNotificationRequests(withIdentifiers: requests.filter { ids.contains($0.content.userInfo["location"] as? String ?? "") }.map(\.identifier))
+            for loc in removed { SkyStore.removeForecast(loc) }
+            await loadReminders()
+            WidgetCenter.shared.reloadAllTimelines()
+        }
+    }
+    func clearSavedData() {
+        refreshTask?.cancel(); revision += 1; refreshing = false
+        SkyStore.dataRevision += 1; SkyStore.weatherEnabled = false
+        SkyStore.locations = [.perth]; SkyStore.selectedID = ObservingLocation.perth.id
+        SkyStore.eveningFirst = true; SkyStore.clearCachedData()
+        locations = [.perth]; location = .perth; eveningFirst = true; weatherEnabled = false
+        snapshot = nil; selectedEvent = nil; previewTime = nil; reminderIDs = []
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+        WidgetCenter.shared.reloadAllTimelines(); refreshSoon()
     }
     func preview(_ event: SkyEvent) {
         selectedEvent = event; previewTime = event.focus; selectedTab = 1

@@ -32,7 +32,7 @@ struct SkyProvider: AppIntentTimelineProvider {
         if snapshot == nil || now.timeIntervalSince(snapshot!.generatedAt) > 3600 || snapshot?.eveningFirst != SkyStore.eveningFirst {
             do { snapshot = try await SkyRepository.shared.refresh(location: loc, eveningFirst: SkyStore.eveningFirst, now: now) } catch { /* Keep a valid saved forecast when offline. */ }
         }
-        if snapshot?.weather == nil || now.timeIntervalSince(snapshot!.weather!.fetchedAt) > 3600 {
+        if SkyStore.weatherEnabled && (snapshot?.weather == nil || now.timeIntervalSince(snapshot!.weather!.fetchedAt) > 3600) {
             snapshot = await SkyRepository.shared.refreshWeather(location: loc) ?? snapshot
         }
         let dates = SkyTimeline.dates(snapshot: snapshot, now: now)

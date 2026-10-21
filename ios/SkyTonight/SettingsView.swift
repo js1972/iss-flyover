@@ -9,6 +9,7 @@ struct SettingsView: View {
     @State private var zone = TimeZone.current.identifier
     @State private var searching = false
     @State private var diagnostics = false
+    @State private var clearingData = false
     var body: some View {
         NavigationStack {
             Form {
@@ -17,7 +18,7 @@ struct SettingsView: View {
                         Button { model.select(location) } label: {
                             HStack { VStack(alignment: .leading) { Text(location.name).foregroundStyle(.primary); Text(location.timeZoneID).font(.caption).foregroundStyle(.secondary) }; Spacer(); if model.location.id == location.id { Image(systemName: "checkmark.circle.fill") } }
                         }
-                    }
+                    }.onDelete { model.removePlaces(at: $0) }
                     Button { model.useDeviceLocation() } label: { Label(model.locating ? "Finding your location…" : "Use my location", systemImage: "location.circle") }.disabled(model.locating)
                     Text("Perth is the starting location. Choose your own place here; each widget can use a different saved place.").font(.caption).foregroundStyle(.secondary)
                 }
@@ -48,21 +49,32 @@ struct SettingsView: View {
                     Toggle("Prefer evening highlights", isOn: Binding(get: { model.eveningFirst }, set: { model.changePreference($0) }))
                     Text("Evening picks appear before pre-dawn events. All event times use the observing place’s time zone.").font(.caption).foregroundStyle(.secondary)
                 }
+                Section {
+                    Toggle("Include Apple Weather", isOn: Binding(get: { model.weatherEnabled }, set: { model.changeWeather($0) }))
+                        .accessibilityIdentifier("appleWeatherToggle")
+                    Text("When enabled, this app and its widgets send the selected observing place’s coordinates to Apple for cloud, rain and wind forecasts, including background refreshes. Astronomy works with weather off. Turning this off stops new weather requests and removes saved conditions.").font(.footnote).foregroundStyle(.secondary)
+                    if let credit = model.snapshot?.weather?.credit { WeatherCreditView(credit: credit) }
+                } header: { Text("Weather") }
                 Section("Home & Lock Screen widgets") {
                     Text("Touch and hold your Home Screen, choose Edit → Add Widget, then search for Sky Tonight. Choose Sky Tonight or Next ISS Pass. Edit a widget to choose a saved observing place.")
                     Text("Lock Screen: touch and hold the Lock Screen, choose Customize, then add a Sky Tonight widget below the clock.").font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("Data & privacy") {
-                    Text("Astronomy is calculated on this device. Coordinates are sent to Open-Meteo for weather and to Apple when you search for or name a place. No account is needed and no analytics are included.").font(.footnote)
-                    Link("Weather data by Open-Meteo", destination: URL(string: "https://open-meteo.com/")!)
+                    Text("Astronomy is calculated on this device. Apple handles optional weather, place searches and location naming. No account, advertising or analytics are included.").font(.footnote)
+                    NavigationLink("Privacy policy") { PrivacyPolicyView() }
+                    NavigationLink("Help & support") { SupportView() }
                     Link("Orbital elements: CelesTrak", destination: URL(string: "https://celestrak.org/")!)
                     Link("Astronomy Engine", destination: URL(string: "https://github.com/cosinekitty/astronomy")!)
-                    Text("Also uses satellite.js and SunCalc. This initial release uses Open-Meteo’s non-commercial service.").font(.caption).foregroundStyle(.secondary)
+                    Text("Also uses satellite.js and SunCalc.").font(.caption).foregroundStyle(.secondary)
                     NavigationLink("Open-source acknowledgements") { ScrollView { Text((try? String(contentsOf: Bundle.main.url(forResource: "Acknowledgements", withExtension: "txt") ?? URL(fileURLWithPath: "/missing"), encoding: .utf8)) ?? "Astronomy Engine · satellite.js · SunCalc").font(.caption).padding() }.navigationTitle("Acknowledgements") }
+                }
+                Section("Your saved data") {
+                    Text("Use Edit to remove saved places. Clearing saved data removes all places, cached forecasts and reminders, turns weather off, and returns to the default Perth sky.").font(.footnote).foregroundStyle(.secondary)
+                    Button("Clear saved data", role: .destructive) { clearingData = true }
                 }
                 Section {
                     DisclosureGroup("Diagnostics", isExpanded: $diagnostics) {
-                        Text("Version 1.0 (1)")
+                        Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"))")
                         Text("Location: \(model.location.latitude), \(model.location.longitude)")
                         Text("Orbit: \(model.snapshot?.orbit?.source ?? "Unavailable")")
                         if let orbit = model.snapshot?.orbit { Text("Orbit epoch: \(orbit.epoch.formatted())") }
@@ -71,6 +83,10 @@ struct SettingsView: View {
                     }.font(.footnote)
                 }
             }.navigationTitle("Settings").scrollContentBackground(.hidden).background(Color.skyBase)
+                .toolbar { EditButton() }
+                .confirmationDialog("Clear all saved places, forecasts and reminders?", isPresented: $clearingData, titleVisibility: .visible) {
+                    Button("Clear saved data", role: .destructive) { model.clearSavedData() }
+                }
         }
     }
 }

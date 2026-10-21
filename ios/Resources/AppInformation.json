@@ -1,0 +1,57 @@
+{
+  "developer": "Jason Scott",
+  "email": "js.dev.one@proton.me",
+  "website": "https://iss-flyover.pages.dev",
+  "updated": "21 October 2026",
+  "privacy": [
+    {
+      "title": "About this policy",
+      "text": "This policy covers the native Sky Tonight app for iPhone and iPad and its widgets, developed by Jason Scott. The separate website has different providers, described below. The native app has no user accounts, advertisements, tracking or analytics SDKs. The developer does not operate an application server or receive your observing locations."
+    },
+    {
+      "title": "What stays on your device",
+      "text": "Saved place names, coordinates, time zones, viewing preferences, cached forecasts and reminder settings are stored in the app’s private storage and its dedicated shared container for Sky Tonight widgets. Astronomy is calculated on your device. These records are not uploaded to the developer. Your device’s backup settings may include app data in Apple backups. Saved records remain until you remove them, clear saved data in Settings, or delete the app and its data."
+    },
+    {
+      "title": "Optional device location and place searches",
+      "text": "Use my location asks for permission to obtain your location while using the app. The location is sent to Apple’s geocoding service to determine its place name and time zone, then saved as an observing place. Find place sends your typed search to Apple. Entering coordinates and a time zone manually avoids geocoding. The app does not continuously track your position or request background location access. You can deny location permission and still use saved or manually entered places."
+    },
+    {
+      "title": "Optional Apple Weather",
+      "text": "Weather is off until you enable Include Apple Weather in Settings. Enabling it allows the app and its widgets to send saved observing coordinates to Apple WeatherKit to request cloud, precipitation and wind forecasts, including during background refreshes. This uses the saved coordinates; it does not obtain new device locations in the background. Apple processes these requests under its own privacy policy. Official Apple Weather attribution and data-source links accompany displayed conditions. Turning weather off stops new requests and removes cached conditions; a request already sent cannot be recalled."
+    },
+    {
+      "title": "Orbital data and network providers",
+      "text": "The app downloads public ISS orbital elements from CelesTrak and uses Where the ISS at as a backup. Your observing coordinates and place names are not included in those requests. Network providers necessarily receive connection information such as your IP address and may keep operational logs under their own policies. Requests use encrypted HTTPS connections. Opening an external provider, support or policy link is subject to that website’s privacy practices."
+    },
+    {
+      "title": "Notifications and visible information",
+      "text": "Reminders are local notifications scheduled on your device after you grant notification permission. There is no developer push-notification server. Reminder text and widgets can reveal the selected place name and event details on your Home or Lock Screen. Control notification previews, widget visibility and permissions in your device settings."
+    },
+    {
+      "title": "Your choices and deletion",
+      "text": "In Sky Tonight Settings, use Edit to remove a saved place and its cached forecast and pending reminders. Clear saved data removes all saved places, forecast caches and app reminders, switches weather off and restores the default Perth location and evening-first preference. Fresh astronomy and public orbital data may then be calculated or downloaded. You can disable location and notification permissions in iOS or iPadOS Settings. Deleting local data does not erase provider logs or existing device backups; contact the relevant provider or manage your backups for those records."
+    },
+    {
+      "title": "Support correspondence",
+      "text": "If you email support, Jason Scott receives your email address and whatever information you choose to include. It is used to respond and troubleshoot the issue. Keep precise coordinates and other personal details out of screenshots unless necessary. Support correspondence is retained only as needed to resolve and reasonably follow up the request or meet applicable obligations. Email the support address to request deletion of correspondence held by the developer."
+    },
+    {
+      "title": "The separate website",
+      "text": "The website at iss-flyover.pages.dev is hosted by Cloudflare Pages. These privacy and support pages are static and contain no analytics, external fonts or advertising. Cloudflare receives connection information when serving them. The interactive website is separate from the native app: it can use Open-Meteo for weather, OpenStreetMap Nominatim for place naming, CARTO/OpenStreetMap maps, and Google Fonts, alongside public ISS services. Those providers receive network information, and location-dependent website requests may include coordinates. The native app does not use Open-Meteo or those website map/font services."
+    },
+    {
+      "title": "Changes and contact",
+      "text": "This policy will be updated when the app’s data practices change. Contact Jason Scott at js.dev.one@proton.me for privacy questions, support or requests about information held by the developer."
+    }
+  ],
+  "support": [
+    { "title": "Choose your observing place", "text": "Open Settings to select a saved place, use optional device location, find a city, or enter coordinates and a time zone manually. Perth is the initial default, not a guess at your location. Use Edit to remove places." },
+    { "title": "Weather is optional", "text": "Enable Include Apple Weather in Settings to add conditions. Without it, all astronomy features still work. If weather cannot refresh, check your internet connection and try again. Old or missing conditions are shown as unavailable; they are not a guarantee of visibility or safety." },
+    { "title": "Why no ISS pass?", "text": "Only sunlit ISS passes in a dark sky, reaching at least 20 degrees and visible for at least one minute, are recommended. There may be no qualifying pass on a given night. Pull to refresh; expired orbital elements are not used for reliable predictions. Clouds and local obstructions can still prevent observing." },
+    { "title": "Preview and compass", "text": "Tap a recommendation or Show me where to open its viewing time in the Sky tab. Use Return to Live to return to the current sky. Drag to rotate, or enable the compass on a supported device. Keep away from magnetic interference; compass availability varies by device." },
+    { "title": "Home and Lock Screen widgets", "text": "Touch and hold the Home Screen, choose Edit, Add Widget, then search for Sky Tonight. Edit a widget to choose a saved place. Add Lock Screen widgets in Lock Screen customization where supported. Apple controls refresh timing, so widgets and background refreshes are not precise timers." },
+    { "title": "Reminders and privacy", "text": "Use Remind me on a future event and grant notification permission. Your system Focus and notification settings affect delivery. Review permissions in device Settings. Use Sky Tonight Settings, Clear saved data to reset local places, forecasts and reminders." },
+    { "title": "Contact Jason Scott", "text": "Email js.dev.one@proton.me with the app version from Settings, Diagnostics, your device and OS version, and steps to reproduce the issue. Avoid including precise coordinates or other private information unless needed. This independent app is not affiliated with Apple, NASA or the ISS operators." }
+  ]
+}

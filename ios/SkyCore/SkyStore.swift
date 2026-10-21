@@ -21,14 +21,33 @@ enum SkyStore {
         get { defaults.object(forKey: "eveningFirst") == nil ? true : defaults.bool(forKey: "eveningFirst") }
         set { defaults.set(newValue, forKey: "eveningFirst") }
     }
+    static var weatherEnabled: Bool {
+        get { defaults.bool(forKey: "appleWeatherEnabled.v1") }
+        set { defaults.set(newValue, forKey: "appleWeatherEnabled.v1") }
+    }
+    static var dataRevision: Int {
+        get { defaults.integer(forKey: "dataRevision") }
+        set { defaults.set(newValue, forKey: "dataRevision") }
+    }
+    static func clearCachedData() {
+        let files = (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []
+        for url in files where url.lastPathComponent.hasPrefix("forecast-") || url.lastPathComponent == "orbit.json" {
+            NSFileCoordinator().coordinate(writingItemAt: url, options: .forDeleting, error: nil) { try? FileManager.default.removeItem(at: $0) }
+        }
+    }
     static func snapshotURL(_ location: ObservingLocation) -> URL {
         // IDs never become path components directly; coordinates/time zone also invalidate old forecasts.
         let key = Data("\(location.id)|\(location.latitude)|\(location.longitude)|\(location.timeZoneID)".utf8).base64EncodedString().replacingOccurrences(of: "/", with: "_")
         return root.appendingPathComponent("forecast-\(key).json")
     }
     static func read(_ location: ObservingLocation) -> SkySnapshot? {
-        guard let data = try? Data(contentsOf: snapshotURL(location)), let snapshot = try? SkyJSON.decoder().decode(SkySnapshot.self, from: data), snapshot.schema == 1, snapshot.location == location else { return nil }
+        guard let data = try? Data(contentsOf: snapshotURL(location)), var snapshot = try? SkyJSON.decoder().decode(SkySnapshot.self, from: data), snapshot.schema == 1, snapshot.location == location else { return nil }
+        if !weatherEnabled || snapshot.weather?.credit == nil { snapshot.weather = nil }
         return snapshot
+    }
+    static func removeForecast(_ location: ObservingLocation) {
+        let url = snapshotURL(location)
+        NSFileCoordinator().coordinate(writingItemAt: url, options: .forDeleting, error: nil) { try? FileManager.default.removeItem(at: $0) }
     }
     static func write(_ snapshot: SkySnapshot) throws {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

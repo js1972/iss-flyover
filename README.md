@@ -56,7 +56,7 @@ Before the 14 October 2026 correction, the PWA checked darkness and elevation bu
 
 - **CelesTrak:** preferred ISS orbital elements for local SGP4 predictions.
 - **Where the ISS at?:** live website ISS telemetry and backup orbital elements.
-- **Open-Meteo:** weather forecasts.
+- **Apple WeatherKit:** optional native app/widget weather. **Open-Meteo:** separate website weather forecasts.
 - **OpenStreetMap Nominatim:** website reverse geocoding; **CARTO/OpenStreetMap:** website basemaps.
 - **Astronomy Engine, SunCalc, satellite.js:** pinned local calculation libraries, also bundled for native JavaScriptCore.
 - **Leaflet and Three.js:** website map/globe rendering; **SwiftUI and WidgetKit:** native interface and widgets.
