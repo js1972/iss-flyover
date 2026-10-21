@@ -2,6 +2,8 @@
 
 Version 1.0, build 10. Keep app ID `com.js1972.skytonight`, widget ID `com.js1972.skytonight.widgets`, App Group `group.com.js1972.skytonight` and team `NF8828LV3U` unchanged.
 
+For routine tester invitations, status checks, feedback and subsequent builds, use the [TestFlight management guide in the project README](../README.md#testflight-and-release-management). The dated verification below records the initial submission; check App Store Connect for live review and installation status.
+
 ## Account and signing verification
 
 Use only Jason Scott’s individual Apple Developer membership, Apple Account `js.dev.one@proton.me`, team `NF8828LV3U`. Jason’s legacy Programic account is unrelated and must never be used for this app. A generic Apple account link may open a different signed-in browser session; verify both the email and team ID in the actual session before any agreement or distribution action.
@@ -77,7 +79,7 @@ The public version record is in Prepare for Submission. Jason manually accepted 
 
 ## TestFlight setup on 21 October 2026
 
-- Release 1.0 (10) was archived for generic iOS devices with automatic signing explicitly restricted to team `NF8828LV3U`. App and widget archive identifiers, App Group and WeatherKit entitlements were checked before export.
+- Release 1.0 (10) was archived from source checkout `3c080d2` for generic iOS devices with automatic signing explicitly restricted to team `NF8828LV3U`. App and widget archive identifiers, App Group and WeatherKit entitlements were checked before export.
 - App Store Connect export/upload completed successfully. The export used `method=app-store-connect`, `destination=upload`, `teamID=NF8828LV3U`, and `testFlightInternalTestingOnly=false`; version/build numbers were preserved.
 - Apple finished processing the upload; build 10 was then submitted to Beta App Review and is **Waiting for Review**, expiring in 90 days. This is not approval for external testing.
 - An empty **Internal checks** group was created as required before external testing. Automatic internal distribution is off; Jason has not been invited to TestFlight.
