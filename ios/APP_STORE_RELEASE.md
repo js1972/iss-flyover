@@ -2,6 +2,12 @@
 
 Version 1.0, build 10. Keep app ID `com.js1972.skytonight`, widget ID `com.js1972.skytonight.widgets`, App Group `group.com.js1972.skytonight` and team `NF8828LV3U` unchanged.
 
+## Account and signing verification
+
+Use only Jason Scott’s individual Apple Developer membership, Apple Account `js.dev.one@proton.me`, team `NF8828LV3U`. Jason’s legacy Programic account is unrelated and must never be used for this app. A generic Apple account link may open a different signed-in browser session; verify both the email and team ID in the actual session before any agreement or distribution action.
+
+On 21 October 2026, the exact Release build 10 installed on the phone was inspected again: app and widget signatures and embedded provisioning profiles all identify team `NF8828LV3U`, with their existing bundle IDs, dedicated App Group and WeatherKit entitlement. The App Store Connect account menu for record `6825144581` showed `js.dev.one@proton.me`. The Developer portal in that same in-app browser showed the same email and individual team, with renewal on 12 October 2027. No signing or bundle identifiers were changed during this check.
+
 ## WeatherKit and costs
 
 Both targets require `com.apple.developer.weatherkit = true`. Enable WeatherKit under both **Capabilities** and **App Services** for both existing App IDs in Apple's developer portal. Xcode automatic signing must refresh both profiles. No REST signing key, backend, Open-Meteo subscription or user weather account is required by the native app. Do not place private signing keys in the app.
@@ -67,7 +73,7 @@ Created on 21 October 2026 under Jason Scott:
 - [App Information](https://appstoreconnect.apple.com/apps/6825144581/distribution/info)
 - [TestFlight](https://appstoreconnect.apple.com/teams/4112ab50-c19d-44d5-afef-87f86c676f8e/apps/6825144581/testflight)
 
-The record is in Prepare for Submission. Creating it does not upload a build or make the app available to testers. App Store Connect also displays an updated Apple Developer Program License Agreement notice; the Account Holder must review and accept that separate agreement before submitting builds. Jason entered the private review-contact phone number directly in App Store Connect and the review-contact details were saved successfully. Sign-in required is off because the app has no user accounts. The private number is not stored in this repository.
+The record is in Prepare for Submission. Creating it does not upload a build or make the app available to testers. App Store Connect displays an updated Apple Developer Program License Agreement notice. The verified Proton membership’s Developer portal gives a 29 October 2026 acceptance deadline. Whether this notice blocks a TestFlight upload today has not been established; do not describe it as a proven upload blocker without validation. Any agreement must be reviewed in the verified Proton/team NF8828LV3U session, never the legacy Programic account. Jason entered the private review-contact phone number directly in App Store Connect and the review-contact details were saved successfully. Sign-in required is off because the app has no user accounts. The private number is not stored in this repository.
 
 ## App Store Connect tasks
 
