@@ -23,6 +23,19 @@ struct SkyPoint: Codable, Sendable, Equatable {
     var elevation: Double
     var sunlit: Bool
 }
+struct LunarSample: Codable, Sendable, Equatable {
+    var timestamp: Date
+    var azimuth: Double
+    var elevation: Double
+}
+struct LunarDetails: Codable, Sendable, Equatable {
+    var fullMoonAt: Date
+    var moonrise: Date?
+    var moonset: Date?
+    var isPrimary: Bool
+    var midnight: Date
+    var samples: [LunarSample]
+}
 struct SkyEvent: Codable, Identifiable, Sendable, Equatable {
     var id: String
     var kind: String
@@ -40,8 +53,25 @@ struct SkyEvent: Codable, Identifiable, Sendable, Equatable {
     var isMorning: Bool
     var ra: Double?
     var dec: Double?
+    var lunar: LunarDetails?
     var symbol: String {
-        switch kind { case "iss": "point.topleft.down.to.point.bottomright.curvepath"; case "planet": "sparkle"; case "meteor": "sparkles"; case "deepSky": "binoculars.fill"; default: "star.fill" }
+        switch kind { case "iss": "point.topleft.down.to.point.bottomright.curvepath"; case "moon": "moonphase.full.moon"; case "planet": "sparkle"; case "meteor": "sparkles"; case "deepSky": "binoculars.fill"; default: "star.fill" }
+    }
+    func lunarTiming(location: ObservingLocation) -> String? {
+        guard let lunar else { return nil }
+        let phase = "Full phase \(location.day(lunar.fullMoonAt)), \(location.time(lunar.fullMoonAt))"
+        let rise = lunar.moonrise.map { " · Moonrise \(location.time($0))" } ?? ""
+        return "View \(location.time(start))–\(location.time(end))\(rise)\n\(phase)"
+    }
+    // A full-Moon window lasts hours. Advance cached recommendations to a future
+    // calculated position instead of advertising a viewing time that has passed.
+    func forDisplay(at now: Date) -> Self {
+        guard let lunar, focus < now, end > now,
+              let sample = lunar.samples.first(where: { $0.timestamp >= now }) else { return self }
+        var event = self
+        event.focus = sample.timestamp; event.azimuth = sample.azimuth; event.elevation = sample.elevation
+        event.isMorning = sample.timestamp >= lunar.midnight
+        return event
     }
     var direction: String { Self.direction(azimuth) }
     static func direction(_ angle: Double) -> String {
@@ -103,7 +133,7 @@ struct WeatherCredit: Codable, Sendable {
     var darkMark: Data
 }
 struct SkySnapshot: Codable, Sendable {
-    var schema = 1
+    var schema = 2
     var location: ObservingLocation
     var generatedAt: Date
     var eveningFirst: Bool
@@ -114,9 +144,10 @@ struct SkySnapshot: Codable, Sendable {
     var orbitMessage: String?
     var weatherMessage: String?
     func night(at now: Date) -> ObservingNight? { nights.first { $0.end > now } }
-    func ranked(at now: Date, issOnly: Bool = false) -> [SkyEvent] {
-        let nightID = night(at: now)?.id
-        return events.filter { $0.end > now && (issOnly ? $0.kind == "iss" : $0.nightID == nightID) && ($0.kind != "iss" || orbit?.usable(at: now) == true) }
+    func ranked(at now: Date, issOnly: Bool = false, nightID: String? = nil) -> [SkyEvent] {
+        let selectedNight = nightID ?? night(at: now)?.id
+        return events.filter { $0.end > now && (issOnly ? $0.kind == "iss" && (nightID == nil || $0.nightID == nightID) : $0.nightID == selectedNight) && ($0.kind != "iss" || orbit?.usable(at: now) == true) }
+            .map { $0.forDisplay(at: now) }
             .sorted { a,b in
                 if issOnly { return a.start < b.start }
                 if eveningFirst && a.isMorning != b.isMorning { return !a.isMorning }

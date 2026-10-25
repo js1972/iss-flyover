@@ -46,7 +46,7 @@ struct TonightView: View {
                     VStack(alignment: .leading, spacing: 24) {
                         TonightHeader()
                         if let snapshot = model.snapshot {
-                            let picks = snapshot.ranked(at: Date())
+                            let picks = snapshot.ranked(at: model.now)
                             if wide {
                                 HStack(alignment: .top, spacing: 28) {
                                     VStack(alignment: .leading, spacing: 22) { featured(picks); conditions(snapshot); nightAhead(snapshot, picks: picks) }
@@ -76,7 +76,7 @@ struct TonightView: View {
         else { ContentUnavailableView("A quiet sky", systemImage: "moon.stars", description: Text("No remaining highlights in this observing window. Browse Upcoming for the next night.")) }
     }
     @ViewBuilder private func conditions(_ snapshot: SkySnapshot) -> some View {
-        if let night = snapshot.night(at: Date()) { ConditionsView(snapshot: snapshot, night: night) }
+        if let night = snapshot.night(at: model.now) { ConditionsView(snapshot: snapshot, night: night) }
     }
     @ViewBuilder private func recommendations(_ picks: [SkyEvent]) -> some View {
         if picks.count > 1 {
@@ -85,7 +85,7 @@ struct TonightView: View {
         }
     }
     @ViewBuilder private func nightAhead(_ snapshot: SkySnapshot, picks: [SkyEvent]) -> some View {
-        if let night = snapshot.night(at: Date()) {
+        if let night = snapshot.night(at: model.now) {
             VStack(alignment: .leading, spacing: 14) {
                 Text("THE NIGHT AHEAD").font(.caption.weight(.bold)).tracking(1).foregroundStyle(Color.skyMint)
                 if let sunset = night.sunset { MomentRow(time: model.location.time(sunset), title: "Sunset", symbol: "sunset.fill") }
@@ -108,7 +108,7 @@ struct ConditionsView: View {
     var snapshot: SkySnapshot
     var night: ObservingNight
     var body: some View {
-        let sample = snapshot.weather?.sample(at: snapshot.ranked(at: Date()).first?.focus ?? max(Date(), night.start), now: Date())
+        let sample = snapshot.weather?.sample(at: snapshot.ranked(at: model.now).first?.focus ?? max(model.now, night.start), now: model.now)
         VStack(alignment: .leading, spacing: 18) {
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: 24) { moon; weather(sample) }
@@ -155,17 +155,20 @@ struct EventRow: View {
                         Text(event.title).font(.headline).foregroundStyle(.white)
                         Text("\(model.location.time(event.focus)) · \(event.direction) · \(Int(event.elevation))° high\(event.isMorning ? " · Before dawn" : "")").font(.subheadline).foregroundStyle(Color.skyMint)
                         Text(event.detail).font(.caption).foregroundStyle(.secondary)
+                        if let timing = event.lunarTiming(location: model.location) {
+                            Text(timing).font(.caption).foregroundStyle(.secondary)
+                        }
                     }
                     Spacer(minLength: 0); Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
                 }.contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityLabel("Preview \(event.title) at \(model.location.time(event.focus))")
             HStack {
-                if let weather = model.snapshot?.weather, let sample = weather.sample(at: event.focus, now: Date()), let credit = weather.credit {
+                if let weather = model.snapshot?.weather, let sample = weather.sample(at: event.focus, now: model.now), let credit = weather.credit {
                     VStack(alignment: .leading, spacing: 6) { Text("\(Int(sample.cloud))% cloud").font(.caption).foregroundStyle(.secondary); WeatherCreditView(credit: credit, compact: true) }
                 }
                 Spacer()
                 let saved = model.reminderIDs.contains("\(model.location.id):\(event.id)")
-                Button { Task { await model.reminder(event) } } label: { Label(saved ? "Reminder set" : "Remind me", systemImage: saved ? "bell.badge.fill" : "bell") }.font(.caption).disabled(event.start <= Date())
+                Button { Task { await model.reminder(event) } } label: { Label(saved ? "Reminder set" : "Remind me", systemImage: saved ? "bell.badge.fill" : "bell") }.font(.caption).disabled(event.start <= model.now)
             }
         }.skyPanel()
     }
@@ -189,7 +192,7 @@ struct UpcomingView: View {
                             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .top), count: wide ? 2 : 1), alignment: .leading, spacing: 28) {
                                 ForEach(snapshot.nights) { night in
                                     VStack(alignment: .leading, spacing: 16) {
-                                        let events = snapshot.events.filter { $0.nightID == night.id && $0.end > Date() && (!issOnly || $0.kind == "iss") }.sorted { issOnly ? $0.start < $1.start : $0.score > $1.score }
+                                        let events = snapshot.ranked(at: model.now, issOnly: issOnly, nightID: night.id)
                                         Text(model.location.day(night.start)).font(.title3.bold())
                                         if events.isEmpty { Text(issOnly ? (snapshot.orbit == nil ? "ISS data unavailable. Refresh to try again." : "No visible ISS pass meets these criteria this night.") : "No remaining highlights.").font(.subheadline).foregroundStyle(.secondary) }
                                         ForEach(Array(events.prefix(issOnly ? 12 : 5))) { EventRow(event: $0) }

@@ -123,3 +123,12 @@ NASA
 https://science.nasa.gov/multimedia/spacecraft-icons/
 https://science.nasa.gov/wp-content/uploads/2023/05/iss.png?w=600
 Bundled unchanged; displayed with scaling and fading over the widget background.
+
+
+Full Moon artwork — Moon at Full Moon Phase
+NASA Science, Moon Phases
+https://science.nasa.gov/moon/moon-phases/
+https://science.nasa.gov/wp-content/uploads/2023/08/full.jpg
+Bundled unchanged (640 x 613). Decorative illustration in cards/widgets and
+the selected full-Moon chart marker, not a simulation of lunar orientation,
+libration or apparent size. Positions and viewing times are calculated offline.

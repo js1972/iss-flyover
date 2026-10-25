@@ -39,7 +39,7 @@ struct SkyWidgetView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack { Label(issOnly ? "NEXT ISS" : "SKY TONIGHT", systemImage: issOnly ? "point.topleft.down.to.point.bottomright.curvepath" : "moon.stars.fill").font(.system(size: 10, weight: .bold)).tracking(1); Spacer(); if family == .systemMedium { Text(entry.location.name).font(.caption2).lineLimit(1) } }.foregroundStyle(Color.mint)
                     if let event {
-                        if artworkPlanet(event) != nil {
+                        if !issOnly && canShowArtwork && event.artworkAsset != nil {
                             if family == .systemMedium {
                                 VStack(alignment: .leading, spacing: 6) { headline(event) }
                                 Spacer(minLength: 0)
@@ -99,23 +99,21 @@ struct SkyWidgetView: View {
     @ViewBuilder func headline(_ event: SkyEvent) -> some View {
         Text(event.title).font(.headline).lineLimit(2).minimumScaleFactor(0.85)
         eventTime(event)
+        if event.lunar != nil {
+            Text("View until \(entry.location.time(event.end))").font(.caption2).foregroundStyle(.secondary)
+        }
     }
     func eventTime(_ event: SkyEvent) -> some View {
         Text("\(entry.location.time(issOnly ? event.start : event.focus)) · \(event.direction)").font(.system(.title3, design: .rounded).weight(.semibold)).lineLimit(1).minimumScaleFactor(0.8)
     }
-    func artworkPlanet(_ event: SkyEvent) -> WidgetPlanet? {
-        guard !issOnly, renderingMode == .fullColor,
-              showsBackground || previewFamily != nil else { return nil }
-        return WidgetPlanet(event: event)
-    }
     var canShowArtwork: Bool { renderingMode == .fullColor && (showsBackground || previewFamily != nil) }
-    func hasArtwork(_ event: SkyEvent?) -> Bool { canShowArtwork && (issOnly || event.flatMap { WidgetPlanet(event: $0) } != nil) }
+    func hasArtwork(_ event: SkyEvent?) -> Bool { canShowArtwork && (issOnly || event?.artworkAsset != nil) }
     @ViewBuilder func artworkBackground(_ event: SkyEvent?) -> some View {
         if canShowArtwork {
             if issOnly {
                 WidgetArtworkBackground(assetName: "WidgetISS", isISS: true, small: family == .systemSmall)
-            } else if let event, let planet = WidgetPlanet(event: event) {
-                WidgetArtworkBackground(assetName: planet.assetName, isISS: false, small: family == .systemSmall)
+            } else if let event, let asset = event.artworkAsset {
+                WidgetArtworkBackground(assetName: asset, isISS: event.kind == "iss", small: family == .systemSmall)
             }
         }
     }

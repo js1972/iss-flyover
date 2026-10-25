@@ -1,11 +1,5 @@
 import SwiftUI
 
-extension SkyEvent {
-    var artworkAsset: String? {
-        kind == "iss" ? "WidgetISS" : WidgetPlanet(event: self)?.assetName
-    }
-}
-
 /// Decorative spacecraft imagery; observing times and directions come from the forecast.
 struct EventArtwork: View {
     var event: SkyEvent
@@ -77,7 +71,7 @@ private struct TonightSkyScene: View {
                                 LinearGradient(stops: [.init(color: .clear, location: 0.15), .init(color: .white, location: 0.85)], startPoint: .leading, endPoint: .trailing)
                                     .mask { LinearGradient(colors: [.white, .white, .clear], startPoint: .top, endPoint: .bottom) }
                             }
-                            .opacity(0.8).blendMode(.screen)
+                            .opacity(event.kind == "moon" ? 0.5 : 0.8).blendMode(.screen)
                     }
                 }
             }
@@ -113,6 +107,10 @@ struct TonightPickCard: View {
                 .font(.title3.weight(.medium)).fixedSize(horizontal: false, vertical: true)
             Text(event.detail).font(.subheadline).foregroundStyle(.white.opacity(0.75))
                 .fixedSize(horizontal: false, vertical: true)
+            if let timing = event.lunarTiming(location: model.location) {
+                Text(timing).font(.caption).foregroundStyle(.white.opacity(0.75))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             Button { model.preview(event) } label: {
                 Label("Show me where", systemImage: "scope").fixedSize(horizontal: false, vertical: true)
                     .multilineTextAlignment(.center).frame(maxWidth: .infinity).padding(.vertical, 6)

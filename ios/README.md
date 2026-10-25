@@ -197,3 +197,48 @@ verified. The installed app code is `ce91663`.
 - This release uses simulator-only iPad verification. No physical iPad claims are made. Hardware compass accuracy, real background refresh scheduling and notification delivery remain subject to device behaviour.
 
 See `APP_STORE_RELEASE.md` for publishing checks, privacy-answer guidance and repeatable test commands.
+
+## Full-Moon highlights (build 11, 26 October 2026)
+
+Full Moons now participate in Tonight's Pick, Upcoming and the Sky Tonight widgets.
+The exact phase instant comes from the bundled Astronomy Engine, independently of
+rounded illumination percentages. A phase between one local sunrise and the next
+belongs to that observing night, so a daytime full Moon remains a highlight that
+evening and a pre-dawn full Moon belongs to the previous evening. Nearby evenings
+within 36 hours of full phase (measured two hours after sunset) are labelled
+“Nearly full Moon” and rank below ordinary planet highlights.
+
+`SkyCore/lunar.js` creates viewing windows while the Moon is at least 5° above the
+horizon and the Sun is below -0.833°. Windows shorter than a minute are omitted;
+polar daylight never invents an observing opportunity. The initial preview favours
+the first remaining sample above 10°. Full-Moon events score 180, above ordinary
+planet picks, while exceptional meteor/ISS events can still lead. Tonight, Upcoming
+and widgets share the evening-first ordering. No seasonal names or supermoon claims
+are inferred from illumination.
+
+Cards show the viewing window, moonrise when available and the exact full-phase
+local date/time. Reminders use the start of the viewing window. Cached app/widget
+recommendations advance to a future five-minute Moon position after the original
+preview time and disappear at the end of the window. Event IDs and window starts
+remain stable across refreshes. Forecast schema 2 discards older snapshots so a
+previously cached planet-only forecast cannot hide the new events.
+
+Bundled NASA Moon artwork is shared by the app and widgets. Tapping a lunar
+card or widget opens the Moon at its calculated viewing time on the Sky page;
+the selected Moon has a textured marker and mint outline. The artwork is decorative,
+not a representation of apparent size or lunar orientation. Lock Screen and tinted
+widgets keep the system presentation and a full-Moon symbol. Credits are in
+Acknowledgements. No runtime image requests, new services or website asset changes.
+
+For repeatable simulator previews, launch the Debug app with
+`--uitesting --full-moon-preview` (Perth, 26 October 2026 at 18:00), optionally adding
+`--widget-preview`. This fixture is unavailable in Release builds.
+
+Verification: the iOS 27 iPhone simulator suite passed 30 tests, with three
+expected skips (two opt-in live WeatherKit checks and the iPad-only UI test).
+This includes phase/day boundaries, both hemispheres, a DST-crossing forecast,
+polar daylight, cache expiry/migration, ranking, reminders, Moon chart positions,
+widget assets/layouts and native navigation. The Release simulator build passed.
+Captured Tonight, chart, widget and accessibility-size renderings were reviewed.
+The existing website also passed a local HTTP load and event-preview smoke test.
+No physical-device notification delivery or widget refresh cadence was tested.

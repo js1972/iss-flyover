@@ -69,6 +69,7 @@ var SkyEngine = (() => {
       const moon=SunCalc.getMoonIllumination(date(start+7200));
       const night={id:day.id, start,end,sunset,sunrise,dark:seconds(st.night), dawn:seconds(nt.nightEnd),moonPercent:Math.round(moon.fraction*100),moonPhase:moon.phase,polar:!sunset || !sunrise};
       nights.push(night);
+      events.push(...LunarEvents.forNight({day, night, now:input.now, location:loc, eveningFirst:input.eveningFirst, position, sunAltitude}));
       const targets=[...['Mercury','Venus','Mars','Jupiter','Saturn'].map(body=>({id:body,name:body,body,kind:'planet',score:90})),
         ...DEEP_SKY_TARGETS.map(x=>({...x,body:x.name,kind:'deepSky',score:60})),
         ...BRIGHT_STARS.filter(x=>x.mag<0.5).map(x=>({...x,body:x.name,kind:'star',score:45}))];

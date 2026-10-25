@@ -19,7 +19,7 @@ struct WidgetPreview: View {
                 }
                 if planet != nil { Text("Sample artwork · forecast times retained").font(.caption).foregroundStyle(.secondary) }
                 if let snapshot = model.snapshot {
-                    let entry = SkyEntry(date: Date(), snapshot: sample(snapshot), location: model.location)
+                    let entry = SkyEntry(date: model.now, snapshot: sample(snapshot), location: model.location)
                     Group {
                         SkyWidgetView(previewFamily: .systemSmall, entry: entry, issOnly: false).padding(16).frame(width:170,height:170).background(Color.skyPanel).clipShape(RoundedRectangle(cornerRadius:24))
                         SkyWidgetView(previewFamily: .systemMedium, entry: entry, issOnly: false).padding(16).frame(width:350,height:170).background(Color.skyPanel).clipShape(RoundedRectangle(cornerRadius:24))
@@ -32,7 +32,7 @@ struct WidgetPreview: View {
         }.background(Color.skyBase)
     }
     private func sample(_ snapshot: SkySnapshot) -> SkySnapshot {
-        guard let planet, var event = snapshot.ranked(at: Date()).first else { return snapshot }
+        guard let planet, var event = snapshot.ranked(at: model.now).first else { return snapshot }
         var sample = snapshot
         event.kind = "planet"; event.body = planet.rawValue; event.title = planet.rawValue
         sample.events = [event] + snapshot.events.filter { $0.id != event.id }

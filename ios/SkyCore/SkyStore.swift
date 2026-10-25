@@ -41,7 +41,7 @@ enum SkyStore {
         return root.appendingPathComponent("forecast-\(key).json")
     }
     static func read(_ location: ObservingLocation) -> SkySnapshot? {
-        guard let data = try? Data(contentsOf: snapshotURL(location)), var snapshot = try? SkyJSON.decoder().decode(SkySnapshot.self, from: data), snapshot.schema == 1, snapshot.location == location else { return nil }
+        guard let data = try? Data(contentsOf: snapshotURL(location)), var snapshot = try? SkyJSON.decoder().decode(SkySnapshot.self, from: data), snapshot.schema == 2, snapshot.location == location else { return nil }
         if !weatherEnabled || snapshot.weather?.credit == nil { snapshot.weather = nil }
         return snapshot
     }
@@ -59,7 +59,7 @@ enum SkyStore {
                 // A slower app/widget refresh must never replace a newer calculation.
                 if let data = try? Data(contentsOf: coordinatedURL),
                    let existing = try? SkyJSON.decoder().decode(SkySnapshot.self, from: data),
-                   existing.generatedAt > snapshot.generatedAt { return }
+                   existing.schema == snapshot.schema, existing.generatedAt > snapshot.generatedAt { return }
                 try SkyJSON.encoder().encode(snapshot).write(to: coordinatedURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
             } catch { writeError = error }
         }

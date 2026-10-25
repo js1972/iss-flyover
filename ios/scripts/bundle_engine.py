@@ -30,6 +30,7 @@ parts.append('var satellite = (function(){ const modules = {')
 parts += ['"'+key+'": function(require){\n'+source+'\n},' for key,source in modules.items()]
 parts.append('}; const cache = {}; function require(id){ return cache[id] || (cache[id] = modules[id](require)); } return Object.assign({},'+','.join(f'require("{e}")' for e in entries)+'); })();')
 parts.append((ROOT/'assets/js/data/catalogs.js').read_text().replace('export const ', 'const '))
+parts.append((ROOT/'ios/SkyCore/lunar.js').read_text())
 parts.append((ROOT/'ios/SkyCore/engine.js').read_text())
 (ROOT/'ios/Resources/SkyEngine.js').write_text('\n'.join(parts))
 print('Bundled pinned astronomy, SunCalc, SGP4 and sky engine')

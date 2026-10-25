@@ -11,6 +11,8 @@ struct CalculationDay: Encodable {
     var noon: Date
     var nextNoon: Date
     var midnight: Date
+    var dayStart: Date
+    var nextDayStart: Date
 }
 actor SkyCalculator {
     static let shared = SkyCalculator()
@@ -41,7 +43,7 @@ actor SkyCalculator {
                   let noon = c.date(bySettingHour: 12, minute: 0, second: 0, of: day),
                   let next = c.date(byAdding: .day, value: 1, to: noon),
                   let midnight = c.date(byAdding: .day, value: 1, to: c.startOfDay(for: noon)) else { return nil }
-            return CalculationDay(id: id.string(from: noon), monthDay: md.string(from: noon), noon: noon, nextNoon: next, midnight: midnight)
+            return CalculationDay(id: id.string(from: noon), monthDay: md.string(from: noon), noon: noon, nextNoon: next, midnight: midnight, dayStart: c.startOfDay(for: day), nextDayStart: midnight)
         }
     }
     func forecast(location: ObservingLocation, now: Date, eveningFirst: Bool, orbit: OrbitData?) throws -> SkySnapshot {

@@ -32,6 +32,15 @@ final class AppModel: NSObject, ObservableObject, @preconcurrency CLLocationMana
         false
         #endif
     }
+    // Fixed observing night for repeatable full-Moon UI coverage; production uses the real clock.
+    var now: Date {
+        #if DEBUG
+        if isTesting && ProcessInfo.processInfo.arguments.contains("--full-moon-preview") {
+            return Date(timeIntervalSince1970: 1793008800) // 26 Oct 2026, 18:00 AWST
+        }
+        #endif
+        return Date()
+    }
     override init() {
         super.init()
         manager.delegate = self
@@ -45,8 +54,8 @@ final class AppModel: NSObject, ObservableObject, @preconcurrency CLLocationMana
         let token = revision, loc = location, pref = eveningFirst
         defer { if token == revision { refreshing = false } }
         do {
-            if snapshot == nil || snapshot?.validUntil ?? .distantPast < Date() {
-                let local = try await SkyCalculator.shared.forecast(location: loc, now: Date(), eveningFirst: pref, orbit: isTesting ? nil : SkyStore.orbit)
+            if snapshot == nil || snapshot?.validUntil ?? .distantPast < now {
+                let local = try await SkyCalculator.shared.forecast(location: loc, now: now, eveningFirst: pref, orbit: isTesting ? nil : SkyStore.orbit)
                 guard token == revision else { return }
                 snapshot = local
             }
@@ -54,7 +63,7 @@ final class AppModel: NSObject, ObservableObject, @preconcurrency CLLocationMana
             if isTesting { return }
             let fresh = try await SkyRepository.shared.refresh(location: loc, eveningFirst: pref)
             guard token == revision else { return }
-            snapshot = fresh; message = nil; lastRefresh = Date()
+            snapshot = fresh; message = nil; lastRefresh = now
             await SkyReminders.reconcile(fresh)
             await loadReminders()
             WidgetCenter.shared.reloadAllTimelines()
@@ -67,7 +76,7 @@ final class AppModel: NSObject, ObservableObject, @preconcurrency CLLocationMana
     }
     func refreshSoon() { refreshTask?.cancel(); refreshTask = Task { await refresh() } }
     func onResume() {
-        if Date().timeIntervalSince(lastRefresh) > 1800 { refreshSoon() }
+        if now.timeIntervalSince(lastRefresh) > 1800 { refreshSoon() }
         Task { await updateChart(); await loadReminders() }
     }
     func select(_ loc: ObservingLocation) {
@@ -134,7 +143,7 @@ final class AppModel: NSObject, ObservableObject, @preconcurrency CLLocationMana
         chartRevision += 1
         let token = chartRevision
         do {
-            let value = try await SkyCalculator.shared.chart(location: location, time: previewTime ?? Date(), orbit: snapshot?.orbit, target: selectedEvent)
+            let value = try await SkyCalculator.shared.chart(location: location, time: previewTime ?? now, orbit: snapshot?.orbit, target: selectedEvent)
             if token == chartRevision { chart = value }
         } catch { if token == chartRevision { message = error.localizedDescription } }
     }
@@ -144,8 +153,8 @@ final class AppModel: NSObject, ObservableObject, @preconcurrency CLLocationMana
         if let id = items.first(where: { $0.name == "location" })?.value, let loc = locations.first(where: { $0.id == id }), loc != location { select(loc) }
         guard url.host == "event" else { selectedTab = 0; return }
         let id = items.first(where: { $0.name == "id" })?.value
-        if let event = snapshot?.events.first(where: { $0.id == id }) { preview(event); return }
-        if let raw = items.first(where: { $0.name == "time" })?.value, let time = Double(raw), time.isFinite, abs(time - Date().timeIntervalSince1970) < 14 * 86400 {
+        if let event = snapshot?.events.first(where: { $0.id == id }) { preview(event.forDisplay(at: now)); return }
+        if let raw = items.first(where: { $0.name == "time" })?.value, let time = Double(raw), time.isFinite, abs(time - now.timeIntervalSince1970) < 14 * 86400 {
             selectedEvent = nil; previewTime = Date(timeIntervalSince1970: time); selectedTab = 1
             message = "Showing the saved viewing time. Refresh to check the latest event details."
             await updateChart()
@@ -193,12 +202,12 @@ final class AppModel: NSObject, ObservableObject, @preconcurrency CLLocationMana
         let id = "\(location.id):\(event.id)"
         let center = UNUserNotificationCenter.current()
         if reminderIDs.contains(id) { center.removePendingNotificationRequests(withIdentifiers: [id]); await loadReminders(); return }
-        guard event.start > Date().addingTimeInterval(60) else { message = "This event is already starting."; return }
+        guard event.start > now.addingTimeInterval(60) else { message = "This event is already starting."; return }
         do {
             guard try await center.requestAuthorization(options: [.alert, .sound]) else { message = "Enable notifications in iPhone Settings to receive reminders."; return }
             let interval = max(5, event.start.addingTimeInterval(-600).timeIntervalSinceNow)
             try await center.add(SkyReminders.request(event: event, location: location))
-            await loadReminders(); message = "Reminder set for \(location.time(Date().addingTimeInterval(interval))). Check fresh conditions before observing."
+            await loadReminders(); message = "Reminder set for \(location.time(now.addingTimeInterval(interval))). Check fresh conditions before observing."
         } catch { message = error.localizedDescription }
     }
 }

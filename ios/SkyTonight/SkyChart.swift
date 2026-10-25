@@ -33,8 +33,8 @@ struct SkyChartScreen: View {
                     }
                 }
             }.background(Color.skyBase).navigationTitle("Sky").navigationBarTitleDisplayMode(.inline)
-                .task { timeAnchor = model.previewTime ?? Date(); offset = 0; await model.updateChart() }
-                .onChange(of: model.selectedEvent?.id) { _, value in if value != nil { timeAnchor = model.previewTime ?? Date(); offset = 0 } }
+                .task { timeAnchor = model.previewTime ?? model.now; offset = 0; await model.updateChart() }
+                .onChange(of: model.selectedEvent?.id) { _, value in if value != nil { timeAnchor = model.previewTime ?? model.now; offset = 0 } }
                 .onDisappear { if model.compass { model.toggleCompass() } }
                 .onReceive(ticker) { _ in if model.previewTime == nil && model.selectedTab == 1 { Task { await model.updateChart() } } }
         }
@@ -43,7 +43,7 @@ struct SkyChartScreen: View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 5) {
                 Text(model.selectedEvent?.title ?? (model.previewTime == nil ? "Your sky now" : "Sky preview")).font(.title2.bold())
-                Text("\(model.location.name) · \(model.location.day(model.previewTime ?? Date())) · \(model.location.time(model.previewTime ?? Date()))").font(.subheadline).foregroundStyle(.secondary)
+                Text("\(model.location.name) · \(model.location.day(model.previewTime ?? model.now)) · \(model.location.time(model.previewTime ?? model.now))").font(.subheadline).foregroundStyle(.secondary)
             }
             Spacer()
             Button { model.toggleCompass() } label: { Image(systemName: model.compass ? "location.north.circle.fill" : "location.north.circle").font(.title).frame(minWidth: 44, minHeight: 44) }.accessibilityLabel(model.compass ? "Turn compass off" : "Align with compass")
@@ -56,6 +56,7 @@ struct SkyChartScreen: View {
                 .gesture(HorizontalSkyDrag(changed: { translation in
                     if !model.compass { rotation = dragStart + translation * 0.5 }
                 }, ended: { dragStart = rotation }))
+                .accessibilityIdentifier("skyObservationChart")
                 .accessibilityLabel("Sky chart. \(model.chart.map { "\($0.name), \(SkyEvent.direction($0.azimuth)), \(Int($0.elevation)) degrees" }.joined(separator: ". "))")
             HStack { Label("Horizon at the edge", systemImage: "circle"); Spacer(); Text("Overhead at centre") }.font(.caption).foregroundStyle(.secondary)
             if model.compass { Text("Compass aligned · heading \(Int(model.heading))°").font(.caption).foregroundStyle(Color.skyMint) }
@@ -88,7 +89,7 @@ struct SkyChartScreen: View {
     }
     @ViewBuilder private var liveButton: some View {
         if model.previewTime != nil {
-            Button("Return to Live") { timeAnchor = Date(); offset = 0; model.live() }.accessibilityIdentifier("returnLive")
+            Button("Return to Live") { timeAnchor = model.now; offset = 0; model.live() }.accessibilityIdentifier("returnLive")
         }
     }
 }
@@ -129,9 +130,16 @@ struct SkyPlot: View {
             for object in ordered {
                 let p = point(object.azimuth, object.elevation)
                 let prominent = object.kind != "star" || object.name == selected
-                let r: Double = object.kind == "moon" ? 6 : prominent ? 4 : 2
+                let r: Double = object.kind == "moon" ? (object.name == selected ? 11 : 7) : prominent ? 4 : 2
                 let color: Color = object.kind == "iss" ? .skyMint : object.kind == "planet" ? .yellow : .white
                 context.fill(Path(ellipseIn: CGRect(x: p.x-r,y:p.y-r,width:2*r,height:2*r)), with: .color(color.opacity(prominent ? 1 : 0.6)))
+                if object.kind == "moon" && object.name == selected {
+                    let disc = CGRect(x: p.x-r, y: p.y-r, width: r*2, height: r*2)
+                    var moonContext = context
+                    moonContext.clip(to: Path(ellipseIn: disc))
+                    moonContext.draw(Image("FullMoon"), in: disc)
+                    context.stroke(Path(ellipseIn: disc.insetBy(dx: -3, dy: -3)), with: .color(.skyMint), lineWidth: 1.5)
+                }
                 if prominent {
                     let label = Text(object.name).font(.caption2.weight(object.name == selected ? .bold : .regular)).foregroundStyle(color)
                     let resolved = context.resolve(label)

@@ -1,5 +1,13 @@
 import SwiftUI
 
+extension SkyEvent {
+    var artworkAsset: String? {
+        if kind == "iss" { return "WidgetISS" }
+        if kind == "moon" { return "FullMoon" }
+        return WidgetPlanet(event: self)?.assetName
+    }
+}
+
 enum WidgetPlanet: String, CaseIterable {
     case mercury = "Mercury", venus = "Venus", mars = "Mars"
     case jupiter = "Jupiter", saturn = "Saturn"
@@ -31,7 +39,7 @@ struct WidgetArtworkBackground: View {
             LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .white.opacity(0.2), location: 0.25), .init(color: .white, location: 0.85)], startPoint: .leading, endPoint: .trailing)
                 .mask { LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .white, location: 0.25), .init(color: .white, location: 0.55), .init(color: .clear, location: 0.95)], startPoint: .top, endPoint: .bottom) }
         }
-        .opacity(isISS ? 0.7 : 0.85)
+        .opacity(isISS ? 0.7 : assetName == "FullMoon" ? 0.65 : 0.85)
         .blendMode(.screen)
         .accessibilityHidden(true)
         .allowsHitTesting(false)

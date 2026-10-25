@@ -29,6 +29,35 @@ final class SkyFlowTests: XCTestCase {
 }
 
 extension SkyFlowTests {
+    @MainActor func testFullMoonCardChartAndWidgets() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitesting", "--full-moon-preview"]
+        app.launch()
+        let preview = app.buttons["tonightPreview"]
+        XCTAssertTrue(preview.waitForExistence(timeout: 30))
+        XCTAssertTrue(app.staticTexts["Full Moon"].firstMatch.exists)
+        capture(app, "Full Moon - Tonight")
+        preview.tap()
+        XCTAssertTrue(app.buttons["returnLive"].waitForExistence(timeout: 10))
+        let chart = app.descendants(matching: .any).matching(identifier: "skyObservationChart").firstMatch
+        XCTAssertTrue(chart.waitForExistence(timeout: 10))
+        XCTAssertTrue(chart.label.contains("Moon,"), chart.label)
+        capture(app, "Full Moon - selected observation chart")
+        selectTab("Upcoming", in: app)
+        let lunarRow = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Preview Full Moon at")).firstMatch
+        XCTAssertTrue(lunarRow.waitForExistence(timeout: 10))
+        lunarRow.tap()
+        XCTAssertTrue(app.buttons["returnLive"].waitForExistence(timeout: 10))
+        app.terminate()
+        app.launchArguments += ["--widget-preview"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Widget previews"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["Full Moon"].firstMatch.waitForExistence(timeout: 15))
+        capture(app, "Full Moon - Home and Lock Screen widget previews")
+        app.buttons["Dark"].tap()
+        capture(app, "Full Moon - dark appearance widgets")
+    }
+
     @MainActor func testLargeTextPreviewAndSettings() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--uitesting", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
