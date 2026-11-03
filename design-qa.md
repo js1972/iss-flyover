@@ -83,7 +83,8 @@ simulator visual/interaction result, not a claim of complete accessibility compl
   action; the action is actually tapped and its destination verified.
 - Signed Release build 1.0 (13) succeeds for the iPhone, embedded watch and both
   widget extensions. Signatures, permanent team, separate App Groups and physical
-  device eligibility are verified. Build 13 has not been installed on devices.
+  device eligibility are verified. Build 13 was subsequently installed and launched
+  on both physical devices; the Watch's Tonight screen was visually confirmed.
 - No website assets or astronomy/sync logic changed. Existing physical compass,
   haptics, notification routing, background sync, VoiceOver, battery and older-watchOS
   runtime checks remain in `ios/WATCH_RELEASE.md`; they are not reclassified as passed.

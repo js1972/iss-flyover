@@ -172,6 +172,20 @@ stays crisp on modern watchOS; the system header fade returns while scrolling.
 - Version 1.0 (13) builds successfully in Release configuration with development
   signing. All four code signatures, team `NF8828LV3U`, platform-specific App Groups
   and eligibility for the paired iPhone/Watch are verified.
-- Per the user's request, this candidate is prepared but **not installed** on their
-  devices. Build 12 remains the last installed version. Device installation and
-  App Store/TestFlight distribution are separate subsequent actions.
+- This candidate was initially prepared without device installation, as requested.
+  The subsequent authorized installation is recorded below. App Store/TestFlight
+  distribution remains a separate action.
+
+### Build 13 device installation — 3 November 2026
+
+- Installed development-signed Release version 1.0 (13) from pushed source
+  `508800c` on the iPhone 16 Pro Max and paired Apple Watch, preserving their
+  permanent bundle identifiers and existing data.
+- Both apps launched successfully. Device inventories confirm build 13 on both.
+  The Watch initially timed out connecting; installation succeeded after it was
+  awakened and unlocked.
+- A physical Watch screenshot confirms the revised Tonight layout with prominent
+  Saturn artwork, large north direction, 57° elevation, and the complete Find it
+  button clear of the page indicators. The existing forecast remains available.
+- This installation check does not close the remaining compass, haptics, reminders,
+  complication scheduling, background sync, VoiceOver or battery testing gates.
