@@ -78,7 +78,8 @@ real. Large-text captures show the screen after scrolling the entire action into
   above; this is not a pixel-identical recreation of the illustrative watch hardware.
 - Development-signed Release 1.0 (14) builds successfully for iPhone with the
   embedded Watch app and widget extensions. Deep, strict signature verification
-  passes. Permanent team and bundle identities are preserved; no device installation.
+  passes. Permanent team and bundle identities are preserved. The subsequent
+  authorized device installation is recorded below.
 - No website assets or astronomy engine changes. Static-site verification and cache
   version bumps do not apply to this native-only change.
 
@@ -94,4 +95,6 @@ running; this test does not use frozen design-capture time.
 Simulator checks cannot establish that every physical-device freeze is eliminated.
 Physical Crown feel, WatchConnectivity transport, compass, haptics, VoiceOver,
 Always On power use and prolonged on-wrist operation still need device testing.
-No build-14 physical installation is performed as part of this review.
+Build 14 was subsequently installed and launched on both physical devices at the
+user’s request. Both device inventories confirm build 14. See the installation
+record in `ios/WATCH_RELEASE.md`; prolonged on-wrist interaction testing remains open.

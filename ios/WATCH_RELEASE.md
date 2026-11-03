@@ -210,4 +210,21 @@ comparison history, fresh screenshots and verification limits.
 - `--design-capture` freezes sample astronomy values for comparison only;
   `--stress-sync` drives the debug stress fixture. Neither exists in Release.
 - Final simulator and signed-build results are recorded in `../design-qa.md`.
-  Build 14 is prepared for a subsequent physical test; it is not installed here.
+  Build 14 was initially prepared for a subsequent physical test; the later
+  authorized installation is recorded below.
+
+### Build 14 device installation — 3 November 2026
+
+- Installed development-signed Release 1.0 (14) from pushed source `6401c19`
+  on the iPhone 16 Pro Max and paired Apple Watch, preserving bundle identities
+  and existing app data.
+- Both apps launched successfully. Device inventories independently confirm
+  version 1.0, build 14 on both devices.
+- The manual simulator follow-up also checked paging in both directions, opening
+  the ISS path, scrolling through reminder/Handoff controls, and returning to the
+  first page. No interaction failure was observed.
+- A post-install Watch screenshot attempt timed out establishing its network
+  tunnel; no physical-screen visual confirmation is claimed for this install.
+- Physical-device installation and launch are verified. The user's prolonged
+  on-wrist paging/scrolling test remains the check for the reported intermittent
+  lockups; installation alone does not establish that those are eliminated.
