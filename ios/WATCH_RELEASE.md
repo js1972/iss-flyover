@@ -136,6 +136,21 @@ Physical compass/haptics, actual notification routing, large-file transfers,
 background sync, system complication/Smart Stack scheduling and taps, Handoff UI,
 VoiceOver on hardware and battery measurements remain device gates. A direct
 `simctl openurl` watch launch returned a simulator LaunchServices error; this does
-not verify the system complication entry path. Provisioning, device installation,
-signed archive validation and App Store/TestFlight distribution have not been
-performed for build 12.
+not verify the system complication entry path. Signed archive validation and
+App Store/TestFlight distribution have not been performed for build 12.
+
+### Signed device installation — 3 November 2026
+
+- Built version 1.0 (12), Debug configuration, from pushed source `4555baa`
+  with automatic provisioning on the permanent paid team `NF8828LV3U`.
+- Verified code signatures for the phone app, phone widget, embedded watch app
+  and watch widget. All four profiles include the intended physical device and
+  the correct platform-specific Sky Tonight App Group. The new watch profiles
+  expire 3 November 2027; existing phone profiles expire 21 October 2027.
+- Installed and launched on the iPhone 16 Pro Max (iOS 27.0.1) and paired Apple
+  Watch (watchOS 27.2). Device inventories confirm version 1.0, build 12 on both.
+- Captured the running screens and confirmed the first physical foreground sync:
+  Tonight on watch displays the phone's Saturn recommendation at 22:03, north,
+  57° elevation. Existing phone settings and forecast remained available.
+- This is a development-signed device build. The remaining hardware behaviour
+  checks above and signed distribution archive validation are still outstanding.
