@@ -246,3 +246,9 @@ comparison history, fresh screenshots and verification limits.
 
 - Both targeted UI tests pass at both simulator sizes. Final visual evidence is
   in `Artwork/Watch-build15`; signed Release build 15 and nested signatures verify.
+
+### Build 15 device installation — 3 November 2026
+
+Installed the signed Release from pushed source `59fef3c` on the iPhone 16 Pro Max
+and paired Apple Watch. Both apps launched successfully and both device inventories
+confirm version 1.0, build 15. Existing bundle identities and app data were preserved.
