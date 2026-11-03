@@ -4213,5 +4213,19 @@ var SkyEngine = (() => {
     if(rec) { const p=issPoint(rec,t,loc); if(p && p.elevation>0) points.push({id:'ISS',name:p.sunlit?'ISS':'ISS (in shadow)',kind:'iss',...p}); }
     return points;
   }
-  return {forecast:input=>JSON.stringify(forecast(JSON.parse(input))),chart:input=>JSON.stringify(chart(JSON.parse(input)))};
+  function watchPaths(input) {
+    return input.events.map(event => {
+      if(event.kind === 'iss') return event;
+      const points=[];
+      const step=event.kind === 'moon' ? 600 : 300;
+      for(let t=event.start;t<event.end;t+=step) {
+        const p=position(event.body,t,input.location,event.ra,event.dec);
+        points.push({timestamp:t,azimuth:p.azimuth,elevation:p.elevation,sunlit:true});
+      }
+      const p=position(event.body,event.end,input.location,event.ra,event.dec);
+      points.push({timestamp:event.end,azimuth:p.azimuth,elevation:p.elevation,sunlit:true});
+      return {...event,points};
+    });
+  }
+  return {forecast:input=>JSON.stringify(forecast(JSON.parse(input))),chart:input=>JSON.stringify(chart(JSON.parse(input))),watchPaths:input=>JSON.stringify(watchPaths(JSON.parse(input)))};
 })();

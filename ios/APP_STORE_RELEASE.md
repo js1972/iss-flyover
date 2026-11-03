@@ -101,3 +101,12 @@ The first external build requires Apple’s beta review. Adding a tester alone d
 6. Select the tested build, add it for review and submit. Submission and public release are separate actions and have not been performed by this implementation task.
 
 References: [WeatherKit](https://developer.apple.com/weatherkit/), [service activation](https://developer.apple.com/help/account/services/weatherkit/), [privacy answers](https://developer.apple.com/app-store/app-privacy-details/), [submission](https://developer.apple.com/help/app-store-connect/manage-submissions-to-app-review/submit-an-app/).
+
+
+## Apple Watch companion — build 12 candidate (3 November 2026)
+
+The source adds the native watch app, watch widgets and companion sync. See
+[watch release record](WATCH_RELEASE.md) for feature scope, simulator evidence,
+new signing identifiers and the remaining physical-device/distribution gates.
+The existing app/team identifiers remain unchanged. Build 12 has not been
+uploaded to App Store Connect or installed on a physical device in this work.

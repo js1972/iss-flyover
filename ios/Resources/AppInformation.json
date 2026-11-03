@@ -2,15 +2,19 @@
   "developer": "Jason Scott",
   "email": "js.dev.one@proton.me",
   "website": "https://iss-flyover.pages.dev",
-  "updated": "21 October 2026",
+  "updated": "3 November 2026",
   "privacy": [
     {
       "title": "About this policy",
-      "text": "This policy covers the native Sky Tonight app for iPhone and iPad and its widgets, developed by Jason Scott. The separate website has different providers, described below. The native app has no user accounts, advertisements, tracking or analytics SDKs. The developer does not operate an application server or receive your observing locations."
+      "text": "This policy covers the native Sky Tonight app for iPhone, iPad and Apple Watch and its widgets, developed by Jason Scott. The separate website has different providers, described below. The native app has no user accounts, advertisements, tracking or analytics SDKs. The developer does not operate an application server or receive your observing locations."
     },
     {
       "title": "What stays on your device",
       "text": "Saved place names, coordinates, time zones, viewing preferences, cached forecasts and reminder settings are stored in the app’s private storage and its dedicated shared container for Sky Tonight widgets. Astronomy is calculated on your device. These records are not uploaded to the developer. Your device’s backup settings may include app data in Apple backups. Saved records remain until you remove them, clear saved data in Settings, or delete the app and its data."
+    },
+    {
+      "title": "Apple Watch companion",
+      "text": "The iPhone calculates astronomy and sends saved observing places, preferences, forecast samples, optional attributed weather and reminder status to your paired Apple Watch using Apple Watch Connectivity. These records are cached in a separate private container on the watch for the app and its complications. Transfers can wait until the devices reconnect. Watch reminder requests are confirmed and scheduled on iPhone; system notification settings control delivery. Compass assistance requests your watch location only while using it to check that you are near the selected observing place. That temporary position is not sent to the developer or saved as an observing place. Removing places, disabling weather or clearing saved data on iPhone updates the watch when it next receives a sync. Delete the watch app and its data to remove its offline copy without waiting for that sync."
     },
     {
       "title": "Optional device location and place searches",
@@ -46,12 +50,37 @@
     }
   ],
   "support": [
-    { "title": "Choose your observing place", "text": "Open Settings to select a saved place, use optional device location, find a city, or enter coordinates and a time zone manually. Perth is the initial default, not a guess at your location. Use Edit places beside Saved places to remove places." },
-    { "title": "Weather is optional", "text": "Enable Include Apple Weather in Settings to add conditions. Without it, all astronomy features still work. If weather cannot refresh, check your internet connection and try again. Old or missing conditions are shown as unavailable; they are not a guarantee of visibility or safety." },
-    { "title": "Why no ISS pass?", "text": "Only sunlit ISS passes in a dark sky, reaching at least 20 degrees and visible for at least one minute, are recommended. There may be no qualifying pass on a given night. Pull to refresh; expired orbital elements are not used for reliable predictions. Clouds and local obstructions can still prevent observing." },
-    { "title": "Preview and compass", "text": "Tap a recommendation or Show me where to open its viewing time in the Sky tab. Use Return to Live to return to the current sky. Drag to rotate, or enable the compass on a supported device. Keep away from magnetic interference; compass availability varies by device." },
-    { "title": "Home and Lock Screen widgets", "text": "Touch and hold the Home Screen, choose Edit, Add Widget, then search for Sky Tonight. Edit a widget to choose a saved place. Add Lock Screen widgets in Lock Screen customization where supported. Apple controls refresh timing, so widgets and background refreshes are not precise timers." },
-    { "title": "Reminders and privacy", "text": "Use Remind me on a future event and grant notification permission. Your system Focus and notification settings affect delivery. Review permissions in device Settings. Use Sky Tonight Settings, Clear saved data to reset local places, forecasts and reminders." },
-    { "title": "Contact Jason Scott", "text": "Email js.dev.one@proton.me with the app version from Settings, Diagnostics, your device and OS version, and steps to reproduce the issue. Avoid including precise coordinates or other private information unless needed. This independent app is not affiliated with Apple, NASA or the ISS operators." }
+    {
+      "title": "Choose your observing place",
+      "text": "Open Settings to select a saved place, use optional device location, find a city, or enter coordinates and a time zone manually. Perth is the initial default, not a guess at your location. Use Edit places beside Saved places to remove places."
+    },
+    {
+      "title": "Weather is optional",
+      "text": "Enable Include Apple Weather in Settings to add conditions. Without it, all astronomy features still work. If weather cannot refresh, check your internet connection and try again. Old or missing conditions are shown as unavailable; they are not a guarantee of visibility or safety."
+    },
+    {
+      "title": "Why no ISS pass?",
+      "text": "Only sunlit ISS passes in a dark sky, reaching at least 20 degrees and visible for at least one minute, are recommended. There may be no qualifying pass on a given night. Pull to refresh; expired orbital elements are not used for reliable predictions. Clouds and local obstructions can still prevent observing."
+    },
+    {
+      "title": "Preview and compass",
+      "text": "Tap a recommendation or Show me where to open its viewing time in the Sky tab. Use Return to Live to return to the current sky. Drag to rotate, or enable the compass on a supported device. Keep away from magnetic interference; compass availability varies by device."
+    },
+    {
+      "title": "Home and Lock Screen widgets",
+      "text": "Touch and hold the Home Screen, choose Edit, Add Widget, then search for Sky Tonight. Edit a widget to choose a saved place. Add Lock Screen widgets in Lock Screen customization where supported. Apple controls refresh timing, so widgets and background refreshes are not precise timers."
+    },
+    {
+      "title": "Apple Watch companion (build 12)",
+      "text": "Install the companion using the Watch app on iPhone, then open Sky Tonight on iPhone to send the first forecast. Swipe horizontally between Tonight and Next ISS; turn the Digital Crown to scroll. Find it opens guidance for the selected object. View path previews an ISS pass and follows it while visible. Tap a complication to open its event. Add Tonight, Next ISS or Moon complications in watch-face editing, or Next to Observe in the Smart Stack. Select synced observing places on the watch; edit them on iPhone. Cached forecasts work offline until their stated validity expires; refresh timing is controlled by Apple. Reminder requests show Awaiting iPhone until confirmed; on iPhone, open Sky Tonight Settings, Apple Watch, Enable observing reminders first. Continue on iPhone advertises a Handoff activity in the iPhone app switcher when Handoff is enabled on both devices. It does not open the phone automatically."
+    },
+    {
+      "title": "Reminders and privacy",
+      "text": "Use Remind me on a future event and grant notification permission. Your system Focus and notification settings affect delivery. Review permissions in device Settings. Use Sky Tonight Settings, Clear saved data to reset local places, forecasts and reminders."
+    },
+    {
+      "title": "Contact Jason Scott",
+      "text": "Email js.dev.one@proton.me with the app version from Settings, Diagnostics, your device and OS version, and steps to reproduce the issue. Avoid including precise coordinates or other private information unless needed. This independent app is not affiliated with Apple, NASA or the ISS operators."
+    }
   ]
 }

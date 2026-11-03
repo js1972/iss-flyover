@@ -12,7 +12,7 @@ A native SwiftUI sky guide with Home Screen and Lock Screen widgets, alongside t
 - Sky Tonight and Next ISS Pass widgets, configurable per saved place. Home Screen small/medium; Lock Screen inline/circular/rectangular for Tonight, rectangular for ISS.
 - App Group forecast caching, independent widget refresh, expiry states and cold-launch event deep links.
 
-The first native release focuses on observing and widgets. The website still has the globe/ground-track views and additional alignment/eclipse highlights. Live Activities and Apple Watch targets are not included in this release.
+The first native release focuses on observing and widgets. The website still has the globe/ground-track views and additional alignment/eclipse highlights. Build 12 adds a native watchOS 11+ companion, three complications and a Smart Stack widget. See [watch architecture, verification and release gates](WATCH_RELEASE.md). Live Activities are not included.
 
 ## Permanent signing identity
 

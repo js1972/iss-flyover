@@ -64,6 +64,7 @@ final class AppModel: NSObject, ObservableObject, @preconcurrency CLLocationMana
             let fresh = try await SkyRepository.shared.refresh(location: loc, eveningFirst: pref)
             guard token == revision else { return }
             snapshot = fresh; message = nil; lastRefresh = now
+            WatchCompanion.shared.publish()
             await SkyReminders.reconcile(fresh)
             await loadReminders()
             WidgetCenter.shared.reloadAllTimelines()
@@ -72,6 +73,7 @@ final class AppModel: NSObject, ObservableObject, @preconcurrency CLLocationMana
             let withWeather = await SkyRepository.shared.refreshWeather(location: loc)
             guard token == revision else { return }
             if let withWeather { snapshot = withWeather; WidgetCenter.shared.reloadAllTimelines() }
+            WatchCompanion.shared.publish()
         } catch { if token == revision { message = error.localizedDescription } }
     }
     func refreshSoon() { refreshTask?.cancel(); refreshTask = Task { await refresh() } }
@@ -82,6 +84,7 @@ final class AppModel: NSObject, ObservableObject, @preconcurrency CLLocationMana
     func select(_ loc: ObservingLocation) {
         revision += 1; refreshing = false; location = loc; SkyStore.selectedID = loc.id
         snapshot = SkyStore.read(loc); selectedEvent = nil; previewTime = nil
+        WatchCompanion.shared.publish()
         refreshSoon()
     }
     func save(_ loc: ObservingLocation) {
@@ -91,6 +94,7 @@ final class AppModel: NSObject, ObservableObject, @preconcurrency CLLocationMana
     }
     func changePreference(_ value: Bool) {
         eveningFirst = value; SkyStore.eveningFirst = value
+        WatchCompanion.shared.publish()
         revision += 1; refreshing = false; snapshot = nil; refreshSoon()
     }
     func changeWeather(_ value: Bool) {
@@ -105,6 +109,7 @@ final class AppModel: NSObject, ObservableObject, @preconcurrency CLLocationMana
         }
         revision += 1; refreshing = false; refreshSoon()
         WidgetCenter.shared.reloadAllTimelines()
+        WatchCompanion.shared.publish()
     }
     func removePlaces(at offsets: IndexSet) {
         SkyStore.dataRevision += 1
@@ -133,6 +138,7 @@ final class AppModel: NSObject, ObservableObject, @preconcurrency CLLocationMana
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
         WidgetCenter.shared.reloadAllTimelines(); refreshSoon()
+        WatchCompanion.shared.publish()
     }
     func preview(_ event: SkyEvent) {
         selectedEvent = event; previewTime = event.focus; selectedTab = 1
@@ -150,10 +156,18 @@ final class AppModel: NSObject, ObservableObject, @preconcurrency CLLocationMana
     func open(_ url: URL) async {
         guard url.scheme == "skytonight", let c = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
         let items = c.queryItems ?? []
+        if url.host == "settings" { selectedTab = 3; return }
         if let id = items.first(where: { $0.name == "location" })?.value, let loc = locations.first(where: { $0.id == id }), loc != location { select(loc) }
         guard url.host == "event" else { selectedTab = 0; return }
         let id = items.first(where: { $0.name == "id" })?.value
-        if let event = snapshot?.events.first(where: { $0.id == id }) { preview(event.forDisplay(at: now)); return }
+        if var event = snapshot?.events.first(where: { $0.id == id }) {
+            if let raw = items.first(where: { $0.name == "time" })?.value, let time = Double(raw), time.isFinite,
+               (event.start...event.end).contains(Date(timeIntervalSince1970: time)) {
+                event.focus = Date(timeIntervalSince1970: time)
+                preview(event)
+            } else { preview(event.forDisplay(at: now)) }
+            return
+        }
         if let raw = items.first(where: { $0.name == "time" })?.value, let time = Double(raw), time.isFinite, abs(time - now.timeIntervalSince1970) < 14 * 86400 {
             selectedEvent = nil; previewTime = Date(timeIntervalSince1970: time); selectedTab = 1
             message = "Showing the saved viewing time. Refresh to check the latest event details."
@@ -197,6 +211,7 @@ final class AppModel: NSObject, ObservableObject, @preconcurrency CLLocationMana
     func loadReminders() async {
         let requests = await UNUserNotificationCenter.current().pendingNotificationRequests()
         reminderIDs = Set(requests.map(\.identifier))
+        if !isTesting { WatchCompanion.shared.publish() }
     }
     func reminder(_ event: SkyEvent) async {
         let id = "\(location.id):\(event.id)"

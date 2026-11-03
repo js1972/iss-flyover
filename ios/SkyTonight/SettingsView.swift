@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreLocation
+import UserNotifications
 
 struct SettingsView: View {
     @EnvironmentObject var model: AppModel
@@ -69,6 +70,20 @@ struct SettingsView: View {
                 Section("Home & Lock Screen widgets") {
                     Text("Touch and hold your Home Screen, choose Edit → Add Widget, then search for Sky Tonight. Choose Sky Tonight or Next ISS Pass. Edit a widget to choose a saved observing place.")
                     Text("Lock Screen: touch and hold the Lock Screen, choose Customize, then add a Sky Tonight widget below the clock.").font(.footnote).foregroundStyle(.secondary)
+                }
+                Section("Apple Watch") {
+                    Text("Install Sky Tonight from the Watch app on your iPhone. Saved places and forecasts sync to the watch; swipe between Tonight and Next ISS.").font(.footnote)
+                    Button("Sync watch now") { WatchCompanion.shared.publish(); model.message = "Sync requested. Your watch updates when the connection is available." }
+                    Button("Enable observing reminders") {
+                        Task {
+                            do {
+                                let enabled = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
+                                model.message = enabled ? "Reminders are enabled. You can now request them from either device. Delivery follows your Focus and notification settings." : "Allow notifications for Sky Tonight in iPhone Settings to receive reminders."
+                                WatchCompanion.shared.publish()
+                            } catch { model.message = "Notification permission could not be requested. Try again." }
+                        }
+                    }.accessibilityIdentifier("enableObservingReminders")
+                    Text("The iPhone schedules reminders once. Watch requests show Awaiting iPhone until confirmed. Complications and Smart Stack widgets use the watch’s selected observing place.").font(.caption).foregroundStyle(.secondary)
                 }
                 Section("Data & privacy") {
                     Text("Astronomy is calculated on this device. Apple handles optional weather, place searches and location naming. No account, advertising or analytics are included.").font(.footnote)

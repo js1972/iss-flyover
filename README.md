@@ -16,7 +16,7 @@ Open [`ios/SkyTonight.xcodeproj`](ios/SkyTonight.xcodeproj), select the **SkyTon
 
 See the [iOS guide](ios/README.md) for signing, device setup, adding widgets, architecture, and tests. Sky Tonight has its own bundle identifiers and storage. Its private App Group is used only by Sky Tonight and its own widgets; it does not share data with other apps.
 
-The native app focuses on observing and widgets. The 3D globe/ground-track view and additional alignment/eclipse highlights remain website features. Apple Watch and Live Activities are not included.
+The native app focuses on observing and widgets. The 3D globe/ground-track view and additional alignment/eclipse highlights remain website features. The native Apple Watch companion is implemented for build 12; see [watch release and device-verification gates](ios/WATCH_RELEASE.md). Live Activities are not included.
 
 ## TestFlight and release management
 

@@ -58,4 +58,10 @@ actor SkyCalculator {
         struct Input: Encodable { var location: ObservingLocation; var time: Date; var orbit: OrbitData?; var target: SkyEvent? }
         return try call("chart", input: Input(location: location, time: time, orbit: orbit?.usable(at: time) == true ? orbit : nil, target: target), as: [ChartObject].self)
     }
+    func watchSnapshot(_ snapshot: SkySnapshot) throws -> SkySnapshot {
+        struct Input: Encodable { var location: ObservingLocation; var events: [SkyEvent] }
+        var result = snapshot
+        result.events = try call("watchPaths", input: Input(location: snapshot.location, events: snapshot.events), as: [SkyEvent].self)
+        return result
+    }
 }
