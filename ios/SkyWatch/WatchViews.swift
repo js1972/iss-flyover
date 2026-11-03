@@ -1,28 +1,33 @@
 import SwiftUI
 import WatchKit
 
-extension Color { static let watchMint = Color(red: 0.34, green: 0.9, blue: 0.76) }
+extension Color {
+    static let watchMint = Color(red: 0.36, green: 0.91, blue: 0.81)
+    static let watchButton = Color(red: 0.15, green: 0.16, blue: 0.27)
+}
 
 struct WatchRootView: View {
     @EnvironmentObject private var model: WatchModel
-    @Environment(\.scenePhase) private var phase
-    @Environment(\.isLuminanceReduced) private var dimmed
     var body: some View {
         NavigationStack(path: $model.route) {
             GeometryReader { geometry in
-                TimelineView(.periodic(from: .now, by: dimmed || phase != .active ? 60 : 1)) { context in
-                    TabView(selection: $model.page) {
-                        WatchTonightPage(now: context.date, compact: geometry.size.width < 180).tag(0)
-                        WatchISSPage(now: context.date, compact: geometry.size.width < 180).tag(1)
-                    }.tabViewStyle(.page(indexDisplayMode: .always))
-                }
+                // Account for native header and rounded bottom clearance. TabView's
+                // proposed height excludes more safe area than its page ScrollViews use.
+                let faceSize = CGSize(width: geometry.size.width,
+                    height: max(100, WKInterfaceDevice.current().screenBounds.height
+                        - geometry.frame(in: .global).minY - (geometry.size.width < 180 ? 12 : 18) + 10))
+                // The pager and its scroll views have stable lifetimes. Only live labels tick.
+                TabView(selection: $model.page) {
+                    WatchTonightPage(size: faceSize, selected: model.page == 0).tag(0)
+                    WatchISSPage(size: faceSize, selected: model.page == 1).tag(1)
+                }.tabViewStyle(.page(indexDisplayMode: .never))
             }
+            .background { WatchFaceBackground() }
             .navigationTitle("")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Text(model.page == 0 ? "Tonight" : "Next ISS").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white).lineLimit(1).offset(y: -9)
-                }
-            }
+            .toolbar { ToolbarItem(placement: .topBarLeading) {
+                Text(model.page == 0 ? "Tonight" : "Next ISS").font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.watchMint).offset(y: -9)
+            } }
+            .toolbarTitleDisplayMode(.inline)
             .navigationDestination(for: String.self) { route in
                 if route == "places" { WatchPlacesView() }
                 else if route == "moon" { WatchMoonView() }
@@ -37,139 +42,232 @@ struct WatchRootView: View {
 
 struct WatchTonightPage: View {
     @EnvironmentObject private var model: WatchModel
-    var now: Date
-    var compact = false
-    @ScaledMetric(relativeTo: .largeTitle) private var largeType = 72.0
-    @ScaledMetric(relativeTo: .body) private var textScale = 1.0
+    @Environment(\.scenePhase) private var phase
+    @State private var now = Date()
+    var size: CGSize
+    var selected: Bool
     var body: some View {
         ScrollView {
-            VStack(spacing: 0) {
-                if let snapshot = model.snapshot(at: now) {
-                    let events = snapshot.ranked(at: now)
+            VStack(spacing: 22) {
+                if let snapshot = model.snapshot(at: model.displayDate(now)) {
+                    let events = snapshot.ranked(at: model.displayDate(now))
                     if let event = events.first {
-                        ViewThatFits(in: .horizontal) {
-                            HStack(spacing: 4) {
-                                WatchArtwork(event: event, prominent: true).frame(width: compact ? 72 : 94, height: compact ? 32 : 42)
-                                Text(event.title).font(.system(size: (compact ? 19 : 23) * textScale, weight: .bold))
-                                    .fixedSize(horizontal: true, vertical: true)
+                        WatchTonightFace(event: event, size: size)
+                        VStack(spacing: 12) {
+                            Text("At \(snapshot.location.time(event.focus))").font(.caption).foregroundStyle(.secondary)
+                            WatchPlaceFooter()
+                            #if DEBUG
+                            if ProcessInfo.processInfo.arguments.contains("--stress-sync") {
+                                Text("Sync revision \(model.package?.revision ?? 0)").accessibilityIdentifier("stressSync")
                             }
-                            VStack(spacing: 4) {
-                                WatchArtwork(event: event, prominent: true).frame(width: 94, height: 42)
-                                Text(event.title).font(.system(size: (compact ? 19 : 23) * textScale, weight: .bold))
-                                    .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
-                            }
-                        }.frame(maxWidth: .infinity)
-                        Text(event.direction).lineLimit(1).minimumScaleFactor(0.5).fixedSize(horizontal: false, vertical: true).font(.system(size: largeType * (compact ? 0.78 : 1), weight: .bold, design: .rounded)).foregroundStyle(Color.watchMint)
-                            .frame(height: largeType * (compact ? 0.78 : 1) * 0.94)
-                        Text("\(Int(event.elevation.rounded()))° high").font(.system(size: (compact ? 21 : 24) * textScale, weight: .semibold)).padding(.bottom, compact ? 3 : 6)
-                        NavigationLink(value: event.id) {
-                            Label(event.kind == "iss" ? "View path" : "Find it", systemImage: "location.fill").frame(maxWidth: .infinity, minHeight: 30)
-                        }.buttonStyle(WatchPrimaryStyle()).accessibilityIdentifier("findIt")
-                        .padding(.horizontal, compact ? 4 : 10)
-                        Text("At \(snapshot.location.time(event.focus))").font(.caption).foregroundStyle(.secondary).padding(.top, 28)
-                        WatchPlaceFooter(now: now)
-                        if events.count > 1 {
-                            Divider().padding(.vertical, 8)
-                            Text("MORE TONIGHT").font(.caption2).foregroundStyle(.secondary)
-                            ForEach(Array(events.dropFirst().prefix(4))) { event in
-                                NavigationLink(value: event.id) {
+                            #endif
+                            ForEach(Array(events.dropFirst().prefix(4))) { other in
+                                NavigationLink(value: other.id) {
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text(event.title).font(.headline)
-                                        Text("\(snapshot.location.time(event.focus)) · \(event.direction)").font(.caption).foregroundStyle(.secondary)
+                                        Text(other.title).font(.headline)
+                                        Text("\(snapshot.location.time(other.focus)) · \(other.direction)").font(.caption).foregroundStyle(.secondary)
                                     }.frame(maxWidth: .infinity, alignment: .leading)
                                 }
                             }
                         }
                     } else {
                         WatchEmptyView(title: "A quiet sky", detail: "No remaining highlights for this observing night.")
-                        WatchPlaceFooter(now: now)
+                        WatchPlaceFooter()
                     }
                     NavigationLink("Moon & conditions", value: "moon").accessibilityIdentifier("moonDetails")
-                } else { WatchSetupView() }
-            }.padding(.horizontal, 4).padding(.bottom, 24)
-        // Reclaim the unused second-title row while retaining the system clock inset.
-        }.contentMargins(.top, -18, for: .scrollContent).watchScrollEdges()
+                } else if model.loading { ProgressView("Loading your sky") }
+                else { WatchSetupView() }
+            }.padding(.horizontal, 10).padding(.bottom, 20)
+        }.scrollIndicators(.hidden).contentMargins(.top, -10, for: .scrollContent)
+            .modifier(WatchPageRefresh(date: $now, active: selected && phase == .active))
+    }
+}
+
+private struct WatchTonightFace: View {
+    var event: SkyEvent
+    var size: CGSize
+    @Environment(\.dynamicTypeSize) private var textSize
+    @ScaledMetric(relativeTo: .title2) private var titleSize = 28.0
+    @ScaledMetric(relativeTo: .body) private var subtitleSize = 16.0
+    private var compact: Bool { size.width < 180 }
+    var body: some View {
+        let height = max(100, size.height)
+        ZStack(alignment: .topLeading) {
+            if let asset = event.artworkAsset {
+                GeometryReader { geometry in
+                    Image(asset).resizable().scaledToFit()
+                        .frame(width: geometry.size.width * (event.body == "Saturn" ? 1.7 : 1.15))
+                        .rotationEffect(.degrees(event.body == "Saturn" ? -12 : 0))
+                        .position(x: geometry.size.width * 0.72, y: geometry.size.height * 0.44)
+                        .blendMode(.screen)
+                }.accessibilityHidden(true).allowsHitTesting(false)
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(event.title).font(.system(size: titleSize * (compact ? 0.84 : 1), weight: .bold))
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("\(event.direction) · \(Int(event.elevation.rounded()))°")
+                    .font(.system(size: subtitleSize * (compact ? 0.9 : 1), weight: .medium)).foregroundStyle(.white.opacity(0.76))
+                Spacer(minLength: compact ? 34 : 60)
+                NavigationLink(value: event.id) {
+                    Text(event.kind == "iss" ? "View path" : "Find it").frame(maxWidth: .infinity)
+                }.buttonStyle(WatchPrimaryStyle()).accessibilityIdentifier("findIt")
+            }
+        }.frame(minHeight: textSize.isAccessibilitySize ? height * 1.25 : height, alignment: .top)
+            .clipped()
     }
 }
 
 struct WatchISSPage: View {
     @EnvironmentObject private var model: WatchModel
-    var now: Date
-    var compact = false
-    @ScaledMetric(relativeTo: .largeTitle) private var largeType = 58.0
-    @ScaledMetric(relativeTo: .body) private var textScale = 1.0
+    @Environment(\.scenePhase) private var phase
+    @State private var now = Date()
+    var size: CGSize
+    var selected: Bool
     var body: some View {
         ScrollView {
-            VStack(spacing: 0) {
-                if let snapshot = model.snapshot(at: now) {
-                    if let event = snapshot.ranked(at: now, issOnly: true).first,
-                       WatchObservation.event(event, usableIn: snapshot, at: now) {
-                        let live = now >= event.start && now < event.end
-                        WatchArtwork(event: event).frame(height: compact ? 46 : 62)
-                        Text(live ? "Visible now" : WatchObservation.countdown(to: event.start, now: now))
-                            .font(.system(size: (live ? largeType * 0.65 : largeType) * (compact ? 0.78 : 1), weight: .bold, design: .rounded))
-                            .monospacedDigit().minimumScaleFactor(0.6).lineLimit(1).fixedSize(horizontal: false, vertical: true).foregroundStyle(Color.watchMint)
-                            .frame(height: largeType * (compact ? 0.78 : 1) * 0.83)
-                        if !live { Text("until visible").font(.system(size: (compact ? 12 : 14) * textScale)).foregroundStyle(.white) }
-                        let bearing = live ? WatchObservation.point(in: event, at: now)?.azimuth : event.points.first?.azimuth
-                        HStack(spacing: 6) {
-                            Image(systemName: "arrow.up").rotationEffect(.degrees(bearing ?? event.azimuth)).foregroundStyle(Color.watchMint).accessibilityHidden(true)
-                            Text(WatchBearing.name(bearing ?? event.azimuth))
-                        }.font(.system(size: (compact ? 17 : 21) * textScale, weight: .bold))
-                        NavigationLink(value: event.id) {
-                            Label(live ? "Track now" : "View path", systemImage: "point.topleft.down.to.point.bottomright.curvepath").frame(maxWidth: .infinity, minHeight: 30)
-                        }.buttonStyle(WatchPrimaryStyle()).accessibilityIdentifier("viewPath")
-                        .padding(.horizontal, compact ? 4 : 10)
-                        Text("\(snapshot.location.day(event.start)) · \(snapshot.location.time(event.start))").font(.caption).foregroundStyle(.secondary).padding(.top, 28)
-                        WatchPlaceFooter(now: now)
-                        if let notice = snapshot.orbitMessage { Text(notice).font(.caption).foregroundStyle(.secondary) }
-                        ForEach(Array(snapshot.ranked(at: now, issOnly: true).dropFirst().prefix(3))) { pass in
-                            NavigationLink(value: pass.id) {
-                                Text("\(snapshot.location.day(pass.start)) · \(snapshot.location.time(pass.start))").font(.caption)
+            VStack(spacing: 22) {
+                if let snapshot = model.snapshot(at: model.displayDate(now)) {
+                    let passes = snapshot.ranked(at: model.displayDate(now), issOnly: true)
+                    if let event = passes.first, WatchObservation.event(event, usableIn: snapshot, at: model.displayDate(now)) {
+                        WatchISSFace(event: event, size: size, active: selected)
+                        VStack(spacing: 12) {
+                            Text("\(snapshot.location.day(event.start)) · \(snapshot.location.time(event.start))").font(.caption).foregroundStyle(.secondary)
+                            WatchPlaceFooter()
+                            #if DEBUG
+                            if ProcessInfo.processInfo.arguments.contains("--stress-sync") {
+                                Text("Sync revision \(model.package?.revision ?? 0)").accessibilityIdentifier("stressSync")
+                            }
+                            #endif
+                            if let notice = snapshot.orbitMessage { Text(notice).font(.caption).foregroundStyle(.secondary) }
+                            ForEach(Array(passes.dropFirst().prefix(3))) { pass in
+                                NavigationLink(value: pass.id) {
+                                    Text("\(snapshot.location.day(pass.start)) · \(snapshot.location.time(pass.start))").font(.caption)
+                                }
                             }
                         }
                     } else {
                         WatchEmptyView(title: snapshot.orbit?.usable(at: now) == true ? "No visible pass" : "ISS data unavailable",
                             detail: snapshot.orbit?.usable(at: now) == true ? "No sunlit pass meets the viewing criteria in this forecast." : "Refresh from iPhone for current orbital data.")
-                        WatchPlaceFooter(now: now)
+                        WatchPlaceFooter()
                         Button("Refresh") { model.requestRefresh(force: true) }
                     }
-                } else { WatchSetupView() }
-            }.padding(.horizontal, 4).padding(.bottom, 24)
-        }.contentMargins(.top, -24, for: .scrollContent).watchScrollEdges()
+                } else if model.loading { ProgressView("Loading your sky") }
+                else { WatchSetupView() }
+            }.padding(.horizontal, 10).padding(.bottom, 20)
+        }.scrollIndicators(.hidden).contentMargins(.top, -10, for: .scrollContent)
+            .modifier(WatchPageRefresh(date: $now, active: selected && phase == .active))
     }
 }
 
-/// Keep the first face crisp; restore the system fade as details scroll beneath the header.
-private struct WatchScrollEdgeModifier: ViewModifier {
-    @State private var isAtTop = true
-    @ViewBuilder func body(content: Content) -> some View {
-        if #available(watchOS 26.0, *) {
-            content
-                .onScrollGeometryChange(for: Bool.self) { geometry in
-                    geometry.contentOffset.y + geometry.contentInsets.top <= 1
-                } action: { _, atTop in isAtTop = atTop }
-                .scrollEdgeEffectHidden(isAtTop, for: .top)
-        } else { content }
+private struct WatchISSFace: View {
+    @EnvironmentObject private var model: WatchModel
+    @Environment(\.dynamicTypeSize) private var textSize
+    var event: SkyEvent
+    var size: CGSize
+    var active: Bool
+    @ScaledMetric(relativeTo: .largeTitle) private var countdownSize = 56.0
+    @ScaledMetric(relativeTo: .body) private var bodySize = 16.0
+    var body: some View {
+        let compact = size.width < 180
+        VStack(alignment: .leading, spacing: compact ? 1 : 2) {
+            Image("WidgetISS").renderingMode(.template).resizable().scaledToFit()
+                .frame(width: 42, height: compact ? 14 : 22).foregroundStyle(Color.watchMint).accessibilityHidden(true)
+            WatchLiveClock(active: active) { tick in
+                let now = model.displayDate(tick)
+                let live = now >= event.start && now < event.end
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(live ? "Visible now" : WatchObservation.countdown(to: event.start, now: now))
+                        .font(.system(size: countdownSize * (compact ? 0.76 : 1) * (live ? 0.65 : 1), weight: .bold))
+                        .monospacedDigit().lineLimit(1).minimumScaleFactor(0.6).foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(height: countdownSize * (compact ? 0.76 : 1) * 0.9)
+                        .accessibilityIdentifier("issCountdown")
+                    Text(live ? "above the horizon" : "until visible").font(.system(size: bodySize * (compact ? 0.77 : 0.88))).foregroundStyle(.white.opacity(0.74))
+                    let bearing = live ? WatchObservation.point(in: event, at: now)?.azimuth : event.points.first?.azimuth
+                    Text("Look \(WatchBearing.name(bearing ?? event.azimuth).lowercased())")
+                        .font(.system(size: bodySize * (compact ? 0.88 : 1), weight: .medium)).padding(.top, compact ? 2 : 4)
+                    // Fill during the final three minutes before visibility, then track the live pass.
+                    let progress = live ? now.timeIntervalSince(event.start) / max(1, event.end.timeIntervalSince(event.start)) : 1 - event.start.timeIntervalSince(now) / 180
+                    GeometryReader { geometry in
+                        Capsule().fill(Color.white.opacity(0.18))
+                        Capsule().fill(Color.watchMint).frame(width: geometry.size.width * min(1, max(0, progress)))
+                    }.frame(height: 4).accessibilityElement(children: .ignore)
+                        .accessibilityLabel(live ? "Pass progress" : "Final three minutes until visible")
+                        .accessibilityValue("\(Int(min(1, max(0, progress)) * 100)) percent")
+                        .padding(.top, compact ? 3 : 5)
+
+                }.frame(maxWidth: .infinity, alignment: .leading)
+            }
+            Spacer(minLength: 3)
+            NavigationLink(value: event.id) { Text("View path").frame(maxWidth: .infinity) }
+                .buttonStyle(WatchPrimaryStyle()).accessibilityIdentifier("viewPath")
+        }.frame(minHeight: max(100, size.height) * (textSize.isAccessibilitySize ? 1.25 : 1), alignment: .topLeading)
     }
 }
 
-extension View {
-    func watchScrollEdges() -> some View { modifier(WatchScrollEdgeModifier()) }
+/// Timer state belongs to the live leaf, never to the pager, scroll view or navigation stack.
+struct WatchLiveClock<Content: View>: View {
+    @Environment(\.scenePhase) private var phase
+    @Environment(\.isLuminanceReduced) private var dimmed
+    @State private var date = Date()
+    var active = true
+    @ViewBuilder var content: (Date) -> Content
+    var body: some View {
+        content(date).task(id: active && phase == .active && !dimmed) {
+            guard active && phase == .active && !dimmed else { return }
+            while !Task.isCancelled {
+                date = Date()
+                do { try await Task.sleep(for: .seconds(1)) } catch { return }
+            }
+        }
+    }
 }
 
-/// Compact title/back control leaves room for the system clock without a second header row.
+private struct WatchPageRefresh: ViewModifier {
+    @Binding var date: Date
+    var active: Bool
+    func body(content: Content) -> some View {
+        content.task(id: active) {
+            guard active else { return }
+            while !Task.isCancelled {
+                date = Date()
+                do { try await Task.sleep(for: .seconds(60)) } catch { return }
+            }
+        }
+    }
+}
+
+struct WatchFaceBackground: View {
+    var horizon = false
+    var body: some View {
+        GeometryReader { geometry in
+            Image(horizon ? "WatchHorizon" : "WatchMidnight").resizable().scaledToFill()
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .scaleEffect(horizon ? 1.12 : 1, anchor: .bottom).clipped()
+        }.ignoresSafeArea().allowsHitTesting(false).accessibilityHidden(true)
+    }
+}
+
+struct WatchPrimaryStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.font(.system(.headline, weight: .semibold)).foregroundStyle(.white)
+            .frame(maxWidth: .infinity, minHeight: 40)
+            .background(Color.watchButton.opacity(configuration.isPressed ? 0.65 : 1), in: Capsule())
+            .contentShape(Capsule())
+    }
+}
+
 struct WatchBackButton: View {
     @EnvironmentObject private var model: WatchModel
     var title: String
     var body: some View {
         Button { if !model.route.isEmpty { model.route.removeLast() } } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "chevron.left").font(.system(size: 12, weight: .bold))
-                Text(title).font(.system(size: 15, weight: .semibold)).lineLimit(1)
-            }.frame(minHeight: 32).contentShape(Rectangle())
-        }.buttonStyle(.plain).foregroundStyle(.white).offset(y: -9)
-            .accessibilityLabel("Back").accessibilityIdentifier("watchBack")
+            HStack(spacing: 3) {
+                Image(systemName: "chevron.left").font(.system(size: 11, weight: .semibold))
+                Text(title).font(.system(size: 14, weight: .semibold)).lineLimit(1)
+            }.frame(minHeight: 32)
+        }.buttonStyle(.plain).foregroundStyle(Color.watchMint)
+            .offset(y: -9).accessibilityLabel("Back").accessibilityIdentifier("watchBack")
     }
 }
 
@@ -179,117 +277,5 @@ enum WatchBearing {
         let names = ["North", "Northeast", "East", "Southeast", "South", "Southwest", "West", "Northwest"]
         let normalized = (azimuth.truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360)
         return names[Int((normalized / 45).rounded()) % names.count]
-    }
-}
-
-struct WatchPrimaryStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label.font(.system(.headline, design: .default, weight: .semibold)).foregroundStyle(.white)
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .background(Color.white.opacity(configuration.isPressed ? 0.25 : 0.14), in: Capsule())
-    }
-}
-
-struct WatchPlaceFooter: View {
-    @EnvironmentObject private var model: WatchModel
-    var now: Date
-    var body: some View {
-        VStack(spacing: 5) {
-            NavigationLink(value: "places") { Label(model.location?.name ?? "Observing place", systemImage: "mappin.and.ellipse").font(.caption) }
-                .buttonStyle(.plain).padding(.vertical, 8).accessibilityIdentifier("observingPlace")
-            if model.isPreview { Text("Sample data").font(.caption2).foregroundStyle(.secondary) }
-            else if let sent = model.package?.sentAt {
-                Text("Synced \(sent, style: .relative) ago").font(.caption2).foregroundStyle(.secondary)
-            }
-        }
-    }
-}
-struct WatchEmptyView: View {
-    var title: String
-    var detail: String
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "moon.stars").font(.largeTitle).foregroundStyle(Color.watchMint)
-            Text(title).font(.headline)
-            Text(detail).font(.caption).foregroundStyle(.secondary)
-        }.multilineTextAlignment(.center).padding(.vertical, 12)
-    }
-}
-struct WatchSetupView: View {
-    @EnvironmentObject private var model: WatchModel
-    var body: some View {
-        WatchEmptyView(title: model.package == nil ? "Your sky, on your wrist" : "Forecast needs a refresh",
-                       detail: model.package == nil ? "Open Sky Tonight on your paired iPhone and choose an observing place. Its forecast will appear here." : "Open Sky Tonight on iPhone to refresh this place. Saved events won't be shown as current after they expire.")
-        Button("Request forecast") { model.requestRefresh(force: true) }.accessibilityIdentifier("requestForecast")
-        if model.package != nil { NavigationLink("Observing places", value: "places") }
-    }
-}
-struct WatchArtwork: View {
-    var event: SkyEvent
-    var prominent = false
-    var body: some View {
-        if let asset = event.artworkAsset { Image(asset).resizable().scaledToFit()
-            .scaleEffect(prominent && event.body == "Saturn" ? 1.45 : 1)
-            .clipped().accessibilityHidden(true) }
-        else { Image(systemName: event.symbol).font(.title2).foregroundStyle(Color.watchMint).accessibilityHidden(true) }
-    }
-}
-struct WatchPlacesView: View {
-    @EnvironmentObject private var model: WatchModel
-    @State private var setupHandoff = false
-    var body: some View {
-        List {
-            ForEach(model.package?.locations ?? []) { location in
-                Button { model.select(location.id) } label: {
-                    HStack { Text(location.name); Spacer(); if location.id == model.selectedID { Image(systemName: "checkmark").foregroundStyle(Color.watchMint) } }
-                }
-            }
-            Text("Add or edit places on iPhone. Directions are calculated for the selected place.").font(.caption).foregroundStyle(.secondary)
-            Text(model.package?.eveningFirst == true ? "Evening-first recommendations" : "All-night recommendations").font(.caption)
-            Button("Refresh from iPhone") { model.requestRefresh(force: true) }
-            Button("Set up on iPhone") { setupHandoff = true }
-            if setupHandoff { Text("Open the Sky Tonight Handoff suggestion in your iPhone's app switcher to see settings and enable reminders.").font(.caption) }
-            if !model.pending.isEmpty {
-                Text("\(model.pending.count) reminder request(s) awaiting iPhone confirmation.").font(.caption)
-            }
-            Section("About") {
-                Link("Privacy", destination: URL(string: "https://iss-flyover.pages.dev/privacy.html")!)
-                Link("Support", destination: URL(string: "https://iss-flyover.pages.dev/support.html")!)
-                Text("Artwork: NASA; Jupiter: NASA / JPL-Caltech / SwRI / MSSS / Kevin M. Gill (CC BY). Images are illustrative spacecraft views.").font(.caption2)
-            }
-        }.navigationTitle("Places")
-            .userActivity(WatchObservation.activityType, isActive: setupHandoff) { activity in
-                activity.title = "Sky Tonight settings"
-                activity.userInfo = ["url": "skytonight://settings"]
-                activity.isEligibleForHandoff = true
-            }
-            .onDisappear { setupHandoff = false }
-    }
-}
-struct WatchMoonView: View {
-    @EnvironmentObject private var model: WatchModel
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 10) {
-                if let snapshot = model.snapshot(), let night = snapshot.night(at: Date()) {
-                    Image(systemName: WatchObservation.moonSymbol(night.moonPhase)).font(.system(size: 48)).foregroundStyle(Color.watchMint).accessibilityHidden(true)
-                    Text("\(night.moonPercent)% lit").font(.title2.bold())
-                    Text(night.moonName).font(.headline)
-                    Text(snapshot.location.day(night.start)).font(.caption).foregroundStyle(.secondary)
-                    if let dark = night.dark { Text("Dark from \(snapshot.location.time(dark))").font(.caption) }
-                    if let dawn = night.dawn { Text("Dawn \(snapshot.location.time(dawn))").font(.caption) }
-                    Divider()
-                    if model.package?.weatherEnabled == true,
-                       let weather = snapshot.weather, let sample = weather.sample(at: Date(), now: Date()), let credit = weather.credit {
-                        Text("\(Int(sample.cloud))% cloud").font(.headline)
-                        Text("Wind \(Int(sample.wind)) km/h").font(.caption)
-                        WeatherCreditView(credit: credit)
-                    } else {
-                        Text(model.package?.weatherEnabled == true ? "Current weather unavailable" : "Optional weather can be enabled on iPhone").font(.caption).foregroundStyle(.secondary)
-                    }
-                    WatchPlaceFooter(now: Date())
-                } else { WatchSetupView() }
-            }.padding(.horizontal, 4)
-        }.navigationTitle("Moon")
     }
 }

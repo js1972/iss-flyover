@@ -6,6 +6,7 @@ import UserNotifications
 
 @MainActor
 final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
+    @Published var loading = false
     @Published var package: WatchPackage?
     @Published var selectedID = WatchCache.selectedID
     @Published var pending: [WatchAction] = []
@@ -14,6 +15,9 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
     @Published var route: [String] = []
     @Published var reachable = false
     @Published var handoff = false
+    private let forecastStore = WatchForecastStore()
+    private var receiveTask: Task<Void, Never>?
+    private var processingUpdates = 0
     private var requestedAt = Date.distantPast
     private var pendingURL: URL?
     private var backgroundTasks: [WKWatchConnectivityRefreshBackgroundTask] = []
@@ -27,9 +31,6 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
     }
     override init() {
         super.init()
-        package = WatchCache.package
-        pending = WatchCache.load([WatchAction].self, name: "actions.json") ?? []
-        pending.removeAll { action in package?.results.contains { $0.id == action.id } == true }
         WatchRuntime.model = self
         #if DEBUG
         if isPreview {
@@ -39,8 +40,35 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
             if ProcessInfo.processInfo.arguments.contains("--active-pass") { page = 1; route = ["demo-iss"] }
         }
         #endif
-        normalizeSelection()
-        guard !isPreview else { return }
+        if isPreview {
+            normalizeSelection()
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--stress-sync"), let base = package {
+                Task { [weak self] in
+                    for revision in 2...90 {
+                        guard let self else { return }
+                        do {
+                            let data = try await forecastStore.stressData(base, revision: revision)
+                            receive(data)
+                            try await Task.sleep(for: .seconds(2))
+                        } catch { return }
+                    }
+                }
+            }
+            #endif
+            return
+        }
+        loading = true
+        receiveTask = Task { [weak self] in
+            guard let self else { return }
+            let (cached, actions) = await forecastStore.load()
+            package = cached
+            pending = actions.filter { action in cached?.results.contains { $0.id == action.id } != true }
+            loading = false
+            normalizeSelection()
+            sendPending()
+            if let url = pendingURL { pendingURL = nil; open(url) }
+        }
         if WCSession.isSupported() {
             WCSession.default.delegate = self
             contentObservation = WCSession.default.observe(\.hasContentPending, options: [.new]) { [weak self] _, _ in
@@ -48,6 +76,12 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
             }
             WCSession.default.activate()
         }
+    }
+    func displayDate(_ date: Date) -> Date {
+        #if DEBUG
+        if isPreview && ProcessInfo.processInfo.arguments.contains("--design-capture") { return WatchPreviewData.referenceDate }
+        #endif
+        return date
     }
     var location: ObservingLocation? { package?.locations.first { $0.id == selectedID } }
     func snapshot(at date: Date = Date()) -> SkySnapshot? { package?.snapshot(for: selectedID, at: date) }
@@ -62,19 +96,35 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
         requestRefresh(force: true)
     }
     func receive(_ data: Data) {
+        processingUpdates += 1
+        let previous = receiveTask
+        receiveTask = Task { [weak self] in
+            await previous?.value
+            guard let self else { return }
+            await apply(data)
+            processingUpdates -= 1
+            completeBackgroundTasks()
+        }
+    }
+    private func apply(_ data: Data) async {
         do {
-            let incoming = try SkyJSON.decoder().decode(WatchPackage.self, from: data)
+            let incoming = try await forecastStore.decode(data)
             guard incoming.schema == 1 else { message = "Update Sky Tonight on both devices to sync."; return }
             guard incoming.accepts(after: package) else { return }
-            try WatchCache.save(incoming, name: "forecast.json")
+            #if DEBUG
+            if isPreview { try await forecastStore.saveStress(incoming) }
+            else { try await forecastStore.save(incoming) }
+            #else
+            try await forecastStore.save(incoming)
+            #endif
             if incoming.selectedID != package?.selectedID { selectedID = incoming.selectedID; route = [] }
             let receipts = incoming.results.filter { result in pending.contains { $0.id == result.id } }
             pending.removeAll { action in incoming.results.contains { $0.id == action.id } }
-            try WatchCache.save(pending, name: "actions.json")
+            if !isPreview { try WatchCache.save(pending, name: "actions.json") }
             package = incoming
             if let receipt = receipts.last { message = receipt.message }
             normalizeSelection()
-            WidgetCenter.shared.reloadAllTimelines()
+            if !isPreview { WidgetCenter.shared.reloadAllTimelines() }
             if let url = pendingURL { pendingURL = nil; open(url) }
         } catch { message = "The update could not be read. Your saved forecast is still available." }
     }
@@ -146,7 +196,7 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
         backgroundTasks.append(task); completeBackgroundTasks()
     }
     private func completeBackgroundTasks() {
-        guard WCSession.default.activationState == .activated, !WCSession.default.hasContentPending else { return }
+        guard processingUpdates == 0, WCSession.default.activationState == .activated, !WCSession.default.hasContentPending else { return }
         backgroundTasks.forEach { $0.setTaskCompletedWithSnapshot(false) }; backgroundTasks = []
     }
     nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {

@@ -1,92 +1,97 @@
-# watchOS visual verification — build 13, 3 November 2026
+# watchOS design and interaction review — build 14
 
-final result: passed
+Review date: 3 November 2026.
 
-This supersedes the build 12 visual sign-off. That earlier review accepted working
-navigation and readable controls despite substantial drift from the approved image.
-The user's physical-watch photo and the subsequent simulator comparison exposed it.
+Final result: passed for the reviewed simulator design and interaction scenarios.
+Physical-device confirmation remains open.
 
-## Reference and comparison conditions
+## Correct reference
 
-- Visual source: `ios/Artwork/Watch-release-reference.png` (1536 × 1024), the
-  selected Tonight / Next ISS / Active pass concept.
-- Final evidence: `ios/Artwork/Watch-build13/tonight-{40,46}mm.png`,
-  `next-iss-{40,46}mm.png`, `active-pass-{40,46}mm.png` and
-  `largest-text-{40,46}mm.png`.
-- Native viewports: 40 mm, 162 × 197 points / 324 × 394 pixels; 46 mm,
-  208 × 248 points / 416 × 496 pixels. Both are 2× captures on watchOS 27 simulators;
-  CSS dimensions do not apply. The generated reference contains perspective watch
-  cases, so comparison uses the proportions inside each black display, excluding
-  bands, case and board labels. It is not a pixel-identical device-frame comparison.
-- States match the reference: Saturn with NE / 42°, imminent ISS countdown, and a
-  live pass. Countdown/elevation/time values advance during capture. The final source
-  and native screenshots were inspected together in the same comparison input for
-  each size. Full-resolution images also made the header, artwork, button clearance,
-  endpoints and typography directly readable without separate focused crops.
+The canonical reference is `ios/Artwork/Watch-approved-reference.png`, the exact
+948 × 626 image supplied with the user's build-13 rejection. The previous
+`Watch-release-reference.png` and build-13 sign-off used the wrong visual target.
+Those screenshots are historical evidence, not acceptance criteria.
 
-## Findings, fixes and comparison history
+Compare the display interiors, excluding the illustrative cases and bands:
 
-1. **[P1, fixed] Small artwork and figures lost the intended hierarchy.** Build 12
-   allocated 24–32-point artwork heights and 36–44-point main type. Build 13 uses
-   prominent Saturn/ISS images and 58–72-point base figure sizes, scaled for 40 mm.
-   Saturn's existing photograph is framed to emphasize the planet and rings.
-2. **[P1, fixed] Generic header spacing and enlarged content pushed actions offscreen.**
-   The first enlargement pass exposed this overflow. Compact title/back controls,
-   explicit scroll-content insets, fitted figure line boxes and balanced action
-   widths now keep both complete primary buttons above the page indicators.
-3. **[P2, fixed] Time/location details collided with page dots.** Secondary details
-   now start after a deliberate gap below the main face. They remain reachable by
-   scrolling. The two horizontal pages and Crown scrolling remain intact.
-4. **[P2, fixed] The pass screen lacked the reference's compact hierarchy.** A compact
-   “ISS now” header replaces the oversized Back row and separate state row. The
-   large altitude, path endpoints and remaining time fit together. The plot scales
-   its vertical axis to the sampled pass (with zero at the horizon), preserving
-   the actual altitude-over-time data rather than drawing a decorative semicircle.
-5. **[P2, fixed] Larger text split Saturn mid-word beside its image.** `ViewThatFits`
-   stacks artwork and title when the horizontal arrangement cannot fit. Labels and
-   figures scale; extreme text sizes require scrolling. Tests reach and activate
-   Find it, return, and continue to Moon and observing places at the largest request.
-6. **[P2, fixed] Modern watchOS's soft top edge blurred the initial main figure.**
-   The final pass disables that effect only while the scroll view is at the top;
-   scrolling restores it to protect the header. This uses a watchOS 26 availability
-   guard and preserves the existing fallback for earlier supported watchOS versions.
+- Tonight: mint heading, left-aligned white Saturn title, compact gray NE · 42°,
+  large cropped photographic Saturn, midnight background, navy Find it capsule.
+- Next ISS: small mint ISS silhouette, large white countdown, gray until-visible
+  caption, Look northwest, thin mint progress track, navy View path capsule.
+- Active pass: mint heading, mint sampled trajectory and white marker above a blue
+  horizon, white altitude below the plot, gray remaining time beneath it.
 
-## Required fidelity surfaces
+All text, controls, progress, trajectory and marker are native SwiftUI. The two
+new raster assets are decorative backgrounds only. Existing NASA planet imagery
+is retained; its lighting and rings differ slightly from the illustrative mock.
+The ISS silhouette derives from the existing ISS asset. The system clock is real.
+A small Back chevron is retained on details. The trajectory uses actual sampled
+altitudes, so live passes will not all have the concept's illustrative arc shape.
 
-- **Typography:** large SF rounded bold figures, white SF labels, and monospaced
-  countdowns now reproduce the intended emphasis. Long headings can stack; direction
-  and countdown values fit a single line. Dynamic Type preserves scrolling access.
-- **Spacing:** title and system clock share a compact header. The primary task fills
-  the first face; charcoal actions have inset sides and clear space above page dots.
-  The active pass has a prominent elevation and a clearly separated trajectory.
-- **Colour:** black, bright mint, white and charcoal follow the reference. The current
-  sample marker is white; endpoints and direction arrow are mint.
-- **Images:** existing photographic Saturn and ISS assets remain sharp and retain
-  their aspect ratios. Their lighting/viewpoint differs from the generated concept,
-  but subject prominence is corrected. No rasterized UI or fake device chrome is used.
-- **Copy:** Tonight, Find it, Next ISS, until visible, Northwest / direction arrow,
-  View path, ISS now, above horizon and remaining time match the intended flow.
-  Preview/ended states remain truthful; accessibility labels identify current versus
-  preview elevation. Native Back and page indicators are intentional additions.
+## Iteration and fixes
 
-No actionable P0/P1/P2 visual findings remain in these reviewed states. This is a
-simulator visual/interaction result, not a claim of complete accessibility compliance.
+- Replaced build 13's giant mint cardinal direction, small Saturn/title row,
+  photographic ISS hero and giant mint elevation with the correct hierarchy.
+- Compared successive simulator captures against the supplied reference. Early
+  passes exposed an extra native title row, overflowing system progress bar,
+  excessive plot height, countdown compression and compact-screen action clipping.
+  Reworked those rather than accepting an existence-only test.
+- Added separate compact spacing and artwork placement for 40 mm. The default
+  primary actions must fit above the rounded bottom edge. Accessibility text may
+  scroll, and tests actually reach and activate the actions at the largest size.
+- Removed the one-second TimelineView surrounding the entire pager and the one
+  surrounding the details ScrollView. The pager, scroll containers and navigation
+  stack remain stable; only live content owns a one-second clock. Clocks stop when
+  inactive/dimmed or on an unselected page. Rankings refresh at minute intervals.
+- Removed scroll-geometry state feedback and dynamic scroll-edge-effect toggling.
+  The remaining small, constant native-header/content insets do not change during
+  gestures. Native horizontal paging and Crown/touch scrolling are retained.
+- Moved forecast cache loading, JSON decoding and atomic forecast persistence to a
+  dedicated actor. Incoming updates are serialized after startup loading; schema
+  and revision checks remain intact. Connectivity background tasks are not completed
+  until queued updates finish. Small reminder-action persistence is unchanged.
+- Compute the trajectory's altitude ceiling once per plot render, removing repeated
+  full-path scans for every sampled point.
 
-## Verification and limits
+## Verification evidence
 
-- Five UI tests pass on each of 40 mm and 46 mm after the final scroll-edge change.
-  Coverage includes object guidance and Back, horizontal page switching, ISS preview,
-  active pass, largest requested text, Moon/places, first launch, expired forecast,
-  and distinct no-pass/no-orbit states.
-- Primary-action assertions check horizontal bounds and full bottom clearance above
-  page indicators. Controlled scrolling avoids flinging past the accessibility-size
-  action; the action is actually tapped and its destination verified.
-- Signed Release build 1.0 (13) succeeds for the iPhone, embedded watch and both
-  widget extensions. Signatures, permanent team, separate App Groups and physical
-  device eligibility are verified. Build 13 was subsequently installed and launched
-  on both physical devices; the Watch's Tonight screen was visually confirmed.
-- No website assets or astronomy/sync logic changed. Existing physical compass,
-  haptics, notification routing, background sync, VoiceOver, battery and older-watchOS
-  runtime checks remain in `ios/WATCH_RELEASE.md`; they are not reclassified as passed.
-- P3 follow-up: judge outdoor readability and artwork prominence on the user's own
-  watch after installation. The simulator is left open for preview first.
+Final images live in `ios/Artwork/Watch-build14`:
+`tonight-{40,46}mm.png`, `next-iss-{40,46}mm.png`,
+`active-pass-{40,46}mm.png`, and `largest-text-{40,46}mm.png`.
+Native viewports are 162 × 197 and 208 × 248 points, captured at 2×. Each final
+screen pair was inspected in the same comparison input as the canonical reference.
+The sample values are frozen only for these design captures; the system time remains
+real. Large-text captures show the screen after scrolling the entire action into view.
+
+- Six UI tests passed on each size: active pass, missing/expired forecast,
+  large text/Moon/places, no-pass versus no-orbit, repeated interaction under sync,
+  and Tonight → guidance → Back → Next ISS → pass preview.
+- The dense-update stress runs completed eight cycles on each size, taking
+  113 seconds (40 mm) and 115 seconds (46 mm), without a failed gesture, stalled
+  revision or forced relaunch. After the final face-height adjustment, both affected
+  layout/navigation tests were rerun on each size and passed.
+- Strengthened large-text assertions require the entire action to fit, rather than
+  merely a tappable sliver. The stricter check passes on both sizes.
+- Final post-spacing 46 mm stress rerun passed all eight cycles in 116 seconds.
+  No actionable P0/P1/P2 findings remain in the compared default-size screens.
+  Native clock/back affordance and photographic viewpoint differences are documented
+  above; this is not a pixel-identical recreation of the illustrative watch hardware.
+- Development-signed Release 1.0 (14) builds successfully for iPhone with the
+  embedded Watch app and widget extensions. Deep, strict signature verification
+  passes. Permanent team and bundle identities are preserved; no device installation.
+- No website assets or astronomy engine changes. Static-site verification and cache
+  version bumps do not apply to this native-only change.
+
+The interaction stress scenario injects increasing revisions containing about
+24,000 additional trajectory samples every two seconds. It exercises the real
+receive/decode/validation/publication pipeline and atomic writes to a temporary
+forecast file, without overwriting the normal cache or refreshing real widgets.
+Eight cycles swipe both directions, open ISS details, scroll to Handoff, return,
+scroll Tonight, open object guidance and return. It also backgrounds/reactivates
+the app and asserts that received revisions keep increasing. Normal clocks keep
+running; this test does not use frozen design-capture time.
+
+Simulator checks cannot establish that every physical-device freeze is eliminated.
+Physical Crown feel, WatchConnectivity transport, compass, haptics, VoiceOver,
+Always On power use and prolonged on-wrist operation still need device testing.
+No build-14 physical installation is performed as part of this review.

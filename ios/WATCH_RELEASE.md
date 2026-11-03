@@ -1,8 +1,8 @@
 # Apple Watch companion release
 
 Native SwiftUI companion, watchOS 11 or later, bundled with the existing iOS 18+
-app. Version 1.0 build 12. Design reference: `Artwork/Watch-release-reference.png`
-(the selected third concept). The watch UI has two horizontal pages; Crown
+app. Version 1.0 build 14. Design reference: `Artwork/Watch-approved-reference.png`
+(the exact Tonight / Next ISS / Active pass mock supplied on 3 November). The watch UI has two horizontal pages; Crown
 scrolling reveals secondary content. The full chart and place editing stay on iPhone.
 
 ## Included
@@ -22,7 +22,8 @@ scrolling reveals secondary content. The full chart and place editing stay on iP
   and OS notification mirroring. iPhone is the sole scheduling owner.
 - Explicit Handoff to the iPhone event preview; URL links also open watch details.
 - Cached forecasts, separate no-pass/missing-orbit/expired/setup states, accessibility
-  labels, scalable text, reduced-motion support and minute-level updates when dimmed/inactive (system scheduling permitting).
+  labels, scalable text and reduced-motion support. Live clocks pause when dimmed or
+  inactive and refresh immediately on return.
 
 ## Architecture and limits
 
@@ -189,3 +190,24 @@ stays crisp on modern watchOS; the system header fade returns while scrolling.
   button clear of the page indicators. The existing forecast remains available.
 - This installation check does not close the remaining compass, haptics, reminders,
   complication scheduling, background sync, VoiceOver or battery testing gates.
+
+### Correct reference and interaction rebuild — build 14, 3 November 2026
+
+Build 13 was rejected: its visual review used the wrong reference, and the user
+reported difficult paging, glitchy scrolling and repeated freezes. The canonical
+reference is now `Artwork/Watch-approved-reference.png`; see `../design-qa.md` for
+comparison history, fresh screenshots and verification limits.
+
+- Restored mint headers, large cropped Saturn, compact direction/elevation,
+  midnight navy surfaces, white ISS countdown, small mint station silhouette,
+  thin progress track and the arc-above-altitude active-pass composition.
+- Removed whole-pager/ScrollView second-by-second updates and scroll-geometry
+  feedback. Live timers are confined to leaf content; the native containers retain
+  their state during interaction. Forecast decode/load/persistence runs on an actor,
+  with serialized revisions and background-task completion after queued processing.
+- Added a repeated paging/scrolling/details/resume test during dense forecast
+  updates and atomic writes. Added full remaining-time visibility assertions.
+- `--design-capture` freezes sample astronomy values for comparison only;
+  `--stress-sync` drives the debug stress fixture. Neither exists in Release.
+- Final simulator and signed-build results are recorded in `../design-qa.md`.
+  Build 14 is prepared for a subsequent physical test; it is not installed here.
