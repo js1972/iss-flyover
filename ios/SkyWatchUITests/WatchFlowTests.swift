@@ -120,4 +120,43 @@ final class WatchFlowTests: XCTestCase {
         }
         capture(app, "Watch after paging and sync stress")
     }
+    @MainActor private func checkEventCards(largeText: Bool) {
+        let textArguments = largeText ? ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] : []
+        let app = launch(["--event-cards"] + textArguments)
+        XCTAssertTrue(app.buttons["findIt"].waitForExistence(timeout: 15))
+        for index in 0..<3 {
+            let id = "demo-card-\(index)"
+            let card = app.buttons["eventCard-\(id)"]
+            for _ in 0..<18 {
+                if card.isHittable && card.frame.minY >= 40 && card.frame.maxY <= app.frame.maxY - 8 { break }
+                let tooHigh = card.isHittable && card.frame.minY < 40
+                app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: tooHigh ? 0.42 : 0.76))
+                    .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: tooHigh ? 0.55 : 0.53)),
+                           withVelocity: .slow, thenHoldForDuration: 0.3)
+            }
+            assertPrimaryActionFits(card, in: app)
+            XCTAssertGreaterThanOrEqual(card.frame.minY, 40)
+            let title = app.staticTexts["eventTitle-\(id)"]
+            let detail = app.staticTexts["eventDetail-\(id)"]
+            XCTAssertEqual(title.label, ["Small Magellanic Cloud", "Large Magellanic Cloud", "Orion Nebula"][index])
+            for text in [title, detail] {
+                XCTAssertGreaterThanOrEqual(text.frame.minX, card.frame.minX + 10)
+                XCTAssertLessThanOrEqual(text.frame.maxX, card.frame.maxX - 10)
+                XCTAssertGreaterThanOrEqual(text.frame.minY, card.frame.minY + 10)
+                XCTAssertLessThanOrEqual(text.frame.maxY, card.frame.maxY - 10)
+            }
+            XCTAssertLessThanOrEqual(title.frame.maxY + 6, detail.frame.minY)
+            capture(app, "Event card \(index) \(largeText ? "large text" : "default")")
+            card.tap()
+            XCTAssertTrue(app.staticTexts["observationState"].waitForExistence(timeout: 4))
+            app.buttons["watchBack"].firstMatch.tap()
+            XCTAssertTrue(card.waitForExistence(timeout: 4))
+        }
+        app.swipeLeft()
+        XCTAssertTrue(app.buttons["viewPath"].waitForExistence(timeout: 4))
+        app.swipeRight()
+        XCTAssertTrue(app.buttons["eventCard-demo-card-2"].waitForExistence(timeout: 4))
+    }
+    @MainActor func testEventCardsFitAndOpenDetails() { checkEventCards(largeText: false) }
+    @MainActor func testEventCardsAtLargestText() { checkEventCards(largeText: true) }
 }

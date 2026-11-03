@@ -1,7 +1,7 @@
 # Apple Watch companion release
 
 Native SwiftUI companion, watchOS 11 or later, bundled with the existing iOS 18+
-app. Version 1.0 build 14. Design reference: `Artwork/Watch-approved-reference.png`
+app. Version 1.0 build 15. Design reference: `Artwork/Watch-approved-reference.png`
 (the exact Tonight / Next ISS / Active pass mock supplied on 3 November). The watch UI has two horizontal pages; Crown
 scrolling reveals secondary content. The full chart and place editing stay on iPhone.
 
@@ -228,3 +228,21 @@ comparison history, fresh screenshots and verification limits.
 - Physical-device installation and launch are verified. The user's prolonged
   on-wrist paging/scrolling test remains the check for the reported intermittent
   lockups; installation alone does not establish that those are eliminated.
+
+### Secondary event cards — build 15, 3 November 2026
+
+- Replaced the default watchOS capsule style on secondary Tonight events with
+  content-sized navy rounded rectangles, white leading-aligned titles, generous
+  internal padding, a quieter time/direction row and a subtle border.
+- Titles wrap without a fixed row height or truncation. The metadata row omits its
+  decorative chevron when larger text needs the width. The entire card opens the
+  existing event detail route; the same component styles subsequent ISS passes.
+- Added a More tonight section label. The approved main faces, paging, timers and
+  forecast processing remain unchanged.
+- Added debug fixtures for Small Magellanic Cloud, Large Magellanic Cloud and
+  Orion Nebula. UI checks measure text bounds inside each card, verify the full
+  title, open all three details, return and swipe between pages at standard and
+  largest text sizes on 40 mm and 46 mm simulators.
+
+- Both targeted UI tests pass at both simulator sizes. Final visual evidence is
+  in `Artwork/Watch-build15`; signed Release build 15 and nested signatures verify.

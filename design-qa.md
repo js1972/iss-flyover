@@ -98,3 +98,27 @@ Always On power use and prolonged on-wrist operation still need device testing.
 Build 14 was subsequently installed and launched on both physical devices at the
 user’s request. Both device inventories confirm build 14. See the installation
 record in `ios/WATCH_RELEASE.md`; prolonged on-wrist interaction testing remains open.
+
+## Build 15 follow-up: secondary event cards
+
+The user's on-wrist photo exposed the default capsule button styling on multiline
+secondary events. Those rows are now navy rounded rectangles with 12-point content
+padding and a 16-point corner radius. White leading-aligned titles wrap freely;
+time/direction uses smaller gray type, and the chevron yields its space when needed.
+The background follows the content height; no fixed-height pill clips the label.
+The existing main-face design is unchanged.
+
+The fixture reproduces the three names in the photo. Tests verify full labels,
+10-point minimum text-to-card-edge clearance, separation of title and metadata,
+whole-card visibility, opening each event and returning, and paging after scrolling.
+The first large-text iteration exposed an unwanted wrap in the SSE metadata row
+on 40 mm. The final adaptive detail row resolves it without reducing title size.
+
+Final result: passed for the reviewed card states. Two targeted UI tests pass on
+both sizes (four runs), each opening all three events and checking Back and paging.
+The final normal/large-text screenshots were visually inspected for both sizes:
+`ios/Artwork/Watch-build15/cards-{40,46}mm.png` and
+`cards-large-text-{40,46}mm.png`. Titles and metadata remain inside the card's
+padding; the 40 mm largest-text SSE row correctly uses the full width.
+Release build 15 and deep, strict verification of the app's nested signatures pass.
+No website files changed; static cache-version bumps do not apply.

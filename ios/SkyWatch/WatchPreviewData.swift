@@ -15,6 +15,19 @@ enum WatchPreviewData {
         }
         let iss = SkyEvent(id: "demo-iss", kind: "iss", title: "ISS", start: start, end: start.addingTimeInterval(300), focus: start.addingTimeInterval(150), azimuth: 45, elevation: 52, score: 150, detail: "Sunlit pass while your sky is dark.", body: "ISS", points: points, nightID: "demo", isMorning: false)
         var snapshot = SkySnapshot(location: .perth, generatedAt: now, eveningFirst: true, nights: [night], events: [saturn, iss], orbit: OrbitData(epoch: now, fetchedAt: now, source: "Sample"))
+        if args.contains("--event-cards") {
+            let titles = ["Small Magellanic Cloud", "Large Magellanic Cloud", "Orion Nebula"]
+            for (index, title) in titles.enumerated() {
+                var event = saturn
+                event.id = "demo-card-\(index)"; event.kind = "deepSky"
+                event.title = title; event.body = title
+                event.azimuth = [180.0, 157.5, 67.5][index]
+                event.focus = now.addingTimeInterval(Double(1200 + index * 600))
+                event.score = Double(190 - index * 10)
+                event.detail = "Sample deep-sky target for the saved observing place."
+                snapshot.events.append(event)
+            }
+        }
         if args.contains("--expired-watch") { snapshot.nights[0].end = now.addingTimeInterval(-60) }
         if args.contains("--no-iss") { snapshot.events = [saturn] }
         if args.contains("--no-orbit") { snapshot.orbit = nil }

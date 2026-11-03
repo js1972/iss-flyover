@@ -61,12 +61,12 @@ struct WatchTonightPage: View {
                                 Text("Sync revision \(model.package?.revision ?? 0)").accessibilityIdentifier("stressSync")
                             }
                             #endif
-                            ForEach(Array(events.dropFirst().prefix(4))) { other in
-                                NavigationLink(value: other.id) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(other.title).font(.headline)
-                                        Text("\(snapshot.location.time(other.focus)) · \(other.direction)").font(.caption).foregroundStyle(.secondary)
-                                    }.frame(maxWidth: .infinity, alignment: .leading)
+                            if events.count > 1 {
+                                Text("More tonight").font(.caption.weight(.semibold)).foregroundStyle(Color.watchMint)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                ForEach(Array(events.dropFirst().prefix(4))) { other in
+                                    WatchEventCard(title: other.title,
+                                        detail: "\(snapshot.location.time(other.focus)) · \(other.direction)", destination: other.id)
                                 }
                             }
                         }
@@ -140,9 +140,8 @@ struct WatchISSPage: View {
                             #endif
                             if let notice = snapshot.orbitMessage { Text(notice).font(.caption).foregroundStyle(.secondary) }
                             ForEach(Array(passes.dropFirst().prefix(3))) { pass in
-                                NavigationLink(value: pass.id) {
-                                    Text("\(snapshot.location.day(pass.start)) · \(snapshot.location.time(pass.start))").font(.caption)
-                                }
+                                WatchEventCard(title: snapshot.location.day(pass.start),
+                                    detail: "\(snapshot.location.time(pass.start)) · \(pass.direction)", destination: pass.id)
                             }
                         }
                     } else {
