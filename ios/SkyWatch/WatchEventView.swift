@@ -10,7 +10,8 @@ struct WatchEventView: View {
     @State private var continuing = false
     @State private var lastLive = false
     @State private var hasObservedState = false
-    @ScaledMetric(relativeTo: .largeTitle) private var largeType = 44.0
+    @ScaledMetric(relativeTo: .largeTitle) private var largeType = 72.0
+    @ScaledMetric(relativeTo: .body) private var textScale = 1.0
     var eventID: String
     var body: some View {
         GeometryReader { geometry in
@@ -22,10 +23,12 @@ struct WatchEventView: View {
                     } else {
                         WatchEmptyView(title: "Forecast unavailable", detail: "This event needs a refreshed forecast. Open Sky Tonight on iPhone.")
                         Button("Request forecast") { model.requestRefresh(force: true) }
+                            .toolbar { ToolbarItem(placement: .topBarLeading) { WatchBackButton(title: "Details") } }
                     }
-                }
+                }.contentMargins(.top, -18, for: .scrollContent).watchScrollEdges()
             }
         }.navigationTitle("")
+            .navigationBarBackButtonHidden(true)
             .onDisappear { compass.stop(); continuing = false }
             .onChange(of: phase) { _, value in if value != .active { compass.stop() } }
             .onChange(of: dimmed) { _, value in if value { compass.stop() } }
@@ -36,16 +39,23 @@ struct WatchEventView: View {
         let livePoint = !ended ? WatchObservation.point(in: event, at: now) : nil
         let live = livePoint != nil && (!isISS || livePoint?.sunlit == true)
         let position = livePoint ?? WatchObservation.point(in: event, at: event.focus) ?? SkyPoint(timestamp: event.focus, azimuth: event.azimuth, elevation: event.elevation, sunlit: true)
-        VStack(spacing: compact ? 3 : 5) {
-            Text(ended ? "Event ended" : live ? (isISS ? "VISIBLE NOW" : "POSITION NOW") : "PREVIEW · \(snapshot.location.time(event.focus))")
-                .font(.caption2).foregroundStyle(ended ? Color.secondary : Color.watchMint).accessibilityIdentifier("observationState")
+        let countdown = WatchObservation.countdown(to: event.end, now: now)
+        let remaining = countdown.count == 5 && countdown.hasPrefix("0") ? String(countdown.dropFirst()) : countdown
+        VStack(spacing: 0) {
+            if !isISS { Text(ended ? "Event ended" : live ? "POSITION NOW" : "PREVIEW · \(snapshot.location.time(event.focus))")
+                .font(.caption2).foregroundStyle(ended ? Color.secondary : Color.watchMint).accessibilityIdentifier("observationState").padding(.bottom, 6) }
             if isISS {
                 Text("\(Int(position.elevation.rounded()))°")
-                    .font(.system(size: largeType * (compact ? 0.73 : 1), weight: .bold, design: .rounded)).foregroundStyle(Color.watchMint)
-                Text(ended ? "at peak" : "above horizon").font(.caption)
-                WatchPassArc(event: event, date: live ? now : event.focus, dimmed: dimmed).frame(height: compact ? 40 : 50)
-                Text(ended ? "Pass complete" : live ? "\(WatchObservation.countdown(to: event.end, now: now)) left" : "Starts \(snapshot.location.time(event.start))")
-                    .font(.headline).monospacedDigit()
+                    .lineLimit(1).minimumScaleFactor(0.5).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("issElevation")
+                    .accessibilityLabel("\(Int(position.elevation.rounded())) degrees, \(ended ? "pass ended" : live ? "visible now" : "preview")")
+                    .font(.system(size: largeType * (compact ? 0.78 : 1), weight: .bold, design: .rounded)).foregroundStyle(Color.watchMint)
+                    .frame(height: largeType * (compact ? 0.78 : 1) * 0.88)
+                Text(ended ? "at peak" : "above horizon").font(.system(size: (compact ? 17 : 19) * textScale)).foregroundStyle(.white.opacity(0.85))
+                WatchPassArc(event: event, date: live ? now : event.focus, dimmed: dimmed).frame(height: compact ? 52 : 66)
+                    .padding(.horizontal, 12).padding(.top, compact ? 8 : 12)
+                Text(ended ? "Pass complete" : live ? "\(remaining) left" : "Starts \(snapshot.location.time(event.start))")
+                    .font(.system(size: (compact ? 22 : 26) * textScale, weight: .semibold)).monospacedDigit().padding(.top, 4)
             } else {
                 HStack { WatchArtwork(event: event).frame(width: 45, height: 28); Text(event.title).font(.headline) }
                 if let heading = compass.heading, live {
@@ -54,7 +64,7 @@ struct WatchEventView: View {
                         .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: heading)
                         .accessibilityLabel("Target bearing \(Int(position.azimuth)) degrees, your heading \(Int(heading)) degrees")
                 } else {
-                    Text(SkyEvent.direction(position.azimuth)).font(.system(size: largeType, weight: .bold, design: .rounded)).foregroundStyle(Color.watchMint)
+                    Text(SkyEvent.direction(position.azimuth)).lineLimit(1).minimumScaleFactor(0.5).font(.system(size: largeType, weight: .bold, design: .rounded)).foregroundStyle(Color.watchMint)
                 }
                 Text("\(Int(position.elevation.rounded()))° high").font(.title3.bold())
                 Text("Bearing \(Int(position.azimuth.rounded()))°").font(.caption).foregroundStyle(.secondary)
@@ -65,7 +75,7 @@ struct WatchEventView: View {
                     Text(compass.status).font(.caption2).foregroundStyle(.secondary)
                 } else { Text("Direction at the preview time; it will change as the sky moves.").font(.caption).foregroundStyle(.secondary) }
             }
-            Text(snapshot.location.name).font(.caption).foregroundStyle(.secondary)
+            Text(snapshot.location.name).font(.caption).foregroundStyle(.secondary).padding(.top, 28)
             if isISS, let warning = snapshot.orbitMessage { Text(warning).font(.caption).foregroundStyle(.secondary) }
             Divider().padding(.vertical, 8)
             Text(event.detail).font(.caption).foregroundStyle(.secondary)
@@ -82,6 +92,11 @@ struct WatchEventView: View {
             if continuing { Text("Open the Sky Tonight Handoff suggestion in your iPhone's app switcher.").font(.caption) }
         }
         .padding(.horizontal, 4).padding(.bottom, 12)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                WatchBackButton(title: isISS ? (ended ? "Pass ended" : live ? "ISS now" : "ISS preview") : event.title)
+            }
+        }
         .onChange(of: live) { _, value in
             if hasObservedState && !lastLive && value && isISS && phase == .active && !dimmed { WKInterfaceDevice.current().play(.notification) }
             lastLive = value; hasObservedState = true
@@ -103,8 +118,10 @@ struct WatchPassArc: View {
     var dimmed: Bool
     private func position(_ point: SkyPoint, size: CGSize) -> CGPoint {
         let duration = max(1, event.end.timeIntervalSince(event.start))
+        // Fit the vertical axis to this pass, keeping the horizon at zero and every sampled altitude intact.
+        let ceiling = max(30, event.points.map(\.elevation).max() ?? 90)
         return CGPoint(x: 8 + (size.width - 16) * point.timestamp.timeIntervalSince(event.start) / duration,
-                       y: 1 + max(1, size.height - 2) * (1 - max(0, min(90, point.elevation)) / 90))
+                       y: 1 + max(1, size.height - 2) * (1 - max(0, min(ceiling, point.elevation)) / ceiling))
     }
     var body: some View {
         VStack(spacing: 1) {
@@ -117,6 +134,12 @@ struct WatchPassArc: View {
                         else { path.move(to: position(point, size: geometry.size)); drawing = true }
                     }
                 }.stroke(Color.watchMint.opacity(dimmed ? 0.5 : 1), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                if let first = event.points.first, first.sunlit {
+                    Circle().fill(Color.watchMint).frame(width: 5, height: 5).position(position(first, size: geometry.size))
+                }
+                if let last = event.points.last, last.sunlit {
+                    Circle().fill(Color.watchMint).frame(width: 5, height: 5).position(position(last, size: geometry.size))
+                }
                 if let point = WatchObservation.point(in: event, at: date), point.sunlit {
                     Circle().fill(.white).frame(width: 8, height: 8).position(position(point, size: geometry.size))
                 }
@@ -125,7 +148,7 @@ struct WatchPassArc: View {
                 Text(SkyEvent.direction(event.points.first?.azimuth ?? event.azimuth))
                 Spacer()
                 Text(SkyEvent.direction(event.points.last?.azimuth ?? event.azimuth))
-            }.font(.caption2).foregroundStyle(.secondary)
+            }.font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
         }.accessibilityElement(children: .ignore).accessibilityLabel("ISS visible path from \(SkyEvent.direction(event.points.first?.azimuth ?? event.azimuth)) to \(SkyEvent.direction(event.points.last?.azimuth ?? event.azimuth))")
     }
 }

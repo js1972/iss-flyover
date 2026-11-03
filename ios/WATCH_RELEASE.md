@@ -154,3 +154,24 @@ App Store/TestFlight distribution have not been performed for build 12.
   57° elevation. Existing phone settings and forecast remained available.
 - This is a development-signed device build. The remaining hardware behaviour
   checks above and signed distribution archive validation are still outstanding.
+
+
+### Visual correction candidate — build 13, 3 November 2026
+
+Build 13 corrects the mismatch between the approved third design and build 12:
+larger artwork and main values, compact aligned headers, inset charcoal buttons,
+clear page-indicator spacing, a prominent live-pass elevation/path, and full-word
+ISS directions with an arrow. Large headings stack when needed. The initial face
+stays crisp on modern watchOS; the system header fade returns while scrolling.
+
+- Five watch UI tests pass on both 40 mm and 46 mm simulators after the final change.
+  Tests also assert that both primary actions fit above the page indicators.
+- Final visual evidence is in `Artwork/Watch-build13/`; the corrected comparison and
+  explicit limitations are in `../design-qa.md`. This supersedes the previous visual
+  acceptance, not the earlier functional test or physical installation records.
+- Version 1.0 (13) builds successfully in Release configuration with development
+  signing. All four code signatures, team `NF8828LV3U`, platform-specific App Groups
+  and eligibility for the paired iPhone/Watch are verified.
+- Per the user's request, this candidate is prepared but **not installed** on their
+  devices. Build 12 remains the last installed version. Device installation and
+  App Store/TestFlight distribution are separate subsequent actions.

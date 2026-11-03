@@ -1,7 +1,7 @@
 import SwiftUI
 import WatchKit
 
-extension Color { static let watchMint = Color(red: 0.43, green: 0.9, blue: 0.78) }
+extension Color { static let watchMint = Color(red: 0.34, green: 0.9, blue: 0.76) }
 
 struct WatchRootView: View {
     @EnvironmentObject private var model: WatchModel
@@ -20,7 +20,7 @@ struct WatchRootView: View {
             .navigationTitle("")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Text(model.page == 0 ? "Tonight" : "Next ISS").font(.system(size: 14, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
+                    Text(model.page == 0 ? "Tonight" : "Next ISS").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white).lineLimit(1).offset(y: -9)
                 }
             }
             .navigationDestination(for: String.self) { route in
@@ -39,23 +39,34 @@ struct WatchTonightPage: View {
     @EnvironmentObject private var model: WatchModel
     var now: Date
     var compact = false
-    @ScaledMetric(relativeTo: .largeTitle) private var largeType = 44.0
+    @ScaledMetric(relativeTo: .largeTitle) private var largeType = 72.0
+    @ScaledMetric(relativeTo: .body) private var textScale = 1.0
     var body: some View {
         ScrollView {
-            VStack(spacing: compact ? 3 : 6) {
+            VStack(spacing: 0) {
                 if let snapshot = model.snapshot(at: now) {
                     let events = snapshot.ranked(at: now)
                     if let event = events.first {
-                        HStack(spacing: 5) {
-                            WatchArtwork(event: event).frame(width: compact ? 46 : 60, height: compact ? 24 : 28)
-                            Text(event.title).font(.headline).lineLimit(2)
-                        }
-                        Text(event.direction).font(.system(size: largeType * (compact ? 0.85 : 1), weight: .bold, design: .rounded)).foregroundStyle(Color.watchMint)
-                        Text("\(Int(event.elevation.rounded()))° high").font(.title3.bold())
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 4) {
+                                WatchArtwork(event: event, prominent: true).frame(width: compact ? 72 : 94, height: compact ? 32 : 42)
+                                Text(event.title).font(.system(size: (compact ? 19 : 23) * textScale, weight: .bold))
+                                    .fixedSize(horizontal: true, vertical: true)
+                            }
+                            VStack(spacing: 4) {
+                                WatchArtwork(event: event, prominent: true).frame(width: 94, height: 42)
+                                Text(event.title).font(.system(size: (compact ? 19 : 23) * textScale, weight: .bold))
+                                    .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                            }
+                        }.frame(maxWidth: .infinity)
+                        Text(event.direction).lineLimit(1).minimumScaleFactor(0.5).fixedSize(horizontal: false, vertical: true).font(.system(size: largeType * (compact ? 0.78 : 1), weight: .bold, design: .rounded)).foregroundStyle(Color.watchMint)
+                            .frame(height: largeType * (compact ? 0.78 : 1) * 0.94)
+                        Text("\(Int(event.elevation.rounded()))° high").font(.system(size: (compact ? 21 : 24) * textScale, weight: .semibold)).padding(.bottom, compact ? 3 : 6)
                         NavigationLink(value: event.id) {
                             Label(event.kind == "iss" ? "View path" : "Find it", systemImage: "location.fill").frame(maxWidth: .infinity, minHeight: 30)
                         }.buttonStyle(WatchPrimaryStyle()).accessibilityIdentifier("findIt")
-                        Text("At \(snapshot.location.time(event.focus))").font(.caption).foregroundStyle(.secondary)
+                        .padding(.horizontal, compact ? 4 : 10)
+                        Text("At \(snapshot.location.time(event.focus))").font(.caption).foregroundStyle(.secondary).padding(.top, 28)
                         WatchPlaceFooter(now: now)
                         if events.count > 1 {
                             Divider().padding(.vertical, 8)
@@ -76,7 +87,8 @@ struct WatchTonightPage: View {
                     NavigationLink("Moon & conditions", value: "moon").accessibilityIdentifier("moonDetails")
                 } else { WatchSetupView() }
             }.padding(.horizontal, 4).padding(.bottom, 24)
-        }
+        // Reclaim the unused second-title row while retaining the system clock inset.
+        }.contentMargins(.top, -18, for: .scrollContent).watchScrollEdges()
     }
 }
 
@@ -84,25 +96,31 @@ struct WatchISSPage: View {
     @EnvironmentObject private var model: WatchModel
     var now: Date
     var compact = false
-    @ScaledMetric(relativeTo: .largeTitle) private var largeType = 36.0
+    @ScaledMetric(relativeTo: .largeTitle) private var largeType = 58.0
+    @ScaledMetric(relativeTo: .body) private var textScale = 1.0
     var body: some View {
         ScrollView {
-            VStack(spacing: compact ? 3 : 6) {
+            VStack(spacing: 0) {
                 if let snapshot = model.snapshot(at: now) {
                     if let event = snapshot.ranked(at: now, issOnly: true).first,
                        WatchObservation.event(event, usableIn: snapshot, at: now) {
                         let live = now >= event.start && now < event.end
-                        WatchArtwork(event: event).frame(height: compact ? 26 : 32)
+                        WatchArtwork(event: event).frame(height: compact ? 46 : 62)
                         Text(live ? "Visible now" : WatchObservation.countdown(to: event.start, now: now))
-                            .font(.system(size: live ? largeType * 0.75 : largeType, weight: .bold, design: .rounded))
-                            .monospacedDigit().minimumScaleFactor(0.75).lineLimit(1).foregroundStyle(Color.watchMint)
-                        if !live && !compact { Text("until visible").font(.caption2).foregroundStyle(.secondary) }
+                            .font(.system(size: (live ? largeType * 0.65 : largeType) * (compact ? 0.78 : 1), weight: .bold, design: .rounded))
+                            .monospacedDigit().minimumScaleFactor(0.6).lineLimit(1).fixedSize(horizontal: false, vertical: true).foregroundStyle(Color.watchMint)
+                            .frame(height: largeType * (compact ? 0.78 : 1) * 0.83)
+                        if !live { Text("until visible").font(.system(size: (compact ? 12 : 14) * textScale)).foregroundStyle(.white) }
                         let bearing = live ? WatchObservation.point(in: event, at: now)?.azimuth : event.points.first?.azimuth
-                        Text("Look \(SkyEvent.direction(bearing ?? event.azimuth))").font(.headline)
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.up").rotationEffect(.degrees(bearing ?? event.azimuth)).foregroundStyle(Color.watchMint).accessibilityHidden(true)
+                            Text(WatchBearing.name(bearing ?? event.azimuth))
+                        }.font(.system(size: (compact ? 17 : 21) * textScale, weight: .bold))
                         NavigationLink(value: event.id) {
                             Label(live ? "Track now" : "View path", systemImage: "point.topleft.down.to.point.bottomright.curvepath").frame(maxWidth: .infinity, minHeight: 30)
                         }.buttonStyle(WatchPrimaryStyle()).accessibilityIdentifier("viewPath")
-                        Text("\(snapshot.location.day(event.start)) · \(snapshot.location.time(event.start))").font(.caption).foregroundStyle(.secondary)
+                        .padding(.horizontal, compact ? 4 : 10)
+                        Text("\(snapshot.location.day(event.start)) · \(snapshot.location.time(event.start))").font(.caption).foregroundStyle(.secondary).padding(.top, 28)
                         WatchPlaceFooter(now: now)
                         if let notice = snapshot.orbitMessage { Text(notice).font(.caption).foregroundStyle(.secondary) }
                         ForEach(Array(snapshot.ranked(at: now, issOnly: true).dropFirst().prefix(3))) { pass in
@@ -118,13 +136,55 @@ struct WatchISSPage: View {
                     }
                 } else { WatchSetupView() }
             }.padding(.horizontal, 4).padding(.bottom, 24)
-        }
+        }.contentMargins(.top, -24, for: .scrollContent).watchScrollEdges()
+    }
+}
+
+/// Keep the first face crisp; restore the system fade as details scroll beneath the header.
+private struct WatchScrollEdgeModifier: ViewModifier {
+    @State private var isAtTop = true
+    @ViewBuilder func body(content: Content) -> some View {
+        if #available(watchOS 26.0, *) {
+            content
+                .onScrollGeometryChange(for: Bool.self) { geometry in
+                    geometry.contentOffset.y + geometry.contentInsets.top <= 1
+                } action: { _, atTop in isAtTop = atTop }
+                .scrollEdgeEffectHidden(isAtTop, for: .top)
+        } else { content }
+    }
+}
+
+extension View {
+    func watchScrollEdges() -> some View { modifier(WatchScrollEdgeModifier()) }
+}
+
+/// Compact title/back control leaves room for the system clock without a second header row.
+struct WatchBackButton: View {
+    @EnvironmentObject private var model: WatchModel
+    var title: String
+    var body: some View {
+        Button { if !model.route.isEmpty { model.route.removeLast() } } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "chevron.left").font(.system(size: 12, weight: .bold))
+                Text(title).font(.system(size: 15, weight: .semibold)).lineLimit(1)
+            }.frame(minHeight: 32).contentShape(Rectangle())
+        }.buttonStyle(.plain).foregroundStyle(.white).offset(y: -9)
+            .accessibilityLabel("Back").accessibilityIdentifier("watchBack")
+    }
+}
+
+enum WatchBearing {
+    static func name(_ azimuth: Double) -> String {
+        guard azimuth.isFinite else { return "Direction unavailable" }
+        let names = ["North", "Northeast", "East", "Southeast", "South", "Southwest", "West", "Northwest"]
+        let normalized = (azimuth.truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360)
+        return names[Int((normalized / 45).rounded()) % names.count]
     }
 }
 
 struct WatchPrimaryStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.font(.headline).foregroundStyle(.white)
+        configuration.label.font(.system(.headline, design: .default, weight: .semibold)).foregroundStyle(.white)
             .frame(maxWidth: .infinity, minHeight: 44)
             .background(Color.white.opacity(configuration.isPressed ? 0.25 : 0.14), in: Capsule())
     }
@@ -166,8 +226,11 @@ struct WatchSetupView: View {
 }
 struct WatchArtwork: View {
     var event: SkyEvent
+    var prominent = false
     var body: some View {
-        if let asset = event.artworkAsset { Image(asset).resizable().scaledToFit().accessibilityHidden(true) }
+        if let asset = event.artworkAsset { Image(asset).resizable().scaledToFit()
+            .scaleEffect(prominent && event.body == "Saturn" ? 1.45 : 1)
+            .clipped().accessibilityHidden(true) }
         else { Image(systemName: event.symbol).font(.title2).foregroundStyle(Color.watchMint).accessibilityHidden(true) }
     }
 }

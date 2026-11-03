@@ -73,7 +73,7 @@ for name,kind in kinds.items():
             path='$(CONTENTS_FOLDER_PATH)/Watch' if dependency=='SkyWatch' else ''
             phases.append(obj('embed:'+name+dependency,f'isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = "{path}"; dstSubfolderSpec = {dest}; files = ({embed}); name = "Embed {dependency}"; runOnlyForDeploymentPostprocessing = 0;'))
     suffix={'SkyTonight':'','SkyWidgets':'.widgets','SkyWatch':'.watchkitapp','SkyWatchWidgets':'.watchkitapp.widgets'}.get(name,'.'+name.lower())
-    settings=f'CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = {TEAM}; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE+suffix}; PRODUCT_NAME = "$(TARGET_NAME)"; CURRENT_PROJECT_VERSION = 12; MARKETING_VERSION = 1.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";'
+    settings=f'CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = {TEAM}; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE+suffix}; PRODUCT_NAME = "$(TARGET_NAME)"; CURRENT_PROJECT_VERSION = 13; MARKETING_VERSION = 1.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";'
     if name.startswith('SkyWatch'):
         settings+=' SDKROOT = watchos; WATCHOS_DEPLOYMENT_TARGET = 11.0; TARGETED_DEVICE_FAMILY = 4; SUPPORTED_PLATFORMS = "watchos watchsimulator";'
     if name in ['SkyTonight','SkyWidgets','SkyWatch','SkyWatchWidgets']:
