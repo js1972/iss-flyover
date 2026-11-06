@@ -7,7 +7,6 @@ struct WatchEventView: View {
     @Environment(\.isLuminanceReduced) private var dimmed
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var compass = WatchCompass()
-    @State private var continuing = false
     @State private var lastLive = false
     @State private var hasObservedState = false
     @ScaledMetric(relativeTo: .largeTitle) private var largeType = 72.0
@@ -42,7 +41,7 @@ struct WatchEventView: View {
             }
         }
             .navigationBarBackButtonHidden(true)
-            .onDisappear { compass.stop(); continuing = false }
+            .onDisappear { compass.stop() }
             .onChange(of: phase) { _, value in if value != .active { compass.stop() } }
             .onChange(of: dimmed) { _, value in if value { compass.stop() } }
     }
@@ -102,8 +101,6 @@ struct WatchEventView: View {
                     Label(pending ? "Awaiting iPhone" : model.package?.reminders.contains(key) == true ? "Cancel reminder" : "Remind me", systemImage: pending ? "clock" : "bell")
                 }.disabled(pending || event.start <= now.addingTimeInterval(60)).accessibilityIdentifier("watchReminder")
             }
-            Button("Continue on iPhone") { continuing = true }.accessibilityIdentifier("continueOnPhone")
-            if continuing { Text("Open the Sky Tonight Handoff suggestion in your iPhone's app switcher.").font(.caption) }
         }
         .padding(.horizontal, 10).padding(.bottom, 20)
         .onChange(of: live) { _, value in
@@ -111,12 +108,6 @@ struct WatchEventView: View {
             lastLive = value; hasObservedState = true
         }
         .onAppear { lastLive = live; hasObservedState = true }
-        .userActivity(WatchObservation.activityType, isActive: continuing) { activity in
-            activity.title = "Observe \(event.title)"
-            var preview = event; preview.focus = live ? now : event.focus
-            activity.userInfo = ["url": preview.link(location: snapshot.location).absoluteString]
-            activity.isEligibleForHandoff = true
-        }
     }
 }
 

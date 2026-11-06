@@ -66,6 +66,10 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
             pending = actions.filter { action in cached?.results.contains { $0.id == action.id } != true }
             loading = false
             normalizeSelection()
+            // A new app build can change complication layouts without changing
+            // the saved forecast. Reload after the cache/selection is ready,
+            // rather than waiting for a newer package from the phone.
+            WidgetCenter.shared.reloadAllTimelines()
             sendPending()
             if let url = pendingURL { pendingURL = nil; open(url) }
         }
@@ -129,6 +133,8 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
         } catch { message = "The update could not be read. Your saved forecast is still available." }
     }
     func requestRefresh(force: Bool = false) {
+        // A manual refresh also redraws locally cached complications offline.
+        if force && !isPreview { WidgetCenter.shared.reloadAllTimelines() }
         guard !isPreview, WCSession.default.activationState == .activated,
               force || Date().timeIntervalSince(requestedAt) > 1800 else { return }
         requestedAt = Date()

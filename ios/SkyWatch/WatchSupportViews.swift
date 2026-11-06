@@ -2,10 +2,11 @@ import SwiftUI
 
 struct WatchPlaceFooter: View {
     @EnvironmentObject private var model: WatchModel
+    var compact = false
     var body: some View {
         VStack(spacing: 5) {
             NavigationLink(value: "places") { Label(model.location?.name ?? "Observing place", systemImage: "mappin.and.ellipse").font(.caption) }
-                .buttonStyle(.plain).padding(.vertical, 8).accessibilityIdentifier("observingPlace")
+                .buttonStyle(.plain).padding(.vertical, compact ? 2 : 8).accessibilityIdentifier("observingPlace")
             if model.isPreview { Text("Sample data").font(.caption2).foregroundStyle(.secondary) }
             else if let sent = model.package?.sentAt {
                 Text("Synced \(sent, style: .relative) ago").font(.caption2).foregroundStyle(.secondary)
@@ -81,7 +82,7 @@ struct WatchMoonView: View {
         ScrollView {
             VStack(spacing: 10) {
                 if let snapshot = model.snapshot(), let night = snapshot.night(at: Date()) {
-                    Image(systemName: WatchObservation.moonSymbol(night.moonPhase)).font(.system(size: 48)).foregroundStyle(Color.watchMint).accessibilityHidden(true)
+                    WatchMoonPhase(phase: night.moonPhase, latitude: snapshot.location.latitude).accessibilityHidden(true)
                     Text("\(night.moonPercent)% lit").font(.title2.bold())
                     Text(night.moonName).font(.headline)
                     Text(snapshot.location.day(night.start)).font(.caption).foregroundStyle(.secondary)
@@ -92,7 +93,7 @@ struct WatchMoonView: View {
                        let weather = snapshot.weather, let sample = weather.sample(at: Date(), now: Date()), let credit = weather.credit {
                         Text("\(Int(sample.cloud))% cloud").font(.headline)
                         Text("Wind \(Int(sample.wind)) km/h").font(.caption)
-                        WeatherCreditView(credit: credit)
+                        WeatherCreditView(credit: credit, compact: true)
                     } else {
                         Text(model.package?.weatherEnabled == true ? "Current weather unavailable" : "Optional weather can be enabled on iPhone").font(.caption).foregroundStyle(.secondary)
                     }

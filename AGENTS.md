@@ -5,6 +5,7 @@ Keep changes minimal and aligned with the existing static-site setup.
 ## Workflow
 - Work on the `main` branch by default.
 - Do not create or switch to another branch unless the user explicitly asks.
+- Do not commit or push unless the user explicitly asks. Keep related work together rather than making small incremental commits.
 - Do not add a build step, package manager, or framework unless requested.
 - Preserve static-file deployability.
 
@@ -17,7 +18,7 @@ Keep changes minimal and aligned with the existing static-site setup.
 - After relevant changes, do a browser smoke test locally.
 - Verify the affected flows, especially location handling, live ISS refresh, forecast rendering, and failure states for remote data.
 - Preserve the card/detail-card preview flow: tapping an ISS pass or night-sky event should switch to User View, preview that event time, and scroll the chart into focus.
-- Real-device testing requires committing and pushing changes first.
+- Requested real-device testing/installations may use uncommitted working changes; do not commit or push as an implicit installation step.
 
 ## Operational Notes
 - This app is aggressively cached on phones. When shipping static asset changes, bump the asset/app version in `index.html`, `manifest.webmanifest`, `assets/js/version.js`, and `version.json`.

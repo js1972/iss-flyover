@@ -11,16 +11,16 @@ struct WatchRootView: View {
     var body: some View {
         NavigationStack(path: $model.route) {
             GeometryReader { geometry in
-                // Account for native header and rounded bottom clearance. TabView's
-                // proposed height excludes more safe area than its page ScrollViews use.
+                // Account for native header and rounded bottom clearance, and
+                // leave a strip below the primary action for the page dots.
                 let faceSize = CGSize(width: geometry.size.width,
                     height: max(100, WKInterfaceDevice.current().screenBounds.height
-                        - geometry.frame(in: .global).minY - (geometry.size.width < 180 ? 12 : 18) + 10))
+                        - geometry.frame(in: .global).minY - (geometry.size.width < 180 ? 12 : 18)))
                 // The pager and its scroll views have stable lifetimes. Only live labels tick.
                 TabView(selection: $model.page) {
                     WatchTonightPage(size: faceSize, selected: model.page == 0).tag(0)
                     WatchISSPage(size: faceSize, selected: model.page == 1).tag(1)
-                }.tabViewStyle(.page(indexDisplayMode: .never))
+                }.tabViewStyle(.page(indexDisplayMode: .always))
             }
             .background { WatchFaceBackground() }
             .navigationTitle("")
@@ -48,14 +48,14 @@ struct WatchTonightPage: View {
     var selected: Bool
     var body: some View {
         ScrollView {
-            VStack(spacing: 22) {
+            VStack(spacing: 12) {
                 if let snapshot = model.snapshot(at: model.displayDate(now)) {
                     let events = snapshot.ranked(at: model.displayDate(now))
                     if let event = events.first {
                         WatchTonightFace(event: event, size: size)
-                        VStack(spacing: 12) {
+                        VStack(spacing: 4) {
                             Text("At \(snapshot.location.time(event.focus))").font(.caption).foregroundStyle(.secondary)
-                            WatchPlaceFooter()
+                            WatchPlaceFooter(compact: true)
                             #if DEBUG
                             if ProcessInfo.processInfo.arguments.contains("--stress-sync") {
                                 Text("Sync revision \(model.package?.revision ?? 0)").accessibilityIdentifier("stressSync")
@@ -91,29 +91,34 @@ private struct WatchTonightFace: View {
     @ScaledMetric(relativeTo: .body) private var subtitleSize = 16.0
     private var compact: Bool { size.width < 180 }
     var body: some View {
-        let height = max(100, size.height)
-        ZStack(alignment: .topLeading) {
-            if let asset = event.artworkAsset {
-                GeometryReader { geometry in
-                    Image(asset).resizable().scaledToFit()
-                        .frame(width: geometry.size.width * (event.body == "Saturn" ? 1.7 : 1.15))
-                        .rotationEffect(.degrees(event.body == "Saturn" ? -12 : 0))
-                        .position(x: geometry.size.width * 0.72, y: geometry.size.height * 0.44)
-                        .blendMode(.screen)
-                }.accessibilityHidden(true).allowsHitTesting(false)
-            }
-            VStack(alignment: .leading, spacing: 1) {
-                Text(event.title).font(.system(size: titleSize * (compact ? 0.84 : 1), weight: .bold))
-                    .fixedSize(horizontal: false, vertical: true)
-                Text("\(event.direction) · \(Int(event.elevation.rounded()))°")
-                    .font(.system(size: subtitleSize * (compact ? 0.9 : 1), weight: .medium)).foregroundStyle(.white.opacity(0.76))
-                Spacer(minLength: compact ? 34 : 60)
-                NavigationLink(value: event.id) {
-                    Text(event.kind == "iss" ? "View path" : "Find it").frame(maxWidth: .infinity)
-                }.buttonStyle(WatchPrimaryStyle()).accessibilityIdentifier("findIt")
-            }
-        }.frame(minHeight: textSize.isAccessibilitySize ? height * 1.25 : height, alignment: .top)
-            .clipped()
+        let height = max(100, size.height * (textSize.isAccessibilitySize ? 1 : 0.65))
+        NavigationLink(value: event.id) {
+            ZStack(alignment: .topLeading) {
+                if let asset = event.artworkAsset {
+                    GeometryReader { geometry in
+                        Image(asset).resizable().scaledToFit()
+                            .frame(width: geometry.size.width * (event.body == "Saturn" ? 1.7 : 1.05),
+                                   height: event.body == "Saturn" ? nil : geometry.size.height * 0.8)
+                            .rotationEffect(.degrees(event.body == "Saturn" ? -12 : 0))
+                            .position(x: geometry.size.width * 0.72,
+                                      y: geometry.size.height * (event.body == "Saturn" ? 0.67 : 0.56))
+                            .blendMode(.screen)
+                    }.accessibilityHidden(true).allowsHitTesting(false)
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(event.title).font(.system(size: titleSize * (compact ? 0.84 : 1), weight: .bold))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("\(event.direction) · \(Int(event.elevation.rounded()))°")
+                        .font(.system(size: subtitleSize * (compact ? 0.9 : 1), weight: .medium)).foregroundStyle(.white.opacity(0.76))
+                    Spacer(minLength: compact ? 34 : 60)
+                }
+            }.frame(minHeight: height, alignment: .top)
+                .clipped()
+                .contentShape(Rectangle())
+        }.buttonStyle(.plain)
+            .accessibilityLabel("\(event.title), \(event.direction), \(Int(event.elevation.rounded())) degrees")
+            .accessibilityHint(event.kind == "iss" ? "Opens the ISS path" : "Opens guidance to find this object")
+            .accessibilityIdentifier("findIt")
     }
 }
 

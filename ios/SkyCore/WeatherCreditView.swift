@@ -7,13 +7,24 @@ struct WeatherCreditView: View {
     var credit: WeatherCredit
     var compact = false
     var body: some View {
+        #if os(watchOS)
+        // watchOS cannot open this provider's legal webpage. Keep its mark as
+        // a small credit; the paired iPhone retains the working sources link.
+        mark.accessibilityElement(children: .ignore)
+            .accessibilityLabel("Apple Weather. Data sources available in the iPhone app.")
+            .accessibilityIdentifier("appleWeatherCredit")
+        #else
         Link(destination: credit.legalURL) {
-            if let image = UIImage(data: colorScheme == .dark ? credit.darkMark : credit.lightMark) {
-                Image(uiImage: image).resizable().scaledToFit()
-                    .frame(width: compact ? 47 : 88, height: compact ? 12 : 22)
-            }
+            mark
         }.accessibilityElement(children: .ignore)
             .accessibilityLabel("Apple Weather data sources and legal attribution")
             .accessibilityIdentifier("appleWeatherCredit")
+        #endif
+    }
+    @ViewBuilder private var mark: some View {
+        if let image = UIImage(data: colorScheme == .dark ? credit.darkMark : credit.lightMark) {
+            Image(uiImage: image).resizable().scaledToFit()
+                .frame(width: compact ? 47 : 88, height: compact ? 12 : 22)
+        }
     }
 }

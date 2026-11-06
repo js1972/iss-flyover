@@ -1,7 +1,7 @@
 # Apple Watch companion release
 
 Native SwiftUI companion, watchOS 11 or later, bundled with the existing iOS 18+
-app. Version 1.0 build 15. Design reference: `Artwork/Watch-approved-reference.png`
+app. Version 1.0 build 22. Design reference: `Artwork/Watch-approved-reference.png`
 (the exact Tonight / Next ISS / Active pass mock supplied on 3 November). The watch UI has two horizontal pages; Crown
 scrolling reveals secondary content. The full chart and place editing stay on iPhone.
 
@@ -20,7 +20,8 @@ scrolling reveals secondary content. The full chart and place editing stay on iP
   families; Next to Observe provides a dedicated Smart Stack rectangular widget.
 - Durable reminder requests from watch, iPhone acknowledgements, set/cancel on phone,
   and OS notification mirroring. iPhone is the sole scheduling owner.
-- Explicit Handoff to the iPhone event preview; URL links also open watch details.
+- Complication URL links open watch details. Event previews stay on the Watch;
+  the redundant Continue on iPhone control was removed in build 22.
 - Cached forecasts, separate no-pass/missing-orbit/expired/setup states, accessibility
   labels, scalable text and reduced-motion support. Live clocks pause when dimmed or
   inactive and refresh immediately on return.
@@ -50,8 +51,8 @@ opportunistic; Always On and background operation do not promise second-by-secon
 tracking or haptic timing. A stale orbital epoch invalidates ISS guidance independently
 of the rest of the forecast. Forecasts remain specific to the named observing place.
 
-`Continue on iPhone` publishes an NSUserActivity with event/location/time. Users
-accept the system Handoff suggestion; it does not force an app to the foreground.
+Reminder setup can publish a settings Handoff suggestion for the paired iPhone;
+event previews no longer publish a Handoff activity or offer a Continue button.
 Reminders requested on watch remain pending until iPhone confirms. Notification
 permission can be enabled in iPhone Settings → Apple Watch → Enable observing reminders. The app
 does not schedule a second local notification on watch.
@@ -89,7 +90,8 @@ devices. Debug-only `--watch-preview` provides clearly labelled sample data;
 
 ## Physical-device and distribution gates
 
-Commit and push simulator-verified source before installing on a real device.
+Install verified working changes when requested. Commit and push only when the
+user explicitly asks; installation does not imply permission to commit.
 
 - Verify initial and background transfer with the phone locked, asleep and disconnected;
   reconnect, change/delete places, disable weather and clear saved data.
@@ -102,7 +104,7 @@ Commit and push simulator-verified source before installing on a real device.
 - Check 40 mm readability, largest text, VoiceOver, Reduce Motion and Always On.
 - Measure sustained active-pass battery use and compare with a baseline; verify sensor
   activity stops after leaving guidance or lowering the wrist.
-- Check Handoff from both preview and live event states on the paired iPhone.
+- Check reminder-setup Handoff on the paired iPhone.
 - Validate signed Release archive and nested watch/widget provisioning, then prepare
   App Store watch screenshots, TestFlight notes and reviewer installation instructions.
   Upload/distribution and public release remain separate from simulator verification.
@@ -252,3 +254,108 @@ comparison history, fresh screenshots and verification limits.
 Installed the signed Release from pushed source `59fef3c` on the iPhone 16 Pro Max
 and paired Apple Watch. Both apps launched successfully and both device inventories
 confirm version 1.0, build 15. Existing bundle identities and app data were preserved.
+
+### Complication artwork update — build 16, 6 November 2026
+
+Tonight and event complications reuse the bundled planet, ISS and full-Moon
+artwork. Circular slots include the target name and local viewing time (or “Now”
+for an active ISS pass); rectangular slots retain a compact numeric ISS countdown.
+Corner slots use the artwork with their existing curved title/time label. Inline
+slots retain text and a system symbol. The dedicated Moon complication keeps its
+phase symbol and illumination rather than showing a full Moon at every phase.
+Accented rendering requests luminance-based artwork so surface detail survives
+tinting; expired circular forecasts explicitly say “Refresh”.
+
+The watch app and extension build for watchOS Simulator. Temporary 40 mm simulator
+galleries exercise the actual view layout with all five planet assets, ISS, full
+Moon, Moon phase, missing data, no highlights and expired data. These are app-hosted
+layout previews, not installed watch-face complications; system tinting, corner
+labels, VoiceOver and real refresh/tap behaviour still require watch-face checks.
+Installed and launched development-signed Release version 1.0 (16) on the iPhone
+16 Pro Max and paired Apple Watch on 6 November 2026. Both device inventories
+independently confirm build 16. All four bundle signatures, permanent identifiers,
+team, App Groups and device provisioning eligibility were verified. The update
+preserves existing installations and data. Source is uncommitted working changes,
+as explicitly requested; no commit, push or distribution release was performed.
+The on-watch appearance of the complications remains for the user's review.
+
+
+### Artwork, home spacing and Moon lighting — build 20, 6 November 2026
+
+- Physical feedback after build 16 revealed stale star layouts and then blank
+  artwork. Downsampling into small CGImages and using a simpler image rendering
+  path restored actual watch-face images in build 18; a physical screenshot and
+  the user's confirmation establish that result. App-hosted previews alone had
+  not exposed the failure. App launch/manual refresh now requests fresh timelines.
+- The selected first mock, `Artwork/Watch-complications/selected-portrait-fill.png`,
+  is the visual target for circular and Smart Stack complications. Real bundled
+  artwork fills the background, with native subject/time/place labels over a baked
+  contrast fade. Circular bitmaps are 100 × 100 and rectangular bitmaps 336 × 144;
+  full source photos are not serialized into the complication's view archive.
+- The home hero opens guidance when tapped. The redundant Find it button is gone,
+  native page dots remain visible, and compact hero/footer spacing brings time and
+  place above the dots on 40 mm. Build 19's spacing reached the phone but its Watch
+  installation disconnected; build 20 includes the same spacing correction.
+- Watch weather attribution is a small noninteractive mark; the unsupported Watch
+  link is removed. The iPhone retains its existing attribution link.
+- Moon symbols explicitly use opaque dark gray for the shadow layer and white for
+  the illuminated layer. A translucent shadow exposed the white layer underneath
+  during visual QA and was replaced with opaque gray. Southern observing places
+  rotate the schematic by 180 degrees. All eight phases were inspected, including
+  dark new Moon, bright full Moon and opposite quarter phases.
+- The affected Tonight/guidance/paging and Moon/places/largest-text UI tests pass
+  on the dedicated 40 mm simulator. The final Moon component was additionally
+  tested on the real Moon page after the palette correction. Current screenshots
+  and the normalized selected-design comparison are in `Artwork/Watch-complications`.
+  These galleries validate layout, not the watchOS widget host or system tinting.
+- Release build 20 succeeds. Phone, phone widget, Watch and Watch widget signatures,
+  unchanged team/IDs/App Groups and paired-device provisioning are verified.
+  Both installations and launches succeeded; independent phone and Watch
+  inventories confirm build 20. The physical Watch home screenshot confirms
+  the corrected spacing. A later physical watch-face screenshot confirms the
+  enlarged, desaturated Saturn artwork renders in the system circular complication;
+  the user requested the smaller crop and larger label recorded below. The Smart
+  Stack appearance still awaits physical confirmation.
+- No website changes, commits, pushes or distribution uploads.
+
+
+### Circular label and crop refinement — build 21, 6 November 2026
+
+Following the physical build-20 screenshot, reduced Saturn's circular image scale
+from 3.0 to 2.65 (about 12%) and increased event labels from 9 to 12 points. Circular
+event complications show only their subject name; tapping retains the existing
+event-details URL. The dedicated Moon phase complication keeps its illumination
+percentage. Smart Stack, corner and inline layouts retain their prior content.
+
+The isolated native simulator gallery confirms the revised circle and retained
+Smart Stack layout. Release build 21 passes, with all four signatures, permanent
+identities, App Groups and paired-device provisioning verified. No additional
+navigation tests were needed for the image scale/label-only change; the existing
+link is unchanged. Installed on both paired devices; independent phone and Watch
+inventories confirm version 1.0, build 21. Launching the Watch app refreshed its
+timelines. `Artwork/Watch-complications/watch-face-device-build21.png` confirms
+the smaller Saturn image, larger label and removed time in the physical circular
+complication. Smart Stack hardware appearance remains unverified; its layout was
+unchanged by this refinement. No commits or pushes were made.
+
+
+### Ring visibility and preview simplification — build 22, 6 November 2026
+
+The physical build-21 crop still hid most of Saturn's rings. Its circular image now
+fits the ring outline across the slot (source-photo scale 1.45) and sits slightly
+lower within the circular boundary. The larger name-only label remains. Other
+subjects and Smart Stack layout are unchanged. The simulator render in
+`Artwork/Watch-complications/portrait-fill-build22-simulator.png` shows the rings.
+
+Removed Continue on iPhone, its explanatory message and event Handoff state/activity
+from WatchEventView. Reminder setup's separate phone settings flow remains. The
+existing navigation/scrolling stress test uses the reminder control as its footer
+anchor instead of the removed button. Signed Release build 22 and all four bundles'
+identities, signatures, App Groups and paired-device eligibility are verified.
+The affected UI test passes all eight cycles of paging, preview scrolling, return
+navigation and foreground resume while forecast updates arrive (117.7 seconds).
+The footer capture confirms Remind me remains without Continue on iPhone. Both
+paired devices now independently report build 22. The Watch installation succeeded
+after reconnecting, and the app launched to refresh its complications. The user
+confirmed the on-watch appearance looks great and approved the completed work,
+then explicitly requested one combined commit and push of all changes.

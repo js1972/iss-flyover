@@ -17,6 +17,7 @@ final class WatchFlowTests: XCTestCase {
     @MainActor func testTonightOpensObjectGuidanceAndReturns() {
         let app = launch()
         XCTAssertTrue(app.buttons["findIt"].waitForExistence(timeout: 15))
+        XCTAssertFalse(app.staticTexts["Find it"].exists, "The artwork itself opens guidance; no separate Find it button")
         assertPrimaryActionFits(app.buttons["findIt"], in: app)
         capture(app, "Watch Tonight")
         app.buttons["findIt"].tap()
@@ -47,12 +48,9 @@ final class WatchFlowTests: XCTestCase {
         let app = launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
         let find = app.buttons["findIt"]
         XCTAssertTrue(find.waitForExistence(timeout: 15))
-        // A full-screen flick can skip the action entirely at accessibility sizes.
-        for _ in 0..<12 where !find.isHittable || find.frame.maxY > app.frame.maxY - 8 {
-            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
-                .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45)), withVelocity: .slow, thenHoldForDuration: 0.5)
-        }
-        assertPrimaryActionFits(find, in: app)
+        // At large text sizes the entire target area may extend below the fold,
+        // but its visible artwork/title must still be tappable without scrolling.
+        XCTAssertTrue(find.isHittable)
         capture(app, "Watch largest text")
         find.tap()
         XCTAssertTrue(app.staticTexts["observationState"].waitForExistence(timeout: 5))
@@ -94,9 +92,11 @@ final class WatchFlowTests: XCTestCase {
             app.buttons["viewPath"].tap()
             XCTAssertTrue(app.staticTexts["issElevation"].waitForExistence(timeout: 4))
             app.swipeUp()
-            let handoff = app.buttons["continueOnPhone"]
-            for _ in 0..<3 where !handoff.isHittable { app.swipeUp() }
-            XCTAssertTrue(handoff.isHittable)
+            let reminder = app.buttons["watchReminder"]
+            for _ in 0..<3 where !reminder.isHittable { app.swipeUp() }
+            XCTAssertTrue(reminder.isHittable)
+            XCTAssertFalse(app.buttons["continueOnPhone"].exists)
+            if cycle == 0 { capture(app, "Watch preview footer") }
             app.buttons["watchBack"].firstMatch.tap()
             XCTAssertTrue(app.buttons["viewPath"].waitForExistence(timeout: 4))
             app.swipeRight()
